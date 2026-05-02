@@ -61,6 +61,20 @@ describe('DiskCache', () => {
     expect(cache2.get(SAMPLE.path)).toBeUndefined()
   })
 
+  it('recovers gracefully from corrupt JSON', async () => {
+    const cache = new DiskCache(tmpDir)
+    cache.set(SAMPLE)
+    await cache.save()
+
+    const { writeFile } = await import('node:fs/promises')
+    const cachePath = join(tmpDir, '.pi-cache', 'smart-context.json')
+    await writeFile(cachePath, '{ this is not valid json !!!', 'utf-8')
+
+    const cache2 = new DiskCache(tmpDir)
+    await cache2.load()
+    expect(cache2.get(SAMPLE.path)).toBeUndefined()
+  })
+
   it('deletes entries', async () => {
     const cache = new DiskCache(tmpDir)
     cache.set(SAMPLE)
