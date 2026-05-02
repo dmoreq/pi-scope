@@ -19,13 +19,13 @@ export interface SmartContextConfig {
   exclude: string[]
 }
 
-export const DEFAULT_CONFIG: SmartContextConfig = {
+export const DEFAULT_CONFIG = {
   enabled: true,
   maxRepoMapTokens: 4000,
   maxInjectionTokens: 8000,
   scanLastNMessages: 10,
   exclude: ['**/node_modules/**', '**/.git/**', '**/.pi-cache/**', '**/dist/**'],
-}
+} as const satisfies SmartContextConfig
 
 export interface CacheFile {
   version: number
