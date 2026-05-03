@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { IndexEngine } from '../../src/indexer/engine.js'
-import { produceDefaults } from '../../src/config/schema.js'
+import { IndexEngine } from '../../indexer/engine.js'
+import { produceDefaults } from '../../config/schema.js'
 
 const DEFAULT_CONFIG = produceDefaults()
 
@@ -50,7 +50,6 @@ export function add(a: number, b: number): number {
     const fooPath = join(tmpDir, 'src/foo.ts')
     const barPath = join(tmpDir, 'src/bar.ts')
     expect(index.deps.get(fooPath)?.has(barPath)).toBe(true)
-    expect(index.reverseDeps.get(barPath)?.has(fooPath)).toBe(true)
   })
 
   it('ignores node_modules', async () => {

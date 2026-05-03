@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
-import { ContextInjector } from '../../src/injectors/dep-context.js'
-import type { RepoIndex } from '../../src/types.js'
+import { ContextInjector } from '../../injectors/dep-context.js'
+import type { RepoIndex } from '../../types.js'
 
 const ROOT = '/project'
 const FOO = join(ROOT, 'src/foo.ts')
@@ -18,11 +18,6 @@ function makeIndex(overrides: Partial<RepoIndex> = {}): RepoIndex {
     deps: new Map([
       [FOO, new Set([BAR])],
       [BAR, new Set()],
-      [BAZ, new Set()],
-    ]),
-    reverseDeps: new Map([
-      [BAR, new Set([FOO])],
-      [FOO, new Set()],
       [BAZ, new Set()],
     ]),
     ...overrides,

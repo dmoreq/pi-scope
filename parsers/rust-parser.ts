@@ -3,7 +3,7 @@ import Parser from 'tree-sitter'
 import Rust from 'tree-sitter-rust'
 import type { SyntaxNode } from 'tree-sitter'
 import type { LanguageParser } from './language-parser.js'
-import type { FileIndex } from '../types.js'
+import type { FileIndex } from '../shared/types.js'
 
 const parser = new Parser()
 // @ts-ignore — grammar's Language type has `unknown` internals incompatible with tree-sitter's declared type

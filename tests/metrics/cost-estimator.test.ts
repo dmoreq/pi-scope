@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCostEstimate } from '../../src/metrics/cost-estimator.js'
+import { buildCostEstimate } from '../../metrics/cost-estimator.js'
 
 describe('buildCostEstimate', () => {
   it('computes correct savings ratio', () => {

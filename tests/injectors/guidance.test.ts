@@ -6,7 +6,7 @@ import {
   loadProviderGuidance,
   formatProviderGuidanceSection,
   buildGuidanceNotification,
-} from '../../src/injectors/guidance.js'
+} from '../../injectors/guidance.js'
 
 let tmpDir: string
 

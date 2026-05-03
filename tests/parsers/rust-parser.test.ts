@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { RustParser } from '../../src/parsers/rust-parser.js'
+import { RustParser } from '../../parsers/rust-parser.js'
 
 const parser = new RustParser()
 

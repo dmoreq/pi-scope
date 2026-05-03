@@ -4,7 +4,7 @@ import Parser from 'tree-sitter'
 import Python from 'tree-sitter-python'
 import type { SyntaxNode } from 'tree-sitter'
 import type { LanguageParser } from './language-parser.js'
-import type { FileIndex } from '../types.js'
+import type { FileIndex } from '../shared/types.js'
 
 const parser = new Parser()
 // @ts-ignore

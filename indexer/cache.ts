@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
-import type { FileIndex, CacheFile } from '../types.js'
-import { CACHE_VERSION } from '../types.js'
+import type { FileIndex, CacheFile } from '../shared/types.js'
+import { CACHE_VERSION } from '../shared/types.js'
 
 export class DiskCache {
   private readonly cachePath: string
@@ -16,13 +16,17 @@ export class DiskCache {
       const raw = await readFile(this.cachePath, 'utf-8')
       const data: CacheFile = JSON.parse(raw)
       if (data.version !== CACHE_VERSION) {
+        console.log(`[slim/cache] Cache version mismatch (expected ${CACHE_VERSION}, got ${data.version}), starting fresh`)
         this.entries = new Map()
         return
       }
       this.entries = new Map(Object.entries(data.entries))
+      console.log(`[slim/cache] Loaded ${this.entries.size} entries from ${this.cachePath}`)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        console.error('[DiskCache] Failed to load cache, starting fresh:', err)
+        console.error('[slim/cache] Failed to load cache, starting fresh:', err)
+      } else {
+        console.log('[slim/cache] No existing cache found, starting fresh')
       }
       this.entries = new Map()
     }
@@ -34,6 +38,7 @@ export class DiskCache {
       version: CACHE_VERSION,
       entries: Object.fromEntries(this.entries),
     }
+    console.log(`[slim/cache] Persisting ${this.entries.size} entries to ${this.cachePath}`)
     const tmp = this.cachePath + '.tmp'
     try {
       await writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8')

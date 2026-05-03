@@ -19,7 +19,7 @@
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { slimDir } from '../paths.js'
+import { slimDir } from '../shared/paths.js'
 
 export type StateValue = string | number | boolean | null | StateValue[] | { [key: string]: StateValue }
 
@@ -40,7 +40,9 @@ export async function readState<T extends Record<string, StateValue> = Record<st
 ): Promise<T | null> {
   try {
     const raw = await readFile(statePath(projectRoot), 'utf-8')
-    return JSON.parse(raw) as T
+    const parsed = JSON.parse(raw) as T
+    console.log(`[slim/state] Loaded state from ${statePath(projectRoot)}`)
+    return parsed
   } catch {
     return null
   }
@@ -56,6 +58,7 @@ export async function writeState<T extends Record<string, StateValue> = Record<s
   try {
     await mkdir(stateDir(projectRoot), { recursive: true })
     await writeFile(statePath(projectRoot), JSON.stringify(state, null, 2), 'utf-8')
+    console.log(`[slim/state] Persisted state to ${statePath(projectRoot)}`)
   } catch (err) {
     console.error('[slim/state] Failed to write state:', err)
   }

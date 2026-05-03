@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PythonParser } from '../../src/parsers/python-parser.js'
+import { PythonParser } from '../../parsers/python-parser.js'
 
 const parser = new PythonParser()
 

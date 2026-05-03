@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
-import { RepoMapGenerator } from '../../src/injectors/repo-map.js'
-import type { RepoIndex } from '../../src/types.js'
+import { RepoMapGenerator } from '../../injectors/repo-map.js'
+import type { RepoIndex } from '../../types.js'
 
 function makeIndex(files: Record<string, string>): RepoIndex {
   const skeletons = new Map(Object.entries(files))
   return {
     skeletons,
     deps: new Map(),
-    reverseDeps: new Map(),
   }
 }
 

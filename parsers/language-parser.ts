@@ -1,4 +1,4 @@
-import type { FileIndex } from '../types.js'
+import type { FileIndex } from '../shared/types.js'
 
 export interface LanguageParser {
   readonly extensions: string[]

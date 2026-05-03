@@ -8,7 +8,7 @@ import {
   updateStatusBar,
   clearStatusBar,
   type StatusBarState,
-} from '../../src/ui/notifications.js'
+} from '../../ui/notifications.js'
 
 describe('message formatting', () => {
   it('info adds prefix', () => {

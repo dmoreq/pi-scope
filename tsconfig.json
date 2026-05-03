@@ -4,12 +4,12 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "strict": true,
     "declaration": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
+  "include": ["*.ts", "shared/**/*", "config/**/*", "detect/**/*", "indexer/**/*", "injectors/**/*", "metrics/**/*", "parsers/**/*", "persistence/**/*", "ui/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }

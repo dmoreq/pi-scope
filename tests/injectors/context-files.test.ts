@@ -7,7 +7,7 @@ import {
   formatContextSection,
   formatDisplayPath,
   buildStartupNotification,
-} from '../../src/injectors/context-files.js'
+} from '../../injectors/context-files.js'
 
 let tmpDir: string
 

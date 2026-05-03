@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { loadConfig } from '../../src/config/loader.js'
-import { SlimConfigSchema } from '../../src/config/schema.js'
+import { loadConfig } from '../../config/loader.js'
+import { SlimConfigSchema } from '../../config/schema.js'
 
 let tmpDir: string
 

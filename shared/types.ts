@@ -8,7 +8,6 @@ export interface FileIndex {
 export interface RepoIndex {
   skeletons: Map<string, string>
   deps: Map<string, Set<string>>
-  reverseDeps: Map<string, Set<string>>
 }
 
 export interface SlimConfig {

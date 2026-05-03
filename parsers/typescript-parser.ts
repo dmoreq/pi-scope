@@ -4,7 +4,7 @@ import Parser from 'tree-sitter'
 import TypeScript from 'tree-sitter-typescript'
 import type { SyntaxNode } from 'tree-sitter'
 import type { LanguageParser } from './language-parser.js'
-import type { FileIndex } from '../types.js'
+import type { FileIndex } from '../shared/types.js'
 
 const BODY_TYPES = new Set([
   'statement_block',

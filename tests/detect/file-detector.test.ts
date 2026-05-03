@@ -7,7 +7,7 @@ import {
   detectPathsInToolCall,
   detectPathsInOutput,
   detectPathsInMessage,
-} from '../../src/detect/file-detector.js'
+} from '../../detect/file-detector.js'
 
 let tmpDir: string
 

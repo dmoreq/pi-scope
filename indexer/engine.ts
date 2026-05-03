@@ -13,7 +13,7 @@ import { TypeScriptParser } from '../parsers/typescript-parser.js'
 import { PythonParser } from '../parsers/python-parser.js'
 import { RustParser } from '../parsers/rust-parser.js'
 import type { LanguageParser } from '../parsers/language-parser.js'
-import type { FileIndex, RepoIndex, SlimConfig } from '../types.js'
+import type { FileIndex, RepoIndex, SlimConfig } from '../shared/types.js'
 
 const DEFAULT_IGNORES = ['node_modules', '.git', '.pi-cache', 'dist', 'build']
 
@@ -101,7 +101,6 @@ export class IndexEngine {
   private repoIndex: RepoIndex = {
     skeletons: new Map(),
     deps: new Map(),
-    reverseDeps: new Map(),
   }
 
   constructor(projectRoot: string, config: SlimConfig) {
@@ -150,12 +149,10 @@ export class IndexEngine {
   private buildGraph(files: FileIndex[]): RepoIndex {
     const skeletons = new Map<string, string>()
     const deps = new Map<string, Set<string>>()
-    const reverseDeps = new Map<string, Set<string>>()
 
     for (const f of files) {
       skeletons.set(f.path, f.skeleton)
       deps.set(f.path, new Set())
-      reverseDeps.set(f.path, new Set())
     }
 
     for (const f of files) {
@@ -164,12 +161,11 @@ export class IndexEngine {
         const resolved = resolveImport(raw, f.path, ext)
         if (resolved && skeletons.has(resolved)) {
           deps.get(f.path)!.add(resolved)
-          reverseDeps.get(resolved)!.add(f.path)
         }
       }
     }
 
-    return { skeletons, deps, reverseDeps }
+    return { skeletons, deps }
   }
 
   getRepoIndex(): RepoIndex {

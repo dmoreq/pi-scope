@@ -4,16 +4,21 @@
  *
  * Layout:
  *   .pi/slim/
- *     repo-map.txt   — the <repo-map>…</repo-map> string
- *     index.json     — serialised skeletons + dep graph + metadata
+ *     repo-map.txt      — the <repo-map>…</repo-map> string
+ *     index.json.gz     — gzip-compressed skeletons + dep graph + metadata
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { gzip, gunzip } from 'node:zlib'
+import { promisify } from 'node:util'
 import { join } from 'node:path'
-import { slimDir } from '../paths.js'
-import type { RepoIndex } from '../types.js'
+import { slimDir } from '../shared/paths.js'
+import type { RepoIndex } from '../shared/types.js'
 
-const STORE_VERSION = 1
+const gzipAsync = promisify(gzip)
+const gunzipAsync = promisify(gunzip)
+
+const STORE_VERSION = 2
 
 interface StoredIndex {
   version: number
@@ -22,7 +27,6 @@ interface StoredIndex {
   fileCount: number
   skeletons: Record<string, string>
   deps: Record<string, string[]>
-  reverseDeps: Record<string, string[]>
 }
 
 function storeDir(projectRoot: string): string {
@@ -30,7 +34,7 @@ function storeDir(projectRoot: string): string {
 }
 
 function indexPath(projectRoot: string): string {
-  return join(storeDir(projectRoot), 'index.json')
+  return join(storeDir(projectRoot), 'index.json.gz')
 }
 
 function mapPath(projectRoot: string): string {
@@ -48,7 +52,7 @@ export async function storeExists(projectRoot: string): Promise<boolean> {
   }
 }
 
-/** Serialize and write RepoIndex + repo map to .pi/slim/. */
+/** Serialize, gzip-compress, and write RepoIndex + repo map to .pi/slim/. */
 export async function saveStore(
   projectRoot: string,
   index: RepoIndex,
@@ -62,9 +66,6 @@ export async function saveStore(
   const deps: Record<string, string[]> = {}
   for (const [k, v] of index.deps) deps[k] = [...v]
 
-  const reverseDeps: Record<string, string[]> = {}
-  for (const [k, v] of index.reverseDeps) reverseDeps[k] = [...v]
-
   const stored: StoredIndex = {
     version: STORE_VERSION,
     builtAt: new Date().toISOString(),
@@ -72,25 +73,31 @@ export async function saveStore(
     fileCount: index.skeletons.size,
     skeletons,
     deps,
-    reverseDeps,
   }
 
+  const json = JSON.stringify(stored)
+  const rawSize = Buffer.byteLength(json, 'utf-8')
+  const compressed = await gzipAsync(json)
+  console.log(`[slim/store] Persisting index → ${indexPath(projectRoot)} (${rawSize} → ${compressed.length} bytes, ${Math.round((1 - compressed.length / rawSize) * 100)}% compressed)`)
+
   await Promise.all([
-    writeFile(indexPath(projectRoot), JSON.stringify(stored, null, 2), 'utf-8'),
+    writeFile(indexPath(projectRoot), compressed),
     writeFile(mapPath(projectRoot), repoMap, 'utf-8'),
   ])
 }
 
-/** Load and deserialize RepoIndex + repo map from .pi/slim/. */
+/** Load, gunzip-decompress, and deserialize RepoIndex + repo map from .pi/slim/. */
 export async function loadStore(
   projectRoot: string,
 ): Promise<{ index: RepoIndex; repoMap: string; builtAt: string; fileCount: number }> {
-  const [rawIndex, repoMap] = await Promise.all([
-    readFile(indexPath(projectRoot), 'utf-8'),
+  const [compressed, repoMap] = await Promise.all([
+    readFile(indexPath(projectRoot)),
     readFile(mapPath(projectRoot), 'utf-8'),
   ])
 
-  const stored: StoredIndex = JSON.parse(rawIndex)
+  console.log(`[slim/store] Loading index from ${indexPath(projectRoot)} (${compressed.length} bytes compressed)`)
+  const raw = await gunzipAsync(compressed)
+  const stored: StoredIndex = JSON.parse(raw.toString('utf-8'))
 
   if (stored.version !== STORE_VERSION) {
     throw new Error(`Store version mismatch: expected ${STORE_VERSION}, got ${stored.version}`)
@@ -100,12 +107,11 @@ export async function loadStore(
   const deps = new Map<string, Set<string>>(
     Object.entries(stored.deps).map(([k, v]) => [k, new Set(v)]),
   )
-  const reverseDeps = new Map<string, Set<string>>(
-    Object.entries(stored.reverseDeps).map(([k, v]) => [k, new Set(v)]),
-  )
+
+  console.log(`[slim/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes`)
 
   return {
-    index: { skeletons, deps, reverseDeps },
+    index: { skeletons, deps },
     repoMap,
     builtAt: stored.builtAt,
     fileCount: stored.fileCount,

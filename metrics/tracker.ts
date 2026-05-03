@@ -7,7 +7,7 @@
 
 import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { slimDir } from '../paths.js'
+import { slimDir } from '../shared/paths.js'
 import { writeState } from '../persistence/runtime-state.js'
 
 // ── Stored record ────────────────────────────────────────────────────────

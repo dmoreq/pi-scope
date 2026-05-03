@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TypeScriptParser } from '../../src/parsers/typescript-parser.js'
+import { TypeScriptParser } from '../../parsers/typescript-parser.js'
 
 const parser = new TypeScriptParser()
 

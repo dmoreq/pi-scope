@@ -23,8 +23,7 @@
 │                                                   ▼             │
 │                                          ┌──────────────────┐   │
 │                                          │   RepoIndex      │   │
-│                                          │ {skeletons, deps, │   │
-│                                          │  reverseDeps}    │   │
+│                                          │ {skeletons, deps}│   │
 │                                          └────────┬─────────┘   │
 │                                                   │             │
 │                          ┌──────────────┐          │             │
@@ -144,10 +143,10 @@ Sources register with a numeric priority. Lower = higher priority (injected firs
 ## Storage Layout
 
 ```
-.pid/slim/
-├── index.json       # Serialized RepoIndex (skeletons + dep graph)
+.pi/slim/
+├── index.json.gz    # Gzip-compressed RepoIndex (skeletons + dep graph)
 ├── repo-map.txt     # Generated repo-map string
 ├── state.json       # Latest session state (for cross-session /slim)
 ├── stats.jsonl      # Historical session records (one JSON line per session)
-└── slim.jsonc  # Project-local config (optional)
+└── slim.jsonc       # Project-local config (optional)
 ```

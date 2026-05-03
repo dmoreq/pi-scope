@@ -6,7 +6,7 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { estimateTokens } from '../utils/token.js'
+import { estimateTokens } from '../shared/token.js'
 
 export interface CostEstimate {
   /** Tokens used for skeleton content. */
