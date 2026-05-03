@@ -12,9 +12,9 @@
 ## Quick Start
 
 ```bash
-pi install pi-slim
-# Or from source:
-pi install /path/to/pi-slim
+pi install git:github.com/dmoreq/pi-slim
+# Or:
+pi install https://github.com/dmoreq/pi-slim
 ```
 
 Restart pi. The first session in each project will index your source files (takes ~1-2 seconds for 1,000 files). Subsequent sessions load from cache instantly.

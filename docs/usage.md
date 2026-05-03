@@ -5,7 +5,9 @@
 ### Via pi CLI
 
 ```bash
-pi install @pi/slim
+pi install git:github.com/dmoreq/pi-slim
+# Or:
+pi install https://github.com/dmoreq/pi-slim
 ```
 
 ### Via settings.json
@@ -16,15 +18,6 @@ Add to `~/.pi/agent/settings.json`:
 {
   "packages": ["@pi/slim"]
 }
-```
-
-### From source
-
-```bash
-git clone https://github.com/dmoreq/pi-slim.git
-cd pi-slim
-npm install && npm run build
-pi install ./path/to/pi-slim
 ```
 
 ## First Run
