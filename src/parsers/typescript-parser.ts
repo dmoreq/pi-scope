@@ -71,7 +71,9 @@ export class TypeScriptParser implements LanguageParser {
   private readonly tsxParser = new Parser()
 
   constructor() {
+    // @ts-ignore — grammar's Language type has `unknown` internals incompatible with tree-sitter's declared type
     this.tsParser.setLanguage(TypeScript.typescript)
+    // @ts-ignore
     this.tsxParser.setLanguage(TypeScript.tsx)
   }
 

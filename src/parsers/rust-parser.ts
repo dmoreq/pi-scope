@@ -5,8 +5,8 @@ import type { SyntaxNode } from 'tree-sitter'
 import type { LanguageParser } from './language-parser.js'
 import type { FileIndex } from '../types.js'
 
-// @ts-ignore — tree-sitter-rust has no bundled .d.ts
 const parser = new Parser()
+// @ts-ignore — grammar's Language type has `unknown` internals incompatible with tree-sitter's declared type
 parser.setLanguage(Rust)
 
 const BLOCK_TYPES = new Set(['block', 'declaration_list', 'field_declaration_list', 'enum_variant_list'])

@@ -2,7 +2,12 @@ import { readFile, readdir } from 'node:fs/promises'
 import { join, extname, dirname, resolve, relative } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import ignore from 'ignore'
+import { createRequire } from 'node:module'
+
+// CJS `export = fn` doesn't unwrap under NodeNext + esModuleInterop; use createRequire instead
+const _require = createRequire(import.meta.url)
+type IgnoreInstance = { add(p: string | string[]): IgnoreInstance; ignores(p: string): boolean }
+const ignore: () => IgnoreInstance = _require('ignore')
 import { DiskCache } from './disk-cache.js'
 import { TypeScriptParser } from './parsers/typescript-parser.js'
 import { PythonParser } from './parsers/python-parser.js'
@@ -23,10 +28,10 @@ function buildIgnore(projectRoot: string, extraExcludes: string[] = []) {
   return ig
 }
 
-async function* walkDir(dir: string, root: string, ig: ReturnType<typeof ignore>): AsyncGenerator<string> {
-  let entries: Awaited<ReturnType<typeof readdir>>
+async function* walkDir(dir: string, root: string, ig: IgnoreInstance): AsyncGenerator<string> {
+  let entries: { name: string; isDirectory(): boolean; isFile(): boolean }[]
   try {
-    entries = await readdir(dir, { withFileTypes: true })
+    entries = (await readdir(dir, { withFileTypes: true })) as unknown as { name: string; isDirectory(): boolean; isFile(): boolean }[]
   } catch (err) {
     console.warn(`[IndexEngine] Cannot read directory ${dir}:`, err)
     return

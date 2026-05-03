@@ -31,8 +31,8 @@ export class ContextInjector {
     this.scanLastN = scanLastN
   }
 
-  buildInjection(index: RepoIndex, messages: Message[]): string {
-    const inFocus = this.detectInFocusFiles(index, messages)
+  buildInjection(index: RepoIndex, messages: Message[], extraPaths?: Set<string>): string {
+    const inFocus = this.detectInFocusFiles(index, messages, extraPaths)
     if (inFocus.size === 0) return ''
 
     const sections: string[] = []
@@ -77,10 +77,15 @@ export class ContextInjector {
     return `<dep-context>\n${body}\n</dep-context>`
   }
 
-  private detectInFocusFiles(index: RepoIndex, messages: Message[]): Set<string> {
+  private detectInFocusFiles(
+    index: RepoIndex,
+    messages: Message[],
+    extraPaths?: Set<string>,
+  ): Set<string> {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()
 
+    // ── Scan message text ──────────────────────────────────────────────
     for (const msg of recent) {
       const text = textContent(msg)
       for (const match of text.matchAll(FILE_PATH_RE)) {
@@ -88,6 +93,14 @@ export class ContextInjector {
       }
     }
 
+    // ── Merge extra paths from tool calls/output ───────────────────────
+    if (extraPaths) {
+      for (const p of extraPaths) {
+        mentioned.add(p)
+      }
+    }
+
+    // ── Match against indexed files ────────────────────────────────────
     const inFocus = new Set<string>()
     for (const absPath of index.skeletons.keys()) {
       const rel = relative(this.projectRoot, absPath)
