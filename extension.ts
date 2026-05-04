@@ -10,6 +10,8 @@ import type { ExtensionAPI, ExtensionContext as PiExtensionContext, ContextEvent
 import telemetry from 'pi-telemetry'
 import { getTelemetry } from 'pi-telemetry'
 import { produceDefaults } from './config/schema.js'
+import { registerHashlineTool } from './tools/hashline-editor.js'
+import { initHash } from './hashline/line-hash.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
 
 // Re-export ExtensionContext type for other modules (lifecycle.ts, plugins, etc.)
