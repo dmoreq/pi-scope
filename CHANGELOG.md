@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.0] - 2026-05-04
+
+### Removed (Dead Code Cleanup)
+- **Deleted `core/context-monitor.ts`** — unused. SessionManager tracks everything inline.
+- **Deleted `automation/`** (4 files: auto-compactor, auto-recapper, automation-manager, triggers) — all dead code, never wired into production.
+- **Deleted `metrics/metrics-collector.ts`** — never instantiated.
+- **Deleted `shared/lifecycle.ts`** — consolidated the only-used `ensureRegistered()` pattern into `manager.ts`. Removed 200+ lines of unused hooks/helpers.
+- **Deleted 9 planning documents** — merge/planning docs from context-intel adoption (all phases complete): `00_START_HERE.md`, `EXECUTIVE_SUMMARY.txt`, `CODE_PATTERNS.md`, `IMPLEMENTATION_ROADMAP.md`, `INTEGRATION_SUMMARY.md`, `MERGE_PLAN.md`, `QUICK_START.md`, `README_MERGE.md`, `docs/hashline-extension-plan.md`, `docs/adopt-lsp-navigation-plan.md`.
+- **Deleted 6 orphaned test files** — tests for deleted modules.
+
+### Changed
+- Consolidated `shared/types.ts` — removed duplicate `SessionStats` interface (now imported from metrics/tracker only).
+- Cleaned `package.json` `files` field — removed deleted directories.
+- Cleaned `tsconfig.json` — removed deleted directory references.
+
+### Code Metrics
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Production LOC | ~8,434 | ~6,743 | **−1,691 (−20%)** |
+| Source files | 48 | 36 | **−12** |
+| Test files | 33 | 25 | **−6** |
+| Tests | 419 | 300 | **−29** (tests of deleted modules) |
+| Stale docs | 136KB | 0KB | **−136KB** |
+| Dead code | ~1,097 lines | 0 | **−100%** |
+
 ## [0.3.0] - 2026-05-04
 
 ### Added

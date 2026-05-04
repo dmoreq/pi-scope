@@ -1,10 +1,6 @@
 /**
  * SessionManager — owns all session lifecycle logic for pi-slim.
  *
- * Extends ExtensionLifecycle for SRP compliance:
- * - extension.ts → lifecycle wiring only (< 100 lines)
- * - manager.ts   → all business logic
- *
  * Uses PluginManager for OCP compliance:
  * - Built-in plugins: ContextPruningPlugin, ReadAwarenessPlugin
  * - Custom plugins: register via pluginManager.register()
@@ -32,7 +28,6 @@ import { detectPathsInToolCall, detectPathsInOutput } from './detect/file-detect
 import { info as nInfo, warn as nWarn, error as nError, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
 import { loadConfig } from './config/loader.js'
 import { estimateFileSavings, buildCostEstimate } from './metrics/cost-estimator.js'
-import { ExtensionLifecycle } from './shared/lifecycle.js'
 import { PluginManager } from './shared/plugin-manager.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
 import { ReadAwarenessPlugin } from './plugins/read-awareness.js'
@@ -84,7 +79,22 @@ export interface SessionState {
 
 // ── Manager ───────────────────────────────────────────────────────────────
 
-export class SessionManager extends ExtensionLifecycle {
+let _telemetryRegistered = false;
+function _ensureTelemetry(): void {
+  if (_telemetryRegistered) return;
+  _telemetryRegistered = true;
+  try {
+    getTelemetry()?.register({
+      name: "pi-slim",
+      version: "0.3.0",
+      description: "AST-powered context + pruning + automation for pi",
+      tools: ["repo-map", "dep-context", "context-files", "provider-guidance", "pruning"],
+      events: ["session_start", "before_agent_start", "context", "session_shutdown"],
+    });
+  } catch {}
+}
+
+export class SessionManager {
   readonly name = 'pi-slim'
   readonly version = '0.2.0'
   protected readonly description = 'AST-powered context + pruning + automation for pi'
@@ -97,7 +107,6 @@ export class SessionManager extends ExtensionLifecycle {
   readonly pluginManager = new PluginManager()
 
   constructor() {
-    super()
     // Register built-in plugins
     this.pluginManager.register(new ContextPruningPlugin())
     this.pluginManager.register(new ReadAwarenessPlugin())
@@ -106,7 +115,7 @@ export class SessionManager extends ExtensionLifecycle {
   // ── Session start ─────────────────────────────────────────────────────
 
   async start(projectRoot: string, getFlag: (name: string) => unknown, ctx: ExtensionContext): Promise<void> {
-    this.ensureRegistered()
+    _ensureTelemetry()
     const sessionId = ctx.sessionManager.getSessionId()
     const flags: Record<string, unknown> = {
       'slim.enabled': getFlag('slim.enabled'),
