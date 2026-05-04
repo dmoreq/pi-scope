@@ -9,8 +9,9 @@
     "declaration": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true
   },
-  "include": ["*.ts", "shared/**/*", "config/**/*", "detect/**/*", "indexer/**/*", "injectors/**/*", "metrics/**/*", "parsers/**/*", "persistence/**/*", "ui/**/*"],
+  "include": ["*.ts", "shared/**/*", "config/**/*", "core/**/*", "detect/**/*", "indexer/**/*", "injectors/**/*", "metrics/**/*", "parsers/**/*", "persistence/**/*", "plugins/**/*", "automation/**/*", "ui/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }

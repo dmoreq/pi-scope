@@ -12,6 +12,9 @@ import { getTelemetry } from 'pi-telemetry'
 import { produceDefaults } from './config/schema.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
 
+// Re-export ExtensionContext type for other modules (lifecycle.ts, plugins, etc.)
+export type { ExtensionContext }
+
 // ── Flag definitions (static) ─────────────────────────────────────────────
 
 const FLAGS: Array<{ name: string; description: string }> = [

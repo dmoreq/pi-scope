@@ -1,13 +1,17 @@
 {
   "name": "pi-slim",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "AST-powered context injection, pruning, and automation for pi — reduces token waste, removes redundant messages, and triggers smart suggestions automatically",
   "type": "module",
   "main": "./dist/extension.js",
   "types": "./dist/extension.d.ts",
+  "keywords": ["pi", "pi-coding-agent", "ast", "context", "pruning", "automation", "telemetry", "tree-sitter", "skeleton"],
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "debug": "tsx bin/debug.ts"
   },
   "dependencies": {
@@ -31,5 +35,25 @@
     "@types/node": "^20.0.0",
     "typescript": "^5.7.3",
     "vitest": "^2.0.0"
-  }
+  },
+  "files": [
+    "dist/",
+    "shared/",
+    "core/",
+    "plugins/",
+    "automation/",
+    "config/",
+    "detect/",
+    "indexer/",
+    "injectors/",
+    "metrics/",
+    "parsers/",
+    "persistence/",
+    "ui/",
+    "extension.ts",
+    "manager.ts",
+    "skills/",
+    "README.md",
+    "LICENSE"
+  ]
 }

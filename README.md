@@ -3,12 +3,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/pi-slim)](https://www.npmjs.com/package/pi-slim)
 
-**AST-powered project context for [pi](https://github.com/mariozechner/pi-coding-agent).** Reduces token waste by injecting compact code skeletons (not full files) into every LLM call, with automatic import resolution and dependency awareness.
+**AST-powered project context for [pi](https://github.com/mariozechner/pi-coding-agent).** Reduces token waste by injecting compact code skeletons (not full files) into every LLM call, with automatic import resolution, dependency awareness, message pruning, and smart automation.
 
 - **~85-92% token reduction** per referenced file vs. full-file reads
 - **Zero-config** — auto-indexes on first session
 - **Dependency-aware** — mentions `foo.ts` and gets its imports too
 - **Multi-language** — TypeScript, Python, Rust (extensible)
+- **Automatic pruning** — removes duplicate/obsolete messages before LLM context
+- **Smart triggers** — suggests `/recap`, `/compact`, and handoff prep automatically
+- **Plugin system** — extend with custom plugins without editing core
+- **Full telemetry** — session tracking, injection monitoring, cost attribution
 
 ---
 
@@ -17,6 +21,9 @@
 - [Installation](#installation)
 - [How It Works](#how-it-works)
 - [Injection Layers](#injection-layers)
+- [Context Pruning](#context-pruning)
+- [Automation Triggers](#automation-triggers)
+- [Plugin System](#plugin-system)
 - [Configuration](#configuration)
 - [Commands](#commands)
 - [Supported Languages](#supported-languages)
@@ -57,6 +64,124 @@ The pipeline injects up to four layers per turn, ordered by priority and trimmed
 | `<dep-context>` | Every turn | Skeleton signatures for mentioned files + 1st-degree imports |
 | `<context-files>` | Once | AGENTS.local.md, CLAUDE.local.md (if present) |
 | `<provider-guidance>` | Once | Provider-specific CLAUDE.md / CODEX.md / GEMINI.md |
+
+### Per-turn: message pruning
+
+Before building dependency context, pi-slim automatically prunes redundant messages:
+
+| Rule | What it removes |
+|------|----------------|
+| **Deduplication** | Identical consecutive user/assistant messages |
+| **Superseded Writes** | Old file writes superseded by newer writes to the same file |
+| **Error Purging** | Error tool results followed by successful results |
+
+---
+
+## Context Pruning
+
+pi-slim automatically prunes the message array before each LLM call, removing redundant or obsolete content to maximize token efficiency.
+
+### How it works
+
+1. **OnContext hook** fires before every LLM context construction
+2. **Pruning rules** run in order: deduplication → superseded writes → error purging
+3. **Messages modified in-place** — the context array is trimmed before the LLM sees it
+4. **Stats tracked** — total pruned/pruned percentage shown in session summary
+
+### Pruning Rules
+
+**Deduplication:** Removes identical consecutive user or assistant messages. Tool messages (tool_call, tool_result) are preserved even with identical content, as they carry structured data that shouldn't be deduplicated.
+
+**Superseded Writes:** When a file is written multiple times, only the latest write is kept. Older writes to the same file path are removed, as they've been superseded by newer content.
+
+**Error Purging:** When a tool returns an error (`"isError": true` or `"status": "error"`) and a subsequent tool result for the same operation succeeds, the error message is removed. Unresolved errors are preserved.
+
+### Disable Pruning
+
+```bash
+# Via CLI flag
+pi --slim.plugins.pruning=false
+
+# Via config file .pi/slim.jsonc
+{ "plugins": ["read-awareness"] }
+```
+
+---
+
+## Automation Triggers
+
+pi-slim includes four built-in automation triggers that monitor session activity and suggest helpful actions.
+
+| Trigger | Condition | Suggestion | Cooldown |
+|---------|-----------|------------|----------|
+| **recap-hint** | >20 messages AND last recap >10 min ago | Suggest `/recap` | 5 min |
+| **context-warning** | Context window >80% full | Suggest `/compact` | 2 min |
+| **file-tracking** | >10 files modified | Suggest handoff prep | 10 min |
+| **high-activity** | >50 tool calls | Suggest auto-recap | 5 min |
+
+Suggestions are delivered as styled notifications in the session TUI. The automation system respects cooldowns to avoid spamming the user.
+
+### Disable Automation
+
+```bash
+# Disable all automation
+pi --slim.automation.enabled=false
+
+# Via config
+{ "automation": { "enabled": false } }
+```
+
+---
+
+## Plugin System
+
+pi-slim now includes an extensible plugin system (OCP-compliant). Built-in plugins are registered automatically.
+
+### Built-in Plugins
+
+| Plugin | Purpose |
+|--------|---------|
+| **ContextPruningPlugin** | Removes duplicate/obsolete messages before LLM context |
+| **ReadAwarenessPlugin** | Prevents edits to files that haven't been read first |
+
+### Writing a Custom Plugin
+
+```typescript
+import type { Plugin, PluginToolCallResult } from 'pi-slim';
+import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
+
+class MyAnalyticsPlugin implements Plugin {
+  readonly name = 'my-analytics';
+
+  async onSessionStart(ctx: ExtensionContext): Promise<void> {
+    console.log('Session started');
+  }
+
+  async onTurnEnd(ctx: ExtensionContext): Promise<void> {
+    console.log('Turn completed');
+  }
+
+  async onToolCall(event, ctx): Promise<PluginToolCallResult | undefined> {
+    // Intercept tool calls
+    return { allowed: true };
+  }
+}
+
+// Register with SessionManager
+manager.pluginManager.register(new MyAnalyticsPlugin());
+```
+
+### Available Plugin Hooks
+
+| Hook | When it fires | Purpose |
+|------|--------------|---------|
+| `onSessionStart` | New session | Initialize state |
+| `onBeforeAgentStart` | Before LLM call | Modify system prompt |
+| `onContext` | Context construction | Prune/augment messages |
+| `onTurnEnd` | After each turn | Post-turn automation |
+| `onAgentEnd` | After agent output | Post-agent processing |
+| `onToolCall` | Every tool invocation | Intercept/block tools |
+| `onSessionShutdown` | Session end | Persist state, cleanup |
 
 ---
 
@@ -164,6 +289,7 @@ Example output:
   Dep-context      : 12x, ~2,400t total
   Token savings    : ~18,000t (88% vs full reads)
   Unique files seen: 45
+  Messages pruned  : 23 (12% of total)
 ─────────────────────────────────────────
 ```
 
@@ -187,6 +313,7 @@ To add a language: implement the `LanguageParser` interface — see [CONTRIBUTIN
 - **Cache load:** < 50ms from `.pi/slim/index.json.gz`
 - **Disk size:** Gzip-compressed index is ~84% smaller than raw JSON
 - **Token savings:** Skeletons are 8-15% of full file size — 85-92% saved per referenced file
+- **Pruning overhead:** < 5ms per turn for message pruning
 
 ### Tuning
 
@@ -219,12 +346,15 @@ npm run test:watch       # watch mode
 pi-slim/
 ├── extension.ts              # Extension entry point (lifecycle wiring)
 ├── manager.ts                # Session lifecycle and orchestration
-├── shared/                   # Shared utilities (types, paths, token, message)
+├── shared/                   # Shared utilities (types, lifecycle, plugin, telemetry)
+├── core/                     # Core components (context monitoring)
+├── plugins/                  # Plugin implementations (pruning, read-awareness)
+├── automation/               # Automation triggers and actions
 ├── config/                   # Config schema and loader
 ├── indexer/                  # Index engine, disk cache, persistent store
 ├── injectors/                # Context injection pipeline and sources
 ├── detect/                   # File path detection from messages/tools
-├── metrics/                  # Token tracking and cost estimation
+├── metrics/                  # Token tracking, cost estimation, metrics collection
 ├── parsers/                  # Language-specific AST parsers
 ├── persistence/              # Runtime state file I/O
 ├── ui/                       # TUI notification formatting
@@ -237,7 +367,7 @@ pi-slim/
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code style, and how to add a language parser or injection source.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code style, and how to add a language parser, injection source, or plugin.
 
 ---
 

@@ -1,9 +1,16 @@
 /**
  * SessionManager — owns all session lifecycle logic for pi-slim.
  *
- * Extracted from extension.ts to satisfy SRP:
+ * Extends ExtensionLifecycle for SRP compliance:
  * - extension.ts → lifecycle wiring only (< 100 lines)
  * - manager.ts   → all business logic
+ *
+ * Uses PluginManager for OCP compliance:
+ * - Built-in plugins: ContextPruningPlugin, ReadAwarenessPlugin
+ * - Custom plugins: register via pluginManager.register()
+ *
+ * Uses telemetry-helpers for DRY compliance:
+ * - Consolidated telemetry recording replaces inline getTelemetry() calls
  */
 
 import { relative } from 'node:path'
@@ -25,6 +32,11 @@ import { detectPathsInToolCall, detectPathsInOutput } from './detect/file-detect
 import { info as nInfo, warn as nWarn, error as nError, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
 import { loadConfig } from './config/loader.js'
 import { estimateFileSavings, buildCostEstimate } from './metrics/cost-estimator.js'
+import { ExtensionLifecycle } from './shared/lifecycle.js'
+import { PluginManager } from './shared/plugin-manager.js'
+import { ContextPruningPlugin } from './plugins/context-pruning.js'
+import { ReadAwarenessPlugin } from './plugins/read-awareness.js'
+import { recordInjection, recordSessionError, recordHeartbeat } from './shared/telemetry-helpers.js'
 
 // ── Types (mirroring pi extension API surface) ────────────────────────────
 
@@ -54,60 +66,6 @@ export interface ContextEvent {
   messages: AgentMessage[]
 }
 
-// ── Injection handler registry (OCP-compliant) ───────────────────────────
-
-interface InjectionHandler {
-  onInject: (state: SessionState, entry: { tokens: number }, ctx: ExtensionContext) => void
-  onTrimmed: (state: SessionState, entry: { tokens: number; name: string }, ctx: ExtensionContext) => void
-}
-
-/**
- * OCP-compliant injection handler registry.
- * To add a new injection source, register its handler here and create
- * the pipeline source in `handleBeforeAgentStart()`. No switch statements.
- */
-const INJECTION_HANDLERS: Record<string, InjectionHandler> = {
-  'repo-map': {
-    onInject: (s, e) => {
-      s.repoMapInjected = true
-      s.stats.recordRepoMapInjection(e.tokens)
-      getTelemetry()?.recordToolInvocation('pi-slim', 'repo-map')
-      getTelemetry()?.recordToolResult('pi-slim', 'repo-map', 0, false)
-    },
-    onTrimmed: () => {},
-  },
-  'provider-guidance': {
-    onInject: (s, e, ctx) => {
-      if (s.providerGuidanceFiles.length > 0) {
-        s.providerGuidanceInjected = true
-        s.stats.recordProviderGuidanceInjection(e.tokens, s.providerGuidanceFiles.length)
-        ctx.ui.notify(
-          nInfo(buildGuidanceNotification(s.providerGuidanceFiles, s.projectRoot)),
-          'info',
-        )
-        getTelemetry()?.recordToolInvocation('pi-slim', 'provider-guidance')
-        getTelemetry()?.recordToolResult('pi-slim', 'provider-guidance', 0, false)
-      }
-    },
-    onTrimmed: (s, e, ctx) => {
-      ctx.ui.notify(nWarn(`${e.name} trimmed (${e.tokens} tokens > budget)`), 'warn')
-      getTelemetry()?.recordError('pi-slim', 'trimmed', `${e.name} trimmed (${e.tokens} tokens > budget)`)
-    },
-  },
-  'context-files': {
-    onInject: (s, e) => {
-      s.contextFilesInjected = true
-      s.stats.recordContextFilesInjection(e.tokens, s.contextFiles.length)
-      getTelemetry()?.recordToolInvocation('pi-slim', 'context-files')
-      getTelemetry()?.recordToolResult('pi-slim', 'context-files', 0, false)
-    },
-    onTrimmed: (s, e, ctx) => {
-      ctx.ui.notify(nWarn(`${e.name} trimmed (${e.tokens} tokens > budget)`), 'warn')
-      getTelemetry()?.recordError('pi-slim', 'trimmed', `${e.name} trimmed (${e.tokens} tokens > budget)`)
-    },
-  },
-}
-
 // ── Session state ─────────────────────────────────────────────────────────
 
 export interface SessionState {
@@ -126,12 +84,29 @@ export interface SessionState {
 
 // ── Manager ───────────────────────────────────────────────────────────────
 
-export class SessionManager {
+export class SessionManager extends ExtensionLifecycle {
+  readonly name = 'pi-slim'
+  readonly version = '0.2.0'
+  protected readonly description = 'AST-powered context + pruning + automation for pi'
+  protected readonly tools = ['repo-map', 'dep-context', 'context-files', 'provider-guidance', 'pruning']
+  protected readonly events = ['session_start', 'before_agent_start', 'context', 'session_shutdown']
+
   state: SessionState | null = null
+
+  /** Plugin manager for registering built-in and custom plugins. */
+  readonly pluginManager = new PluginManager()
+
+  constructor() {
+    super()
+    // Register built-in plugins
+    this.pluginManager.register(new ContextPruningPlugin())
+    this.pluginManager.register(new ReadAwarenessPlugin())
+  }
 
   // ── Session start ─────────────────────────────────────────────────────
 
   async start(projectRoot: string, getFlag: (name: string) => unknown, ctx: ExtensionContext): Promise<void> {
+    this.ensureRegistered()
     const sessionId = ctx.sessionManager.getSessionId()
     const flags: Record<string, unknown> = {
       'slim.enabled': getFlag('slim.enabled'),
@@ -147,19 +122,12 @@ export class SessionManager {
     const stats = new SessionStats(sessionId)
     const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
 
-    // Register pi-slim package with telemetry
-    const t = getTelemetry()
-    t?.register({
-      name: 'pi-slim',
-      version: '0.1.0',
-      description: 'AST-powered slim context injection for pi',
-      tools: ['repo-map', 'dep-context', 'context-files', 'provider-guidance'],
-      events: ['session_start', 'before_agent_start', 'context', 'session_shutdown'],
-    })
+    // Run plugin session start hooks
+    await this.pluginManager.runHook('onSessionStart', ctx)
 
     // Try loading from cache
     if (await storeExists(projectRoot)) {
-      ctx.ui.notify(nInfo('loading index from .pi/slim/…'), 'info')
+      ctx.ui.notify(nInfo('loading index from .pi/slim/\u2026'), 'info')
       try {
         const { index, repoMap, builtAt, fileCount } = await loadStore(projectRoot)
         stats.indexSource = 'cache'
@@ -168,16 +136,16 @@ export class SessionManager {
         ctx.ui.notify(nSuccess(`${fileCount} files loaded (built ${new Date(builtAt).toLocaleDateString()})`), 'info')
         this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot })
         this.updateStatusBar(ctx)
-        t?.heartbeat('pi-slim', { status: 'healthy' })
+        recordHeartbeat('healthy')
         return
       } catch (err) {
-        t?.recordError('pi-slim', 'cache_corrupt', `Store corrupted: ${String(err)}`)
-        ctx.ui.notify(nWarn(`store corrupted, rebuilding… (${String(err)})`), 'warn')
+        recordSessionError('cache_corrupt', `Store corrupted: ${String(err)}`)
+        ctx.ui.notify(nWarn(`store corrupted, rebuilding\u2026 (${String(err)})`), 'warn')
       }
     }
 
     // Fresh build
-    ctx.ui.notify(nInfo('first run — indexing project (this takes a few seconds)…'), 'info')
+    ctx.ui.notify(nInfo('first run \u2014 indexing project (this takes a few seconds)\u2026'), 'info')
     try {
       const engine = new IndexEngine(projectRoot, config)
       await engine.build()
@@ -189,8 +157,8 @@ export class SessionManager {
       stats.indexSource = 'fresh'
       stats.indexedFiles = index.skeletons.size
       stats.depEdges = edgeCount
-      t?.heartbeat('pi-slim', { status: 'healthy' })
-      ctx.ui.notify(nSuccess(`indexed ${index.skeletons.size} files, ${edgeCount} edges → .pi/slim/`), 'info')
+      recordHeartbeat('healthy')
+      ctx.ui.notify(nSuccess(`indexed ${index.skeletons.size} files, ${edgeCount} edges \u2192 .pi/slim/`), 'info')
 
       const contextFiles = config.contextFiles.enabled
         ? loadContextFiles(projectRoot, { filenames: config.contextFiles.filenames })
@@ -202,8 +170,8 @@ export class SessionManager {
       this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot, contextFiles })
       this.updateStatusBar(ctx)
     } catch (err) {
-      t?.recordError('pi-slim', 'index_failed', `Indexing failed: ${String(err)}`)
-      t?.heartbeat('pi-slim', { status: 'error', error: `Indexing failed: ${String(err)}` })
+      recordSessionError('index_failed', `Indexing failed: ${String(err)}`)
+      recordHeartbeat('error', `Indexing failed: ${String(err)}`)
       ctx.ui.notify(nError(`indexing failed: ${String(err)}`), 'error')
       this.state = null
     }
@@ -268,14 +236,25 @@ export class SessionManager {
     const result = pipeline.build(combinedBudget)
     if (!result.content) return undefined
 
-    // Dispatch to OCP-compliant handler registry (state guaranteed non-null here)
+    // Dispatch injection telemetry (replaces INJECTION_HANDLERS)
     for (const entry of result.sources) {
-      const handler = INJECTION_HANDLERS[entry.name]
-      if (!handler) continue
-      if (entry.injected) {
-        handler.onInject(s, entry, ctx)
+      const tokens = entry.tokens
+      if (entry.name === 'repo-map' && entry.injected) {
+        s.repoMapInjected = true
+        s.stats.recordRepoMapInjection(tokens)
+        recordInjection('repo-map', tokens)
+      } else if (entry.name === 'provider-guidance' && entry.injected && s.providerGuidanceFiles.length > 0) {
+        s.providerGuidanceInjected = true
+        s.stats.recordProviderGuidanceInjection(tokens, s.providerGuidanceFiles.length)
+        ctx.ui.notify(nInfo(buildGuidanceNotification(s.providerGuidanceFiles, s.projectRoot)), 'info')
+        recordInjection('provider-guidance', tokens)
+      } else if (entry.name === 'context-files' && entry.injected) {
+        s.contextFilesInjected = true
+        s.stats.recordContextFilesInjection(tokens, s.contextFiles.length)
+        recordInjection('context-files', tokens)
       } else if (entry.trimmed) {
-        handler.onTrimmed(s, entry, ctx)
+        ctx.ui.notify(nWarn(`${entry.name} trimmed (${tokens} tokens > budget)`), 'warn')
+        getTelemetry()?.recordError('pi-slim', 'trimmed', `${entry.name} trimmed (${tokens} tokens > budget)`)
       }
     }
 
@@ -288,6 +267,9 @@ export class SessionManager {
   handleContext(event: ContextEvent, ctx: ExtensionContext): { messages: AgentMessage[] } | undefined {
     const s = this.state
     if (!s) return undefined
+
+    // Run context plugins (pruning, etc.) BEFORE building dep-context
+    void this.pluginManager.runHook('onContext', event.messages)
 
     // Early-exit: skip scanning if no file-like patterns in recent messages
     const recentMessages = event.messages.slice(-s.config.scanLastNMessages)
@@ -325,7 +307,7 @@ export class SessionManager {
     const tokens = estimateTokens(depContext)
     const files = extractInjectedFilePaths(depContext)
 
-    // Estimate cost savings: sum full-file estimates for injected files
+    // Estimate cost savings
     let fullTokens = 0
     for (const f of files) {
       const skel = s.index.skeletons.get(f)
@@ -336,9 +318,8 @@ export class SessionManager {
     }
     s.stats.recordDepContextInjection(files, tokens, fullTokens)
 
-    // Record telemetry for dep-context injection
-    getTelemetry()?.recordToolInvocation('pi-slim', 'dep-context')
-    getTelemetry()?.recordToolResult('pi-slim', 'dep-context', 0, false)
+    // Record telemetry via consolidated helper
+    recordInjection('dep-context', tokens, files)
 
     this.updateStatusBar(ctx)
 
@@ -353,9 +334,12 @@ export class SessionManager {
   // ── Session shutdown ─────────────────────────────────────────────────
 
   async shutdown(ctx: ExtensionContext): Promise<void> {
+    // Run plugin shutdown hooks
+    await this.pluginManager.runHook('onSessionShutdown')
+
     const s = this.state
     if (!s) return
-    ctx.ui.notify(nInfo(`session summary — ${s.stats.summary()}`), 'info')
+    ctx.ui.notify(nInfo(`session summary \u2014 ${s.stats.summary()}`), 'info')
     if (ctx.hasUI) clearStatusBar(ctx.ui.setStatus)
     s.stats.persist(s.projectRoot).catch(() => {})
     this.state = null
@@ -369,13 +353,12 @@ export class SessionManager {
       ctx.ui.notify(s.stats.report(), 'info')
       return
     }
-    // Show last session from state.json
     try {
       const state = await readState(ctx.cwd)
       if (state?.lastSession) {
         const ls = state.lastSession as Record<string, unknown>
         ctx.ui.notify([
-          '── slim last session stats ─────────────────────────',
+          '\u2014\u2014 slim last session stats \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014',
           `  Session ID      : ${ls.sessionId ?? 'unknown'}`,
           `  Index source    : ${ls.indexSource ?? 'unknown'}`,
           `  Files indexed   : ${ls.indexedFiles ?? 0}`,
@@ -387,7 +370,7 @@ export class SessionManager {
           ls.totalTokensSaved
             ? `  Token savings   : ~${ls.totalTokensSaved}t (${Math.round(Number(ls.savingsRatio ?? 0) * 100)}% vs full reads)`
             : '',
-          '─────────────────────────────────────────────────────',
+          '\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014',
         ].join('\n'), 'info')
       } else {
         ctx.ui.notify(nInfo('no session data found'), 'info')
