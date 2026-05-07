@@ -5,7 +5,7 @@
  * Registers hashline_edit tool, LSP navigation tools, and /hashline-read command.
  */
 
-import type { ExtensionAPI, ExtensionContext as PiExtensionContext, ContextEvent, BeforeAgentStartEvent } from '@mariozechner/pi-coding-agent'
+import type { ExtensionAPI, ExtensionContext as PiExtensionContext, ContextEvent, BeforeAgentStartEvent, ToolCallEvent, ToolCallEventResult } from '@mariozechner/pi-coding-agent'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import telemetry from 'pi-telemetry'
@@ -94,6 +94,13 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   pi.on('context', ((event: ContextEvent, ctx: PiExtensionContext) => {
     return manager.handleContext(
       event as unknown as Parameters<SessionManager['handleContext']>[0],
+      ctx as unknown as ExtensionContext,
+    )
+  }) as AnyFn)
+
+  pi.on('tool_call', ((event: ToolCallEvent, ctx: PiExtensionContext): ToolCallEventResult | undefined => {
+    return manager.handleToolCall(
+      { toolName: event.toolName, input: event.input },
       ctx as unknown as ExtensionContext,
     )
   }) as AnyFn)
