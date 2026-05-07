@@ -149,7 +149,7 @@ Messages pruned before every LLM call. Notifications visible via pi-telemetry (`
 | `⚠ repo-map trimmed (5000 tokens > budget)` | Budget exceeded |
 | `✂️ Pruned 5/30 messages (17%)` | Messages pruned |
 
-### On Demand: `/slim`
+### On Demand: `/scope`
 ```
 ── pi-scope session stats ─────────────────
   Dep-context      : 12x, ~2,400t total
@@ -192,7 +192,7 @@ Messages pruned before every LLM call. Notifications visible via pi-telemetry (`
 
 | Command | Description |
 |---------|-------------|
-| `/slim` | Show injection stats for current or last session |
+| `/scope` | Show injection stats for current or last session |
 | `/hashline-read <file>` | Read a file with hash anchors |
 
 **Tools registered for LLM use:**

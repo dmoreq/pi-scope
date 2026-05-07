@@ -119,7 +119,7 @@ score(file) = 3 × symbolMatch(query, file.exports) + 2 × filenameMatch(query, 
 ```
 .pi/slim/
 ├── index.json.gz     # Gzip-compressed RepoIndex (skeletons + deps + symbolIndex + reverseDeps)
-├── state.json        # Latest session state (for /slim across sessions)
+├── state.json        # Latest session state (for /scope across sessions)
 ├── stats.jsonl       # Historical session records (one JSON line per session)
 └── slim.jsonc        # Project-local config (optional)
 ```

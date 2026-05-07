@@ -50,8 +50,8 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
 
   const manager = new SessionManager()
 
-  pi.registerCommand('slim', {
-    description: 'Show slim stats for the current or last session',
+  pi.registerCommand('scope', {
+    description: 'Show pi-scope stats for the current or last session',
     handler: async (_args: string, _ctx: PiExtensionContext) => {
       await manager.showStats(_ctx as unknown as ExtensionContext)
     },

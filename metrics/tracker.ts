@@ -110,7 +110,7 @@ export class SessionStats {
   }
 
   report(): string {
-    const lines: string[] = ['── slim session stats ───────────────────────────']
+    const lines: string[] = ['── pi-scope session stats ───────────────────────────']
     lines.push(`  Index source     : ${this.indexSource}`)
     lines.push(`  Files indexed    : ${this.indexedFiles}`)
     lines.push(`  Dep edges        : ${this.depEdges}`)

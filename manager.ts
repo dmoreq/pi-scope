@@ -381,7 +381,7 @@ export class SessionManager {
       if (state?.lastSession) {
         const ls = state.lastSession as Record<string, unknown>
         ctx.ui.notify([
-          '\u2014\u2014 slim last session stats \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014',
+          '\u2014\u2014 pi-scope last session stats \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014',
           `  Session ID      : ${ls.sessionId ?? 'unknown'}`,
           `  Index source    : ${ls.indexSource ?? 'unknown'}`,
           `  Files indexed   : ${ls.indexedFiles ?? 0}`,

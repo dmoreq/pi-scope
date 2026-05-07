@@ -5,7 +5,7 @@ description: Use when interpreting pi-scope stats, debugging injection issues, u
 
 # pi-scope Telemetry & Monitoring
 
-## The `/pi-scope` Command
+## The `/scope` Command
 
 Shows injection stats for the current session:
 
@@ -26,7 +26,7 @@ Shows injection stats for the current session:
 ─────────────────────────────────────────────────
 ```
 
-Cross-session stats available via `/pi-scope` when no current session exists — reads from `.pi/slim/state.json`.
+Cross-session stats available via `/scope` when no current session exists — reads from `.pi/slim/state.json`.
 
 ## Notification Types
 
@@ -74,7 +74,7 @@ All stored under `.pi/slim/`:
 |------|--------|---------|
 | `index.json.gz` | gzipped JSON | Versioned RepoIndex (skeletons, deps, metadata) |
 | `repo-map.txt` | Plain text | The `<repo-map>` XML block |
-| `state.json` | JSON | Last session state (for cross-session `/pi-scope`) |
+| `state.json` | JSON | Last session state (for cross-session `/scope`) |
 | `stats.jsonl` | JSON Lines | One record per session (append-only) |
 | `slim.jsonc` | JSONC | Project-local config (optional) |
 

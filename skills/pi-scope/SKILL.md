@@ -38,7 +38,7 @@ Three tools: `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`. Results
 
 | Command | Description |
 |---------|-------------|
-| `/pi-scope` | Show injection stats for current/last session |
+| `/scope` | Show injection stats for current/last session |
 | `/hashline-read <file>` | Read a file with hash anchors |
 
 ## Common Pitfalls

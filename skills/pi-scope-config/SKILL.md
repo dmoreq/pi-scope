@@ -116,7 +116,7 @@ Customize which files are loaded per provider/model:
 pi --slim.enabled=false
 
 # Check current stats
-/pi-scope
+/scope
 
 # Read a file with hash anchors
 /hashline-read src/auth.ts
