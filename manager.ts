@@ -185,7 +185,11 @@ export class SessionManager {
         graph,
       )
       return { insights, graph }
-    } catch {
+    } catch (error) {
+      console.warn(
+        'pi-scope: buildIntelligenceSnapshot primary path failed; retrying analysis without resolved graph:',
+        error,
+      )
       const graph = null
       const insights = this.intelligenceEngine.analyzeConversationContext(
         this.conversationMessages,
@@ -225,24 +229,15 @@ export class SessionManager {
         const loaded = await svc.loadGraphifyAnalysis()
         if (loaded != null) return loaded
       }
-    } catch {
-      /* fall through — use cached analysis */
+    } catch (error) {
+      console.warn(
+        'pi-scope: resolveGraphAnalysisForIntelligence (loadGraphifyAnalysis) failed; using cached analysis if any:',
+        error,
+      )
     }
     return this.graphService.analysis
   }
 
-  /**
-   * Compose actionable guidance plus smart dependency/tool recommendations.
-   */
-  private async buildEnhancedGuidanceLayers(): Promise<string> {
-    const { insights, graph } = await this.buildIntelligenceSnapshot()
-    const actionable = this.intelligenceEngine.generateActionableGuidance(insights, graph)
-    const smart = new SmartDependencyContextGenerator()
-    const depBlock = smart.generateEnhancedDependencyContext(insights, graph)
-    return [actionable, depBlock].filter((s) => s.trim().length > 0).join('\n\n')
-  }
-
-  // ── Session start ──────────────────────────────────────────────────
 
   /**
    * Minimal session bootstrap for integration tests / graph-mocked intelligence.
@@ -468,20 +463,20 @@ export class SessionManager {
     if (!s) return undefined
     if (s.repoMapInjected && s.contextFilesInjected && s.providerGuidanceInjected) return undefined
 
+    // Single snapshot: shared by smart repo map + actionable guidance (one graph resolve + analyze pass).
+    const snapshot = await this.buildIntelligenceSnapshot()
+
     const pipeline = new InjectionPipeline()
     const combinedBudget = s.config.maxRepoMapTokens + s.config.maxInjectionTokens
 
     if (!s.repoMapInjected && s.repoMap) {
-      const insights = this.intelligenceEngine.analyzeConversationContext(
-        this.conversationMessages,
-        this.graphService.analysis ?? null,
-      )
-      const graph = this.graphService.analysis ?? null
+      const graphForMap = snapshot.graph ?? this.graphService.analysis ?? null
+      const insights = snapshot.insights
       const baseMap = s.repoMap
       const produceRepoMap = () => {
-        if (graph && baseMap) {
+        if (graphForMap && baseMap) {
           const gen = new SmartRepositoryMapGenerator()
-          return gen.generatePrioritizedRepoMap(baseMap, insights, graph)
+          return gen.generatePrioritizedRepoMap(baseMap, insights, graphForMap)
         }
         return baseMap!
       }
@@ -544,11 +539,11 @@ export class SessionManager {
 
     let intelligenceSection = ''
     try {
-      const guidance = await this.generateIntelligentGuidance()
+      const guidance = this.intelligenceEngine.generateActionableGuidance(snapshot.insights, snapshot.graph)
       if (guidance.trim())
         intelligenceSection = `\n\n## Context intelligence\n\n${guidance}`
-    } catch {
-      /* best-effort */
+    } catch (error) {
+      console.warn('handleBeforeAgentStart: actionable guidance generation failed:', error)
     }
 
     // Dispatch injection telemetry
@@ -588,7 +583,9 @@ export class SessionManager {
   // ── Tool Call ──────────────────────────────────────────────────────
 
   handleToolCall(event: { toolName: string; input: Record<string, unknown> | undefined }, _ctx: ExtensionContext): { block?: boolean; reason?: string } | undefined {
-    this.pluginManager.runToolCall(event, _ctx).catch(() => {})
+    this.pluginManager.runToolCall(event, _ctx).catch((error) => {
+      console.warn('pi-scope: context plugin/tool-call hook failed:', error)
+    })
     return undefined
   }
 
@@ -600,7 +597,8 @@ export class SessionManager {
   ): Promise<{ messages: AgentMessage[]; content: string } | undefined> {
     try {
       this.syncConversationMessages(event.messages ?? [])
-    } catch {
+    } catch (error) {
+      console.warn('handleContext: failed to sync conversation messages:', error)
       /* preserve prior buffer when mapping fails */
     }
 
@@ -615,8 +613,16 @@ export class SessionManager {
 
     let enhancedBlock = ''
     try {
-      enhancedBlock = await this.buildEnhancedGuidanceLayers()
-    } catch {
+      const snapshot = await this.buildIntelligenceSnapshot()
+      const actionable = this.intelligenceEngine.generateActionableGuidance(
+        snapshot.insights,
+        snapshot.graph,
+      )
+      const smart = new SmartDependencyContextGenerator()
+      const depBlock = smart.generateEnhancedDependencyContext(snapshot.insights, snapshot.graph)
+      enhancedBlock = [actionable, depBlock].filter((s) => s.trim().length > 0).join('\n\n')
+    } catch (error) {
+      console.warn('handleContext: enhanced guidance generation failed:', error)
       /* steer best-effort */
     }
 
@@ -729,7 +735,9 @@ export class SessionManager {
     if (!s) return
     this.telemetry.onSessionShutdown()
     if (ctx.hasUI) clearStatusBar(ctx.ui.setStatus)
-    s.stats.persist(s.projectRoot).catch(() => {})
+    s.stats.persist(s.projectRoot).catch((error) => {
+      console.warn('pi-scope: session stats persistence failed:', error)
+    })
     this.state = null
   }
 

@@ -82,3 +82,112 @@ describe('Enhanced Context Intelligence Integration', () => {
     expect(response).toBeDefined()
   })
 })
+
+describe('Enhanced Context Intelligence Integration - Extended', () => {
+  let manager: SessionManager
+  let mockGraphService: any
+
+  beforeEach(async () => {
+    mockGraphService = {
+      analysis: {
+        godNodes: [
+          {
+            nodeId: 'Client', label: 'Client', inDegree: 26, outDegree: 5,
+            betweenness: 0, pageRank: 0.15, community: 'core', criticality: 'CRITICAL',
+          },
+        ],
+        communities: [
+          {
+            id: 'auth', label: 'Authentication', nodes: ['authenticate', 'User'],
+            size: 5, density: 0.8, cohesion: 0.9, internalDensity: 0.9, externalDensity: 0.1,
+            interfaceNodes: [], bottlenecks: [], metrics: { cohesion: 0.9 },
+          },
+        ],
+        surprises: [], bottlenecks: [], anomalies: [],
+        wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
+        metrics: {
+          totalNodes: 100, totalEdges: 200, godNodeCount: 1, communityCount: 1,
+          averageDegree: 4, maxDegree: 26, graphDensity: 0.02, avgClusteringCoeff: 0.3,
+          cycleCount: 2, bottleneckCount: 1,
+        },
+        computedAt: Date.now(),
+        version: '1.0.0',
+      },
+      loadGraphifyAnalysis: vi.fn().mockResolvedValue(null),
+      updateGraph: vi.fn().mockResolvedValue(undefined),
+    }
+
+    manager = new SessionManager()
+    manager['graphService'] = mockGraphService
+    await manager.start()
+  })
+
+  it('should inject a Context intelligence section on before_agent_start', async () => {
+    const s = manager.state!
+    s.repoMap = '<repo-map>\n<dir>.</dir>\n</repo-map>'
+    s.repoMapInjected = false
+    s.config.providerGuidance.enabled = false
+    manager.addMessages([{ role: 'user', content: 'edit the Client class constructor' }])
+
+    const evt = {
+      type: 'before_agent_start' as const,
+      systemPrompt: 'You are a coding assistant.',
+      prompt: 'hi',
+    }
+    const ctx = {
+      cwd: s.projectRoot,
+      ui: { notify: vi.fn(), setStatus: vi.fn() },
+      hasUI: false,
+      getSystemPrompt: () => '',
+      sessionManager: { getSessionId: () => 'ext-test' },
+    }
+
+    const result = await manager.handleBeforeAgentStart(evt, ctx)
+    expect(result?.systemPrompt).toContain('## Context intelligence')
+    expect(result?.systemPrompt).toContain('WORKFLOW OPTIMIZATION')
+  })
+
+  it('should handle graph resolver success vs failure — guidance still renders', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    try {
+      mockGraphService.loadGraphifyAnalysis.mockResolvedValueOnce(mockGraphService.analysis)
+      manager.addMessages([{ role: 'user', content: 'modify the Client class constructor' }])
+
+      const withGraph = await manager.generateIntelligentGuidance()
+      expect(withGraph).toContain('HIGH-IMPACT SYMBOLS')
+
+      mockGraphService.analysis = null
+      mockGraphService.loadGraphifyAnalysis.mockRejectedValueOnce(new Error('Load failed'))
+
+      const fallback = await manager.generateIntelligentGuidance()
+      expect(fallback).toContain('WORKFLOW OPTIMIZATION')
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('should analyze the conversation exactly once per before_agent_start', async () => {
+    const analyzeSpy = vi.spyOn(manager['intelligenceEngine'], 'analyzeConversationContext')
+
+    const s = manager.state!
+    s.repoMap = '<repo-map>\nstub\n</repo-map>'
+    s.repoMapInjected = false
+    s.config.providerGuidance.enabled = false
+    manager.addMessages([{ role: 'user', content: 'edit the Client class' }])
+
+    await manager.handleBeforeAgentStart(
+      { type: 'before_agent_start', systemPrompt: 'sys', prompt: 'go' },
+      {
+        cwd: s.projectRoot,
+        ui: { notify: vi.fn(), setStatus: vi.fn() },
+        hasUI: false,
+        getSystemPrompt: () => '',
+        sessionManager: { getSessionId: () => 'once' },
+      },
+    )
+
+    expect(analyzeSpy).toHaveBeenCalledTimes(1)
+    analyzeSpy.mockRestore()
+  })
+})

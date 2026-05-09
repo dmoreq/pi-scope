@@ -27,8 +27,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:intelligence": "vitest run tests/context/ tests/integration/enhanced-context.test.ts",
-    "test:intelligence:watch": "vitest watch tests/context/ tests/integration/enhanced-context.test.ts",
+    "test:intelligence": "vitest run tests/context/ tests/integration/enhanced-context.test.ts tests/integration/extension-shutdown.test.ts",
+    "test:intelligence:watch": "vitest watch tests/context/ tests/integration/enhanced-context.test.ts tests/integration/extension-shutdown.test.ts",
     "build:intelligence": "npm run build && npm run test:intelligence"
   },
   "dependencies": {
