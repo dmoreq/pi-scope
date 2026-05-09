@@ -12,6 +12,7 @@ import type {
   ContextInsights,
   ConversationContext,
   EditingContext,
+  NavigationContext,
   OptimizationSuggestion,
 } from '../shared/intelligence-types.js'
 
@@ -24,15 +25,34 @@ export class ContextIntelligenceEngine {
 
   /**
    * Analyze conversation history to extract insights about agent behavior.
+   *
+   * @param messages - Transcript slice to scan (typically recent turns).
+   * @param graphAnalysis - When provided and editing intent is detected,
+   *   {@link EditingContext.affectedGodNodes} is filled via
+   *   {@link detectAffectedGodNodes}. Omit or pass null when no graph is loaded;
+   *   the field stays empty and callers may compute it later.
    */
-  analyzeConversationContext(messages: AgentMessage[]): ContextInsights {
-    const editingIntent = this.patternDetector.detectEditingIntent(messages)
+  analyzeConversationContext(
+    messages: AgentMessage[],
+    graphAnalysis?: GraphifyAnalysis | null,
+  ): ContextInsights {
+    let editingIntent = this.patternDetector.detectEditingIntent(messages)
     const navigationRequests =
       this.patternDetector.detectNavigationRequests(messages)
     const suboptimalPatterns =
       this.patternDetector.detectSuboptimalToolUsage(messages)
 
     const conversationContext = this.analyzeConversationMeta(messages)
+
+    if (graphAnalysis && editingIntent.detected) {
+      editingIntent = {
+        ...editingIntent,
+        affectedGodNodes: this.detectAffectedGodNodes(
+          editingIntent,
+          graphAnalysis,
+        ),
+      }
+    }
 
     return {
       editingIntent,
@@ -59,6 +79,11 @@ export class ContextIntelligenceEngine {
     const sections: string[] = []
 
     sections.push(this.generateWorkflowGuidance(insights))
+
+    const optimizationBlock = this.formatOptimizationSuggestions(insights)
+    if (optimizationBlock) {
+      sections.push(optimizationBlock)
+    }
 
     if (insights.editingIntent.detected) {
       const affectedGodNodes = this.detectAffectedGodNodes(
@@ -94,31 +119,44 @@ export class ContextIntelligenceEngine {
   ): string[] {
     if (!editingContext.detected) return []
 
-    const godNodeIds = new Set(
-      graphAnalysis.godNodes.map((gn) => gn.nodeId.toLowerCase()),
-    )
     const affectedGodNodes: string[] = []
 
     for (const symbol of editingContext.targetSymbols) {
-      const symbolLower = symbol.toLowerCase()
-
-      if (godNodeIds.has(symbolLower)) {
-        affectedGodNodes.push(symbol)
-        continue
-      }
-
       for (const godNode of graphAnalysis.godNodes) {
-        const godNodeLabel = godNode.label.toLowerCase()
-        if (
-          godNodeLabel.includes(symbolLower) ||
-          symbolLower.includes(godNodeLabel)
-        ) {
+        if (this.matchesGodNode(symbol, godNode)) {
           affectedGodNodes.push(godNode.label)
         }
       }
     }
 
     return [...new Set(affectedGodNodes)]
+  }
+
+  /**
+   * True when a transcript symbol refers to this god node.
+   * Prefers exact label/nodeId equality; allows substring only on the graph side
+   * (label/nodeId contains symbol) and only for symbols of length ≥ 4 to limit
+   * false positives from short tokens.
+   */
+  private matchesGodNode(symbol: string, godNode: GodNode): boolean {
+    const symbolLower = symbol.toLowerCase()
+    const labelLower = godNode.label.toLowerCase()
+    const nodeIdLower = godNode.nodeId.toLowerCase()
+
+    if (
+      symbolLower === labelLower ||
+      symbolLower === nodeIdLower
+    ) {
+      return true
+    }
+
+    if (symbol.length >= 4) {
+      return (
+        labelLower.includes(symbolLower) || nodeIdLower.includes(symbolLower)
+      )
+    }
+
+    return false
   }
 
   /**
@@ -144,10 +182,9 @@ export class ContextIntelligenceEngine {
     }
 
     if (insights.navigationRequests.detected) {
-      const toolSuggestion =
-        insights.navigationRequests.requestType === 'references'
-          ? 'lsp_find_references'
-          : 'lsp_go_to_definition'
+      const toolSuggestion = this.navigationToolSuggestion(
+        insights.navigationRequests.requestType,
+      )
       tips.push(
         `- Navigation request detected: Use \`${toolSuggestion}\` instead of manual search`,
       )
@@ -261,10 +298,9 @@ export class ContextIntelligenceEngine {
 
     if (insights.navigationRequests.detected) {
       const symbols = insights.navigationRequests.requestedSymbols.join(', ')
-      const tool =
-        insights.navigationRequests.requestType === 'references'
-          ? 'lsp_find_references'
-          : 'lsp_go_to_definition'
+      const tool = this.navigationToolSuggestion(
+        insights.navigationRequests.requestType,
+      )
 
       suggestions.push(`For navigation request "${symbols}":`)
       suggestions.push(`- Use \`${tool}\` instead of manual search`)
@@ -283,14 +319,35 @@ export class ContextIntelligenceEngine {
 
     sections.push(this.generateWorkflowGuidance(insights))
 
-    if (insights.suboptimalPatterns.length > 0) {
-      const suggestions = insights.suboptimalPatterns
-        .map((pattern: OptimizationSuggestion) => `- ${pattern.recommendation}`)
-        .join('\n')
-      sections.push(`💡 OPTIMIZATION SUGGESTIONS:\n${suggestions}`)
+    const optimizationBlock = this.formatOptimizationSuggestions(insights)
+    if (optimizationBlock) {
+      sections.push(optimizationBlock)
     }
 
     return sections.join('\n\n')
+  }
+
+  private formatOptimizationSuggestions(
+    insights: ContextInsights,
+  ): string | null {
+    if (insights.suboptimalPatterns.length === 0) return null
+    const suggestions = insights.suboptimalPatterns
+      .map((pattern: OptimizationSuggestion) => `- ${pattern.recommendation}`)
+      .join('\n')
+    return `💡 OPTIMIZATION SUGGESTIONS:\n${suggestions}`
+  }
+
+  private navigationToolSuggestion(
+    requestType: NavigationContext['requestType'],
+  ): string {
+    switch (requestType) {
+      case 'references':
+        return 'lsp_find_references'
+      case 'definition':
+      case 'file_location':
+      default:
+        return 'lsp_go_to_definition'
+    }
   }
 
   /**
