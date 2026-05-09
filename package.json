@@ -22,7 +22,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -49,6 +49,7 @@
     "@mariozechner/pi-tui": "^0.72.1",
     "@sinclair/typebox": "^0.34.49",
     "@types/node": "^20.0.0",
+    "esbuild": "^0.21.0",
     "typescript": "^5.7.3",
     "vitest": "^2.0.0"
   },
