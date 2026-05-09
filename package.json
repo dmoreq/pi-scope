@@ -23,6 +23,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "postinstall": "node scripts/build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
