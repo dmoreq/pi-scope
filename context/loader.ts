@@ -8,8 +8,9 @@
  *   4. Hardcoded defaults (from schema defaults)
  */
 
-import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { PathUtils } from '../shared/utils/path-utils.js'
 import { homedir } from 'node:os'
 import { parse, printParseErrorCode, type ParseError } from 'jsonc-parser'
 import { SlimConfigSchema, type SlimConfig } from './schema.js'
@@ -18,7 +19,7 @@ import { SlimConfigSchema, type SlimConfig } from './schema.js'
 
 function readConfigFile(filePath: string): string | null {
   try {
-    if (!existsSync(filePath)) return null
+    if (!PathUtils.existsSync(filePath)) return null
     return readFileSync(filePath, 'utf8')
   } catch {
     return null
@@ -74,7 +75,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 // ── Config loading ────────────────────────────────────────────────────────
 
-const GLOBAL_CONFIG_PATH = join(homedir(), '.pi', 'agent', 'slim.jsonc')
+const GLOBAL_CONFIG_PATH = PathUtils.joinSafe(homedir(), '.pi', 'agent', 'slim.jsonc')
 const PROJECT_CONFIG_REL = '.pi/scope.jsonc'
 
 /**

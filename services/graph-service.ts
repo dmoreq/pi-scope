@@ -23,6 +23,7 @@ import { assembleGraphifyAnalysis } from '../graph/analyzers/compute-graphify-an
 import { GraphAnalyzer } from '../graph/analyzers/graph-analyzer.js'
 import { InMemoryAnalysisCache } from '../graph/cache/analysis-cache.js'
 import type { Graph as AnalysisGraph } from '../graph/interfaces/analyzer.interface.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 export interface GraphResult {
   graph: GraphifyGraph
@@ -153,9 +154,9 @@ export class GraphService {
    */
   private async loadGraphJson(projectRoot: string): Promise<GraphifyGraph | null> {
     const paths = [
-      join(projectRoot, 'graph-out/graph.json'),     // Prefer new naming
-      join(projectRoot, 'graphify-out/graph.json'),  // Backward compatibility
-      join(projectRoot, 'graph.json'),
+      PathUtils.joinSafe(projectRoot, 'graph-out', 'graph.json'),     // Prefer new naming
+      PathUtils.joinSafe(projectRoot, 'graphify-out', 'graph.json'),  // Backward compatibility
+      PathUtils.joinSafe(projectRoot, 'graph.json'),
       'graph-out/graph.json',
       'graphify-out/graph.json',
       './graph-out/graph.json',
@@ -203,8 +204,4 @@ export class GraphService {
       })),
     }
   }
-}
-
-function join(...parts: string[]): string {
-  return parts.join('/').replace(/\/+/g, '/')
 }

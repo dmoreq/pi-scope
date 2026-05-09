@@ -14,9 +14,10 @@
  *     "models": { "claude-sonnet-*": ["SONNET.md"] } }
  */
 
-import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve, dirname, relative as relativePath } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { resolve, dirname, relative as relativePath } from 'node:path'
 import { homedir } from 'node:os'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -59,8 +60,8 @@ interface GuidanceConfig {
 }
 
 function loadGuidanceConfig(agentDir: string): GuidanceConfig {
-  const configPath = join(agentDir, 'agent-guidance.json')
-  if (existsSync(configPath)) {
+  const configPath = PathUtils.joinSafe(agentDir, 'agent-guidance.json')
+  if (PathUtils.existsSync(configPath)) {
     try {
       return JSON.parse(readFileSync(configPath, 'utf-8'))
     } catch {
@@ -100,12 +101,12 @@ function getCandidateFiles(
  * AGENTS.md which pi core already injects.
  */
 function shouldLoad(dir: string, filename: string): boolean {
-  const filePath = join(dir, filename)
-  if (!existsSync(filePath)) return false
+  const filePath = PathUtils.joinSafe(dir, filename)
+  if (!PathUtils.existsSync(filePath)) return false
 
-  const agentsPath = join(dir, 'AGENTS.md')
-  const agentsExists = existsSync(agentsPath)
-  const claudeExists = existsSync(join(dir, 'CLAUDE.md'))
+  const agentsPath = PathUtils.joinSafe(dir, 'AGENTS.md')
+  const agentsExists = PathUtils.existsSync(agentsPath)
+  const claudeExists = PathUtils.existsSync(PathUtils.joinSafe(dir, 'CLAUDE.md'))
 
   // What did core load? (prefers AGENTS.md, falls back to CLAUDE.md)
   const coreLoaded = agentsExists ? 'AGENTS.md' : claudeExists ? 'CLAUDE.md' : null
@@ -132,7 +133,7 @@ function getDirectories(cwd: string, agentDir: string): string[] {
   const seen = new Set<string>()
 
   // Global agent dir first (so global files appear first in the injected block)
-  if (existsSync(agentDir)) {
+  if (PathUtils.existsSync(agentDir)) {
     dirs.push(agentDir)
     seen.add(agentDir)
   }
@@ -169,7 +170,7 @@ export function loadProviderGuidance(
   provider: string,
   modelId?: string,
 ): ProviderGuidanceFile[] {
-  const agentDir = join(homedir(), '.pi', 'agent')
+  const agentDir = PathUtils.joinSafe(homedir(), '.pi', 'agent')
   const config = loadGuidanceConfig(agentDir)
   const candidates = getCandidateFiles(modelId, provider, config)
 
@@ -180,7 +181,7 @@ export function loadProviderGuidance(
   for (const dir of getDirectories(cwd, agentDir)) {
     for (const filename of candidates) {
       if (shouldLoad(dir, filename)) {
-        const filePath = join(dir, filename)
+        const filePath = PathUtils.joinSafe(dir, filename)
         try {
           files.push({ path: filePath, content: readFileSync(filePath, 'utf-8') })
         } catch {

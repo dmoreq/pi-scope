@@ -5,7 +5,6 @@
  * All other concerns (context, graph, telemetry) belong in other services.
  */
 
-import { join } from 'node:path'
 import type { RepoIndex, SlimConfig } from '../shared/types.js'
 import { IndexEngine } from '../indexer/engine.js'
 import { RepoMapGenerator } from '../context/repo-map.js'

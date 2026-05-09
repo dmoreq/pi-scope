@@ -5,9 +5,10 @@
  * Windows case-insensitivity issues when using paths as Map keys.
  */
 
-import { existsSync, realpathSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { dirname, win32 } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 /**
  * Normalize a file path for consistent Map key usage.
@@ -40,7 +41,7 @@ function resolveNonExisting(filePath: string): string {
   const nonExistentParts: string[] = []
 
   while (true) {
-    if (existsSync(current)) {
+    if (PathUtils.existsSync(current)) {
       const canonical = realpathSync.native(current)
       if (nonExistentParts.length === 0) {
         return canonical.replace(/\\/g, '/')

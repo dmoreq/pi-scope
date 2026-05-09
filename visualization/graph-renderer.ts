@@ -13,6 +13,8 @@
  */
 
 import type { GraphifyAnalysis, GraphifyGraph, GodNode, CommunityAnalysis } from '../context/graph-types'
+import { PathUtils } from '../shared/utils/path-utils.js'
+import { dirname } from 'node:path'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -487,11 +489,8 @@ export async function saveVisualization(
 ): Promise<boolean> {
   try {
     const { writeFile, mkdir } = await import('node:fs/promises')
-    const { dirname } = await import('node:path')
-    const { existsSync } = await import('node:fs')
-
     const dir = dirname(filePath)
-    if (!existsSync(dir)) {
+    if (!PathUtils.existsSync(dir)) {
       await mkdir(dir, { recursive: true })
     }
 

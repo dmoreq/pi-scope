@@ -12,8 +12,8 @@
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { dirname } from 'node:path'
+import { PathUtils } from '../shared/utils/path-utils.js'
 import type {
   GraphifyGraph,
   GraphifyAnalysis,
@@ -275,13 +275,13 @@ export async function saveGraphCache(
   indexFingerprint?: string,
 ): Promise<boolean> {
   try {
-    const dir = dirname(join(cacheDir, 'graph-cache.json'))
-    if (!existsSync(dir)) {
+    const dir = dirname(PathUtils.joinSafe(cacheDir, 'graph-cache.json'))
+    if (!PathUtils.existsSync(dir)) {
       await mkdir(dir, { recursive: true })
     }
 
     const cached = serializeAnalysis(analysis, graph, indexFingerprint)
-    const filePath = join(cacheDir, 'graph-cache.json')
+    const filePath = PathUtils.joinSafe(cacheDir, 'graph-cache.json')
     await writeFile(filePath, JSON.stringify(cached, null, 2), 'utf-8')
     return true
   } catch (err) {
@@ -304,9 +304,9 @@ export async function loadGraphCache(
   expectedFingerprint?: string,
 ): Promise<GraphifyAnalysis | null> {
   try {
-    const filePath = join(cacheDir, 'graph-cache.json')
+    const filePath = PathUtils.joinSafe(cacheDir, 'graph-cache.json')
 
-    if (!existsSync(filePath)) {
+    if (!PathUtils.existsSync(filePath)) {
       return null
     }
 
@@ -338,7 +338,7 @@ export async function loadGraphCache(
  * @param cacheDir Directory to look for cache file
  */
 export function graphCacheExists(cacheDir: string): boolean {
-  return existsSync(join(cacheDir, 'graph-cache.json'))
+  return PathUtils.existsSync(PathUtils.joinSafe(cacheDir, 'graph-cache.json'))
 }
 
 /**
@@ -349,8 +349,8 @@ export function graphCacheExists(cacheDir: string): boolean {
 export async function clearGraphCache(cacheDir: string): Promise<boolean> {
   try {
     const { unlink } = await import('node:fs/promises')
-    const filePath = join(cacheDir, 'graph-cache.json')
-    if (existsSync(filePath)) {
+    const filePath = PathUtils.joinSafe(cacheDir, 'graph-cache.json')
+    if (PathUtils.existsSync(filePath)) {
       await unlink(filePath)
     }
     return true
@@ -372,8 +372,8 @@ export async function getGraphCacheStats(cacheDir: string): Promise<{
   cachedAt: string | null
 } | null> {
   try {
-    const filePath = join(cacheDir, 'graph-cache.json')
-    if (!existsSync(filePath)) {
+    const filePath = PathUtils.joinSafe(cacheDir, 'graph-cache.json')
+    if (!PathUtils.existsSync(filePath)) {
       return { exists: false, size: 0, version: 0, cachedAt: null }
     }
 

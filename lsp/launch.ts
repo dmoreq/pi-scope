@@ -4,8 +4,8 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import fs from 'node:fs'
 import path from 'node:path'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 export interface LSPProcess {
   process: ChildProcess
@@ -23,12 +23,12 @@ const isWindows = process.platform === 'win32'
 function which(bin: string): string | undefined {
   const paths = (process.env.PATH ?? '').split(path.delimiter)
   for (const dir of paths) {
-    const full = path.join(dir, bin)
-    if (fs.existsSync(full)) return full
+    const full = PathUtils.joinSafe(dir, bin)
+    if (PathUtils.existsSync(full)) return full
     if (isWindows) {
       for (const ext of ['.cmd', '.bat', '.exe', '.ps1']) {
         const wFull = full + ext
-        if (fs.existsSync(wFull)) return wFull
+        if (PathUtils.existsSync(wFull)) return wFull
       }
     }
   }

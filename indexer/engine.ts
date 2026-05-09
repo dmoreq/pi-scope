@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises'
-import { join, extname, dirname, resolve, relative } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
+import { extname, dirname, resolve, relative } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { PathUtils } from '../shared/utils/path-utils.js'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 
@@ -22,7 +23,7 @@ function buildIgnore(projectRoot: string, extraExcludes: string[] = []) {
   ig.add(DEFAULT_IGNORES)
   if (extraExcludes.length) ig.add(extraExcludes)
   try {
-    const gitignore = readFileSync(join(projectRoot, '.gitignore'), 'utf-8')
+    const gitignore = readFileSync(PathUtils.joinSafe(projectRoot, '.gitignore'), 'utf-8')
     ig.add(gitignore)
   } catch { /* no .gitignore */ }
   return ig
@@ -38,7 +39,7 @@ async function* walkDir(dir: string, root: string, ig: IgnoreInstance): AsyncGen
   }
 
   for (const entry of entries) {
-    const full = join(dir, entry.name)
+    const full = PathUtils.joinSafe(dir, entry.name)
     const rel = relative(root, full)
     if (ig.ignores(rel)) continue
     if (entry.isDirectory()) {
@@ -55,10 +56,10 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
     const base = resolve(dirname(fromFile), raw)
     for (const candidate of [
       base + '.ts', base + '.tsx',
-      join(base, 'index.ts'), join(base, 'index.tsx'),
+      PathUtils.joinSafe(base, 'index.ts'), PathUtils.joinSafe(base, 'index.tsx'),
       base,
     ]) {
-      if (existsSync(candidate)) return candidate
+      if (PathUtils.existsSync(candidate)) return candidate
     }
     return null
   }
@@ -69,23 +70,23 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
     const module = raw.slice(dots).replace(/\./g, '/')
     let dir = dirname(fromFile)
     for (let i = 1; i < dots; i++) dir = dirname(dir)
-    const candidate = join(dir, module + '.py')
-    return existsSync(candidate) ? candidate : null
+    const candidate = PathUtils.joinSafe(dir, module + '.py')
+    return PathUtils.existsSync(candidate) ? candidate : null
   }
 
   if (ext === '.rs') {
     if (raw.startsWith('mod:')) {
       const name = raw.slice(4)
-      const sibling = join(dirname(fromFile), name + '.rs')
-      const modFile = join(dirname(fromFile), name, 'mod.rs')
-      if (existsSync(sibling)) return sibling
-      if (existsSync(modFile)) return modFile
+      const sibling = PathUtils.joinSafe(dirname(fromFile), name + '.rs')
+      const modFile = PathUtils.joinSafe(dirname(fromFile), name, 'mod.rs')
+      if (PathUtils.existsSync(sibling)) return sibling
+      if (PathUtils.existsSync(modFile)) return modFile
       return null
     }
     if (raw.startsWith('crate::') || raw.startsWith('super::')) {
       const parts = raw.replace(/^(crate|super)::/, '').split('::')
-      const candidate = join(dirname(fromFile), ...parts) + '.rs'
-      return existsSync(candidate) ? candidate : null
+      const candidate = PathUtils.joinSafe(dirname(fromFile), ...parts) + '.rs'
+      return PathUtils.existsSync(candidate) ? candidate : null
     }
     return null
   }

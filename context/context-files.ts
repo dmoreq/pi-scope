@@ -14,8 +14,9 @@
  *   // → "# Extra Context Files\n\n## /path/to/AGENTS.local.md\n\n..."
  */
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { relative as relativePath, resolve, dirname } from 'node:path'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ function getAncestorDirs(cwd: string): string[] {
 
 function loadFile(filePath: string): ContextFile | null {
   try {
-    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    if (!PathUtils.existsSync(filePath) || !statSync(filePath).isFile()) {
       return null
     }
     return { path: filePath, content: readFileSync(filePath, 'utf8') }
@@ -81,7 +82,7 @@ export function loadContextFiles(
 
   for (const dir of getAncestorDirs(cwd)) {
     for (const filename of filenames) {
-      const filePath = resolve(dir, filename)
+      const filePath = PathUtils.joinSafe(dir, filename)
       const loaded = loadFile(filePath)
       if (loaded) {
         result.push(loaded)

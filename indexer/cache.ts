@@ -1,14 +1,15 @@
 import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
+import { dirname } from 'node:path'
 import type { FileIndex, CacheFile } from '../shared/types.js'
 import { CACHE_VERSION } from '../shared/types.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 export class DiskCache {
   private readonly cachePath: string
   private entries: Map<string, FileIndex> = new Map()
 
   constructor(projectRoot: string) {
-    this.cachePath = join(projectRoot, '.pi-cache', 'slim.json')
+    this.cachePath = PathUtils.joinSafe(projectRoot, '.pi-cache', 'slim.json')
   }
 
   async load(): Promise<void> {

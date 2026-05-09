@@ -15,8 +15,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { gzip, gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
-import { join } from 'node:path'
 import { scopeDir } from '../shared/paths.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 import type { RepoIndex } from '../shared/types.js'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
 import { STORE_VERSION_V2, migrateToV2 } from '../shared/schema-v2.js'
@@ -47,11 +47,11 @@ function storeDir(projectRoot: string): string {
 }
 
 function indexPath(projectRoot: string): string {
-  return join(storeDir(projectRoot), 'index.json.gz')
+  return PathUtils.joinSafe(storeDir(projectRoot), 'index.json.gz')
 }
 
 function mapPath(projectRoot: string): string {
-  return join(storeDir(projectRoot), 'repo-map.txt')
+  return PathUtils.joinSafe(storeDir(projectRoot), 'repo-map.txt')
 }
 
 /** Returns true if both persisted files exist. */

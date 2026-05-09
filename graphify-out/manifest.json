@@ -1,11 +1,11 @@
 {
   "/Users/quy.doan/Workspace/personal/pi-scope/manager.ts": {
-    "mtime": 1778320629.0033062,
-    "hash": "c69f1f9529cf0ef0ab8b1aeed3a17194"
+    "mtime": 1778322528.2094028,
+    "hash": "7b846e316a2d9b6dd1ff47bb6185106b"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/extension.ts": {
-    "mtime": 1778320643.2626195,
-    "hash": "f799e061297d7831981cae0da208953e"
+    "mtime": 1778320892.5375564,
+    "hash": "ed9c9c2a7ba44b145e5340c1b5544a79"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/types.ts": {
     "mtime": 1778320563.9358494,
@@ -16,12 +16,12 @@
     "hash": "1320a2ff2505282bcbf1f763f82e355b"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/visualization/graph-renderer.ts": {
-    "mtime": 1778309553.8622189,
-    "hash": "0dd43b58a8ac686d29f7dff6970da2d3"
+    "mtime": 1778326769.779219,
+    "hash": "ce892f5cf916722125d8565ca2a38bae"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/metrics/tracker.ts": {
-    "mtime": 1778309553.8666618,
-    "hash": "a399b32a388268b08eba4e6d046c8634"
+    "mtime": 1778326807.5678294,
+    "hash": "560ce1301381a54e1c8f010e80c72bb9"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/metrics/graph-metrics.ts": {
     "mtime": 1778309553.8704286,
@@ -68,12 +68,12 @@
     "hash": "ff1fd057dd9d982886f858eb646894ec"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/guidance.ts": {
-    "mtime": 1778309553.909911,
-    "hash": "150a28f585e848f79fb4b04c60c2e9e9"
+    "mtime": 1778326699.2538743,
+    "hash": "ba55a13401c5db8a6dbe5d3571f84561"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/repo-map.ts": {
-    "mtime": 1778309553.9136965,
-    "hash": "ade31dc24456f98744e8dadf0e67ca79"
+    "mtime": 1778326786.2447884,
+    "hash": "78e33a41530910ba7d7f3a1dc6f8901a"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/retrieval.ts": {
     "mtime": 1778309553.9172473,
@@ -84,8 +84,8 @@
     "hash": "dd8162e1b23cb9cab5a3cfd85b9dd5e1"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/loader.ts": {
-    "mtime": 1778309553.924759,
-    "hash": "13946bc3e3c1fca18f86aaf743e129de"
+    "mtime": 1778326797.7697597,
+    "hash": "245c686e615750e005805cc17940ec97"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/smart-dep-context.ts": {
     "mtime": 1778319404.8664086,
@@ -116,12 +116,12 @@
     "hash": "68a1b373ded107ce86b634f6d8ba69fa"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/context-files.ts": {
-    "mtime": 1778309553.9403903,
-    "hash": "64d7ceac25fcb8fc1bedf557f11f2af9"
+    "mtime": 1778326724.017157,
+    "hash": "fb2fc530d2860dc02865a793d3f2e89e"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/graph-loader.ts": {
-    "mtime": 1778309564.5837305,
-    "hash": "4677a60d7c9d5c9f87424a2c2fe2b5a0"
+    "mtime": 1778326524.0072045,
+    "hash": "9e900958128c099727a285e45f9fe7de"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/context/graph-retrieval-boost.ts": {
     "mtime": 1778309553.9485188,
@@ -170,6 +170,22 @@
   "/Users/quy.doan/Workspace/personal/pi-scope/graph/bridge.ts": {
     "mtime": 1778309554.2965922,
     "hash": "2de064610d915ceab4e95bf8e21b04b1"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/graph/analyzers/compute-graphify-analysis.ts": {
+    "mtime": 1778326088.0776591,
+    "hash": "0d2d67a74666ac6f244bfc0f9d4c4394"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/graph/analyzers/graph-analyzer.ts": {
+    "mtime": 1778326068.9485872,
+    "hash": "4d1114807c85590d8addf9feb25d9953"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/graph/cache/analysis-cache.ts": {
+    "mtime": 1778325781.3056056,
+    "hash": "9154db5a5d2d237d0f9bf7eac0be0e07"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/graph/interfaces/analyzer.interface.ts": {
+    "mtime": 1778325781.3072486,
+    "hash": "c947362875e77613c5632da6dc167e54"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/algorithms/pagerank.ts": {
     "mtime": 1778309554.29945,
@@ -252,8 +268,8 @@
     "hash": "dbd3e417cd593803204b62b04236fe06"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/context/retrieval.test.ts": {
-    "mtime": 1778309554.3454766,
-    "hash": "caf0079020be95a55b5da0d7bc9e9619"
+    "mtime": 1778325002.7772336,
+    "hash": "bd2a65dc230c02417864969d780716be"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/context/graph-retrieval-boost.test.ts": {
     "mtime": 1778309554.3479834,
@@ -292,12 +308,16 @@
     "hash": "a8dd3e4b8a973b4c2095920062d61f4c"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/integration/session-workflow.test.ts": {
-    "mtime": 1778309554.363513,
-    "hash": "3a08fe029e68557dc713290f6f12d92e"
+    "mtime": 1778324978.8696966,
+    "hash": "28a7d33c4b7852fd53522fcd610d7d7f"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/integration/enhanced-context.test.ts": {
-    "mtime": 1778320565.9025574,
-    "hash": "5446bd6487e6e4da9ecb75300d5f854f"
+    "mtime": 1778321016.947255,
+    "hash": "be41c837162f6ae12bd92468df406aff"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/integration/extension-shutdown.test.ts": {
+    "mtime": 1778320999.8576424,
+    "hash": "951915a600634d94def0d43a92cd5c1e"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/integration/graph.test.ts": {
     "mtime": 1778309554.3662465,
@@ -310,6 +330,10 @@
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/graph/loader.test.ts": {
     "mtime": 1778309554.3716202,
     "hash": "4bef25f3117fe764767cc1ed5c12efa3"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/graph/analyzers/graph-analyzer.test.ts": {
+    "mtime": 1778326110.4168444,
+    "hash": "738d7f7896e90a4ab816f8bc9d668009"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/algorithms/centrality.test.ts": {
     "mtime": 1778309554.3745472,
@@ -348,12 +372,20 @@
     "hash": "ab87ac98c6b7b33e0c9056b75724ba62"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/shared/runtime-state.test.ts": {
-    "mtime": 1778309554.3953705,
-    "hash": "9aa45208ddcfd4193c62323e990d979b"
+    "mtime": 1778324115.8553016,
+    "hash": "685678d1a871ee44bec6e2b1f835ea92"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/shared/telemetry-helpers.test.ts": {
-    "mtime": 1778309554.3977988,
-    "hash": "7fb6e326d2e11f3652ca1fd2042043ca"
+    "mtime": 1778324130.8095517,
+    "hash": "9b00ff8cd49dd905e3786dbfd0b8ba06"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/shared/utils/path-utils.test.ts": {
+    "mtime": 1778326832.0748272,
+    "hash": "58ac742598dc6cce32f36a79f2c22732"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/shared/container/service-container.test.ts": {
+    "mtime": 1778323721.4857998,
+    "hash": "5a8d00df2baa855dce68d67eb99d8300"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/tests/hashline/core.test.ts": {
     "mtime": 1778309554.4001966,
@@ -383,17 +415,33 @@
     "mtime": 1778309554.4151616,
     "hash": "2ee2512d48fcdd03aebaf60b62f571b9"
   },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/session/configuration/config-manager.test.ts": {
+    "mtime": 1778323300.1731062,
+    "hash": "06f83d7f95ae43005c3f03fe47e92b7d"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/session/state/state-manager.test.ts": {
+    "mtime": 1778322883.2672994,
+    "hash": "874331e60626d1edbeffcfcbd7d91b62"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/session/orchestration/session-orchestrator.test.ts": {
+    "mtime": 1778323441.7976832,
+    "hash": "de16bb240be52296f9b482912472cdfe"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/tests/session/notifications/notification-service.test.ts": {
+    "mtime": 1778323441.1633244,
+    "hash": "02f71fb051fb855a0aebb5df54d4d990"
+  },
   "/Users/quy.doan/Workspace/personal/pi-scope/lsp/language.ts": {
     "mtime": 1778309554.4176726,
     "hash": "03666041ee78b129ffc5e0710e311375"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/lsp/launch.ts": {
-    "mtime": 1778309554.4204092,
-    "hash": "e4703b678eec9685375c57be4daf1125"
+    "mtime": 1778326594.7573555,
+    "hash": "605ccf93de2b3b0cbd3bca3d29b153f8"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/lsp/path-utils.ts": {
-    "mtime": 1778309554.4228969,
-    "hash": "3579d262a98796d8f485e4be53721580"
+    "mtime": 1778326770.3883119,
+    "hash": "5db4c495d4f82b2c4ea8ba55a401d712"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/lsp/client.ts": {
     "mtime": 1778309554.4265482,
@@ -404,8 +452,8 @@
     "hash": "08c6a2943ee115a583fadc6fd1e8ae50"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/shared/runtime-state.ts": {
-    "mtime": 1778309554.4320374,
-    "hash": "278103d4fcbd5fa7ccfba022a8c848f2"
+    "mtime": 1778326724.4496202,
+    "hash": "8e46c414cd47edfd0f6d12c2bc631442"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/shared/query-intent.ts": {
     "mtime": 1778309554.4345741,
@@ -428,12 +476,12 @@
     "hash": "523a5298ad2b865f429b73c116caff25"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/shared/paths.ts": {
-    "mtime": 1778309554.4436133,
-    "hash": "0bd27f7c109fbe54748174972e59e6ca"
+    "mtime": 1778326550.3506675,
+    "hash": "4ada913ca98ee09a9866b5b04b73bf60"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/shared/file-detector.ts": {
-    "mtime": 1778309554.4460769,
-    "hash": "9ddfdcfc2ac20fa0f070f97b3e3862d0"
+    "mtime": 1778326596.3653479,
+    "hash": "025a43d01e73dc01c41e7ae6afa1d81b"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/shared/agent-message.ts": {
     "mtime": 1778318573.9240103,
@@ -447,9 +495,25 @@
     "mtime": 1778309554.4514258,
     "hash": "2cb6cb86ba572c44f638d6d4ff439e76"
   },
+  "/Users/quy.doan/Workspace/personal/pi-scope/shared/utils/path-utils.ts": {
+    "mtime": 1778326855.2532074,
+    "hash": "14c6598dc8c426079d53304ed19793ca"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/shared/container/service-container.ts": {
+    "mtime": 1778323720.2456841,
+    "hash": "b6aec1401884300366cf2673b0c9d5f8"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/shared/interfaces/container.interface.ts": {
+    "mtime": 1778323619.8951254,
+    "hash": "9a1707829b51b86b3032034f6fcfa77c"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/shared/interfaces/path-utils.interface.ts": {
+    "mtime": 1778326473.8756626,
+    "hash": "3f0d509f77b7ac71dd43402e2fd98894"
+  },
   "/Users/quy.doan/Workspace/personal/pi-scope/persistence/graph-cache.ts": {
-    "mtime": 1778309554.454394,
-    "hash": "3350128173217ca2382d437b098a2304"
+    "mtime": 1778326745.5364282,
+    "hash": "36090e7d0a14cf9ba2c472a7fe9c2747"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/scripts/build.mjs": {
     "mtime": 1778302687.6704116,
@@ -480,24 +544,24 @@
     "hash": "d96440f30fb4d64b1600f68927059379"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/indexer/engine.ts": {
-    "mtime": 1778309554.4894607,
-    "hash": "45faedeab5be6e04b678f1e16ac223f5"
+    "mtime": 1778326788.9230514,
+    "hash": "52377dccbe4f087cb345af40247b4af9"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/indexer/cache.ts": {
-    "mtime": 1778309554.4948456,
-    "hash": "25860634e09cbbfb6b857575d1f97764"
+    "mtime": 1778326798.8339245,
+    "hash": "dd03a7ac6b8d1b32f20beabb5796a095"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/indexer/index-store.ts": {
-    "mtime": 1778309554.4974766,
-    "hash": "2119a14241c4c64f4e6cbd2632e31f4e"
+    "mtime": 1778326800.6002448,
+    "hash": "2f8a7759e871fc021ad57eb06e155a7e"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/indexer/metadata.ts": {
     "mtime": 1778309554.5002859,
     "hash": "2364654557b3c6f71ffe96920763ff31"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/indexer/freshness.ts": {
-    "mtime": 1778309554.5026515,
-    "hash": "4916cdca37df86cd2d86dfa69a532fe7"
+    "mtime": 1778326797.1387286,
+    "hash": "9005175a1d12341c8c6228ec63d74ba0"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/indexer/__tests__/schema-v2.test.ts": {
     "mtime": 1778309554.492129,
@@ -508,12 +572,44 @@
     "hash": "25270a1f44ac4760c990d7dced9a387b"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/services/graph-service.ts": {
-    "mtime": 1778309559.900925,
-    "hash": "23df132ede3060ea000bbb62376a4df2"
+    "mtime": 1778326808.7868524,
+    "hash": "69e75c572ce96f4006098f6a20bb126b"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/services/index-service.ts": {
-    "mtime": 1778309554.510137,
-    "hash": "b99904d42c978e1baa0c549c31118d8a"
+    "mtime": 1778328004.841061,
+    "hash": "41c4d7c94382b8cbc8925cdffbedf4c4"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/configuration/config-manager.ts": {
+    "mtime": 1778326547.4768834,
+    "hash": "33345bc1c77cf114c9a733619cc752a7"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/state/state-manager.ts": {
+    "mtime": 1778322880.3487122,
+    "hash": "7f1fcc41bcd526a5061ccb475525168e"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/orchestration/session-orchestrator.ts": {
+    "mtime": 1778323441.7650776,
+    "hash": "19b2fcc19eb084f108ed53cda47908d8"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/notifications/notification-service.ts": {
+    "mtime": 1778323439.1777525,
+    "hash": "24a08e43f3e05113672042745fcce5af"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/interfaces/orchestrator.interface.ts": {
+    "mtime": 1778322521.1482997,
+    "hash": "de2328507f09f18a3fd184958ef18693"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/interfaces/state-manager.interface.ts": {
+    "mtime": 1778322879.5375693,
+    "hash": "3c393060a9cd78629b70724f892f6f51"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/interfaces/notification-service.interface.ts": {
+    "mtime": 1778323438.74623,
+    "hash": "d063adaa6c1102510b31cee375a5d4a2"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/session/interfaces/config-manager.interface.ts": {
+    "mtime": 1778323299.4242425,
+    "hash": "0c950001cf35784dc1429fbb708d97bd"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/CHANGELOG.md": {
     "mtime": 1778302518.894817,
@@ -539,9 +635,17 @@
     "mtime": 1778309925.0875125,
     "hash": "670f7e4c6a029be747a1e52bd0fef128"
   },
+  "/Users/quy.doan/Workspace/personal/pi-scope/docs/superpowers/plans/2026-05-09-comprehensive-refactoring.md": {
+    "mtime": 1778322081.6079025,
+    "hash": "f304d9665baa0f8926d67aced5bc173f"
+  },
   "/Users/quy.doan/Workspace/personal/pi-scope/docs/superpowers/specs/2026-05-09-enhanced-context-intelligence-design.md": {
     "mtime": 1778309625.7753208,
     "hash": "7484433b5f4d3838f568611e1a3d0a81"
+  },
+  "/Users/quy.doan/Workspace/personal/pi-scope/docs/superpowers/specs/2026-05-09-comprehensive-refactoring-design.md": {
+    "mtime": 1778321558.492804,
+    "hash": "7c8d447a9c007af146b81cda695cb48b"
   },
   "/Users/quy.doan/Workspace/personal/pi-scope/skills/pi-scope/SKILL.md": {
     "mtime": 1778300381.4291747,

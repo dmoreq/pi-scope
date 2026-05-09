@@ -8,9 +8,9 @@
  */
 
 import { readFile, stat } from 'node:fs/promises'
-import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 import { scopeDir } from '../shared/paths.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 import { createHash } from 'node:crypto'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
 
@@ -124,7 +124,7 @@ async function detectChangedFiles(
   const changed: string[] = []
 
   for (const [filePath, storedHash] of Object.entries(storedHashes)) {
-    const fullPath = join(projectRoot, filePath)
+    const fullPath = PathUtils.joinSafe(projectRoot, filePath)
     const currentHash = await hashFile(fullPath)
 
     if (currentHash && currentHash !== storedHash) {
@@ -152,7 +152,7 @@ export async function buildChecksums(
 
   for (const idx of sampleIndices) {
     const filePath = filePaths[idx]
-    const fullPath = join(projectRoot, filePath)
+    const fullPath = PathUtils.joinSafe(projectRoot, filePath)
     checksums[filePath] = await hashFile(fullPath)
   }
 

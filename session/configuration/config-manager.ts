@@ -1,5 +1,5 @@
-import { access, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { PathUtils } from '../../shared/utils/path-utils.js'
 import type { SessionConfig } from '../interfaces/state-manager.interface.js'
 import type { ConfigManager as IConfigManager } from '../interfaces/config-manager.interface.js'
 
@@ -7,10 +7,9 @@ export class ConfigManager implements IConfigManager {
   private currentConfig: SessionConfig | null = null
 
   async loadConfig(projectRoot: string): Promise<SessionConfig> {
-    const configPath = join(projectRoot, '.pi-scope.json')
+    const configPath = PathUtils.joinSafe(projectRoot, '.pi-scope.json')
 
     try {
-      await access(configPath)
       const configContent = await readFile(configPath, 'utf-8')
       const rawConfig = JSON.parse(configContent) as unknown
       this.currentConfig = this.validateConfig(rawConfig, projectRoot)

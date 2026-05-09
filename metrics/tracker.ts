@@ -6,8 +6,8 @@
  */
 
 import { appendFile, mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
 import { scopeDir } from '../shared/paths.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 import { writeState } from '../shared/runtime-state.js'
 // ── Stored record ────────────────────────────────────────────────────────
 
@@ -207,7 +207,7 @@ export class SessionStats {
     const dir = scopeDir(projectRoot)
     await mkdir(dir, { recursive: true })
     const line = JSON.stringify(this.toRecord()) + '\n'
-    await appendFile(join(dir, 'stats.jsonl'), line, 'utf-8')
+    await appendFile(PathUtils.joinSafe(dir, 'stats.jsonl'), line, 'utf-8')
     await writeState(projectRoot, {
       lastSession: {
         sessionId: this.sessionId,

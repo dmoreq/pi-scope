@@ -6,7 +6,8 @@
  */
 
 import fs from 'fs'
-import path from 'path'
+import { dirname } from 'node:path'
+import { PathUtils } from '../shared/utils/path-utils.js'
 import type { GraphifyGraph, ValidationResult } from './graph-types.js'
 import {
   validateGraphSchema,
@@ -36,11 +37,9 @@ export async function loadGraphifyJson(filePath: string): Promise<LoadResult> {
   try {
     // ── Resolve path ───────────────────────────────────────────────────────
 
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.resolve(process.cwd(), filePath)
+    const absolutePath = PathUtils.ensureAbsolute(filePath, process.cwd())
 
-    if (!fs.existsSync(absolutePath)) {
+    if (!PathUtils.existsSync(absolutePath)) {
       return {
         success: false,
         error: `Graph file not found: ${absolutePath}`,
@@ -148,11 +147,9 @@ export function loadGraphifyJsonSync(filePath: string): LoadResult {
   const warnings: string[] = []
 
   try {
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.resolve(process.cwd(), filePath)
+    const absolutePath = PathUtils.ensureAbsolute(filePath, process.cwd())
 
-    if (!fs.existsSync(absolutePath)) {
+    if (!PathUtils.existsSync(absolutePath)) {
       return {
         success: false,
         error: `Graph file not found: ${absolutePath}`,
@@ -221,13 +218,11 @@ export async function saveGraphifyJson(
   filePath: string
 ): Promise<boolean> {
   try {
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.resolve(process.cwd(), filePath)
+    const absolutePath = PathUtils.ensureAbsolute(filePath, process.cwd())
 
-    const dir = path.dirname(absolutePath)
+    const dir = dirname(absolutePath)
 
-    if (!fs.existsSync(dir)) {
+    if (!PathUtils.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }
 

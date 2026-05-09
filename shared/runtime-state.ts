@@ -17,9 +17,9 @@
  */
 
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { scopeDir } from '../shared/paths.js'
+import { PathUtils } from './utils/path-utils.js'
 
 export type StateValue = string | number | boolean | null | StateValue[] | { [key: string]: StateValue }
 
@@ -29,7 +29,7 @@ function stateDir(projectRoot: string): string {
 }
 
 function statePath(projectRoot: string): string {
-  return join(stateDir(projectRoot), 'state.json')
+  return PathUtils.joinSafe(stateDir(projectRoot), 'state.json')
 }
 
 /**
@@ -72,7 +72,7 @@ export function readStateSync<T extends Record<string, StateValue> = Record<stri
 ): T | null {
   try {
     const filePath = statePath(projectRoot)
-    if (!existsSync(filePath)) return null
+    if (!PathUtils.existsSync(filePath)) return null
     const raw = readFileSync(filePath, 'utf-8')
     return JSON.parse(raw) as T
   } catch {

@@ -9,8 +9,9 @@
  * Ported from pi-me core-tools/file-collector/extension.ts patterns
  */
 
-import { existsSync, statSync } from 'node:fs'
-import { isAbsolute, resolve, normalize } from 'node:path'
+import { statSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
+import { PathUtils } from './utils/path-utils.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -36,22 +37,24 @@ const DEFAULT_EXTENSIONS = [
 // ── Path helpers ──────────────────────────────────────────────────────────
 
 function resolvePath(raw: string, projectRoot?: string): string {
-  if (isAbsolute(raw)) return normalize(raw)
-  if (projectRoot) return normalize(resolve(projectRoot, raw))
-  return normalize(raw)
+  if (isAbsolute(raw)) return PathUtils.normalizePath(raw)
+  if (projectRoot) {
+    return PathUtils.normalizePath(PathUtils.ensureAbsolute(raw, projectRoot))
+  }
+  return PathUtils.normalizePath(raw)
 }
 
 function pathExists(raw: string, projectRoot?: string): boolean {
   try {
     const resolved = resolvePath(raw, projectRoot)
-    return existsSync(resolved) && statSync(resolved).isFile()
+    return PathUtils.existsSync(resolved) && statSync(resolved).isFile()
   } catch {
     return false
   }
 }
 
 function hasValidExtension(p: string, extensions: string[]): boolean {
-  return extensions.some(e => p.endsWith(e))
+  return extensions.some(ext => PathUtils.hasExtension(p, ext))
 }
 
 function cleanPath(raw: string): string {

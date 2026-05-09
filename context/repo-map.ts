@@ -1,6 +1,7 @@
-import { relative, dirname, join } from 'node:path'
+import { relative, dirname } from 'node:path'
 import type { RepoIndex } from '../shared/types.js'
-import { existsSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 function extractNames(skeleton: string): string {
   return skeleton
@@ -46,8 +47,8 @@ export class RepoMapGenerator {
       const fileLines = byDir.get(dir)!
       // Sort files by modification time (most recent first)
       fileLines.sort((a, b) => {
-        const fpA = join(this.projectRoot, dir, a.name)
-        const fpB = join(this.projectRoot, dir, b.name)
+        const fpA = PathUtils.joinSafe(this.projectRoot, dir, a.name)
+        const fpB = PathUtils.joinSafe(this.projectRoot, dir, b.name)
         try { return (statSync(fpB)?.mtimeMs ?? 0) - (statSync(fpA)?.mtimeMs ?? 0) }
         catch { return 0 }
       })
