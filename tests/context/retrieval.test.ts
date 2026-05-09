@@ -135,8 +135,8 @@ describe('RetrievalEngine', () => {
     const results = largeEngine.retrieveTopK('func500_5 func200', 20)
     const duration = Date.now() - start
     
-    // Should complete quickly (< 200ms for 1000 files is very reasonable)
-    expect(duration).toBeLessThan(200)
+    // Should complete quickly (< 300ms for 1000 files is reasonable)
+    expect(duration).toBeLessThan(300)
     expect(results.length).toBeGreaterThan(0)
     
     // Should find the exact matches

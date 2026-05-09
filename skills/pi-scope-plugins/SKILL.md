@@ -1,6 +1,6 @@
 ---
 name: pi-scope-plugins
-description: Use when extending pi-scope with custom behavior via plugins, registering new plugins on SessionManager, implementing lifecycle hooks, or understanding the built-in ContextPruningPlugin and ReadAwarenessPlugin
+description: Use when extending pi-scope with custom behavior via plugins, registering new plugins on SessionManager, implementing lifecycle hooks, or understanding the built-in ContextPruningPlugin, ReadAwarenessPlugin, and CommunityPruningPlugin
 ---
 
 # pi-scope Plugins
@@ -56,7 +56,7 @@ manager.pluginManager.get('my-plugin');       // Plugin | undefined
 
 ### ContextPruningPlugin
 
-Removes redundant messages before each LLM call:
+Removes redundant messages before each LLM call. Runs on every `onContext` hook.
 
 | Rule | What it removes |
 |------|-----------------|
@@ -75,7 +75,7 @@ pruner.updateConfig({ recencyWindow: 20 });
 
 ### ReadAwarenessPlugin
 
-Prevents editing files that haven't been read first:
+Prevents editing files that haven't been read first. Blocks `write`/`edit` tool calls on unread files.
 
 ```typescript
 const reader = new ReadAwarenessPlugin();
@@ -83,8 +83,28 @@ reader.enabled = true;  // Enable/disable
 reader.getReadFiles();  // Check which files were read
 ```
 
-Blocks `write`/`edit` tool calls on unread files with a message:
-> File "src/auth.ts" has not been read. Use `read` tool first before editing or writing.
+### CommunityPruningPlugin
+
+Filters context messages by community membership to keep injections focused. Only active when graph communities are detected (>1 community).
+
+**How it works:**
+1. Extracts the latest user query from conversation
+2. Scores each community for relevance (keyword matching against community members)
+3. Trims context from non-relevant communities
+4. Always preserves interface nodes (cross-community bridges)
+
+**Activation:** Auto-registered by `SessionManager.start()` when graph analysis detects multiple communities. Requires graph data from `graphify-out/graph.json`.
+
+```typescript
+// Manual configuration
+const plugin = new CommunityPruningPlugin({
+  enabled: true,
+  maxCommunities: 2,
+  preserveInterfaceNodes: true,
+  relevanceThreshold: 0.3,
+});
+manager.pluginManager.register(plugin);
+```
 
 ## Tool Call Interception
 

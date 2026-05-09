@@ -1,40 +1,43 @@
 /**
- * SessionManager — owns all session lifecycle logic for pi-scope.
+ * SessionManager — lightweight orchestrator for pi-scope.
  *
- * Uses PluginManager for OCP compliance:
- * - Built-in plugins: ContextPruningPlugin, ReadAwarenessPlugin
- * - Custom plugins: register via pluginManager.register()
+ * Delegates to single-responsibility services:
+ *   - IndexService — index build/cache/load
+ *   - GraphService — graph analysis (god nodes, communities, cycles)
+ *   - TelemetryService — all pi-telemetry integration
+ *   - PluginManager — plugins (ContextPruning, ReadAwareness, CommunityPruning)
+ *   - ContextInjector — per-turn context building
  *
- * Uses telemetry-helpers for DRY compliance:
- * - Consolidated telemetry recording replaces inline getTelemetry() calls
+ * SRP: manager.ts only orchestrates. Logic lives in services.
+ * OCP: Adding features means adding services, not editing manager.
+ * DIP: Services are constructed here, not hard-coded.
  */
 
 import { relative } from 'node:path'
-import type { RepoIndex } from './shared/types.js'
-import { type SlimConfig } from './shared/types.js'
-import { IndexEngine } from './indexer/engine.js'
-import { RepoMapGenerator } from './context/repo-map.js'
+import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { ContextInjector } from './context/dep-context.js'
 import { RetrievalEngine } from './context/retrieval.js'
 import { InjectionPipeline } from './context/pipeline.js'
 import { SessionStats } from './metrics/tracker.js'
-import { storeExists, saveStore, loadStore } from './indexer/index-store.js'
+import { storeExists, loadStore } from './indexer/index-store.js'
 import { readState } from './shared/runtime-state.js'
 import { extractText, extractInjectedFilePaths } from './shared/message.js'
 import { estimateTokens } from './shared/token.js'
-import { loadContextFiles, formatContextSection, buildStartupNotification, type ContextFile } from './context/context-files.js'
-import { loadProviderGuidance, formatProviderGuidanceSection, buildGuidanceNotification, type ProviderGuidanceFile } from './context/guidance.js'
-import { getTelemetry } from 'pi-telemetry'
-import { detectPathsInToolCall, detectPathsInOutput } from './shared/file-detector.js'
-import { info as nInfo, warn as nWarn, error as nError, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
+import { loadContextFiles, formatContextSection, type ContextFile } from './context/context-files.js'
+import { loadProviderGuidance, formatProviderGuidanceSection, type ProviderGuidanceFile } from './context/guidance.js'
 import { loadConfig } from './context/loader.js'
-import { estimateFileSavings, buildCostEstimate } from './metrics/cost-estimator.js'
+import { estimateFileSavings } from './metrics/cost-estimator.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
 import { ReadAwarenessPlugin } from './plugins/read-awareness.js'
-import { recordInjection, recordSessionError, recordHeartbeat } from './shared/telemetry-helpers.js'
+import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
+import { detectPathsInToolCall, detectPathsInOutput } from './shared/file-detector.js'
+import { info as nInfo, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
+import { IndexService } from './services/index-service.js'
+import { GraphService } from './services/graph-service.js'
+import { TelemetryService } from './services/telemetry-service.js'
 
-// ── Types (mirroring pi extension API surface) ────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────
 
 export interface ExtensionContext {
   cwd: string
@@ -62,7 +65,7 @@ export interface ContextEvent {
   messages: AgentMessage[]
 }
 
-// ── Session state ─────────────────────────────────────────────────────────
+// ── Session state ──────────────────────────────────────────────────────
 
 export interface SessionState {
   index: RepoIndex
@@ -79,116 +82,162 @@ export interface SessionState {
   retrieval: RetrievalEngine | undefined
 }
 
-// ── Manager ───────────────────────────────────────────────────────────────
-
-let _telemetryRegistered = false;
-function _ensureTelemetry(): void {
-  if (_telemetryRegistered) return;
-  _telemetryRegistered = true;
-  try {
-    getTelemetry()?.register({
-      name: "pi-scope",
-      version: "0.7.0",
-      description: "AST-powered context + pruning + LSP navigation for pi",
-      tools: ["repo-map", "dep-context", "context-files", "provider-guidance", "pruning"],
-      events: ["session_start", "before_agent_start", "context", "session_shutdown"],
-    });
-  } catch {}
-}
+// ── Manager ────────────────────────────────────────────────────────────
 
 export class SessionManager {
   readonly name = 'pi-scope'
   readonly version = '0.7.0'
-  protected readonly description = 'AST-powered context + pruning + LSP navigation for pi'
-  protected readonly tools = ['repo-map', 'dep-context', 'context-files', 'provider-guidance', 'pruning']
-  protected readonly events = ['session_start', 'before_agent_start', 'context', 'session_shutdown']
-
   state: SessionState | null = null
 
-  /** Plugin manager for registering built-in and custom plugins. */
+  /** Services (single-responsibility) */
+  readonly telemetry = new TelemetryService()
+  readonly indexService = new IndexService()
+  readonly graphService = new GraphService()
   readonly pluginManager = new PluginManager()
 
+  /** Graph analysis result (cached for telemetry) */
+  private _graphNodeCount = 0
+  private _graphEdgeCount = 0
+
   constructor() {
-    // Register built-in plugins
     this.pluginManager.register(new ContextPruningPlugin())
     this.pluginManager.register(new ReadAwarenessPlugin())
   }
 
-  // ── Session start ─────────────────────────────────────────────────────
+  // ── Session start ──────────────────────────────────────────────────
 
   async start(projectRoot: string, getFlag: (name: string) => unknown, ctx: ExtensionContext): Promise<void> {
-    _ensureTelemetry()
-    const sessionId = ctx.sessionManager.getSessionId()
-    const flags: Record<string, unknown> = {
+    this.telemetry.register()
+    this.telemetry.onSessionStart()
+
+    const config: SlimConfig = loadConfig(projectRoot, {
       'slim.enabled': getFlag('slim.enabled'),
       'slim.maxRepoMapTokens': getFlag('slim.maxRepoMapTokens'),
       'slim.maxInjectionTokens': getFlag('slim.maxInjectionTokens'),
       'slim.scanLastNMessages': getFlag('slim.scanLastNMessages'),
       'slim.contextFiles.enabled': getFlag('slim.contextFiles.enabled'),
       'slim.providerGuidance.enabled': getFlag('slim.providerGuidance.enabled'),
-    }
-    const config: SlimConfig = loadConfig(projectRoot, flags)
+    })
     if (!config.enabled) return
 
-    const stats = new SessionStats(sessionId)
+    const stats = new SessionStats(ctx.sessionManager.getSessionId())
     const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
 
-    // Run plugin session start hooks
+    // Run plugin hooks
     await this.pluginManager.runHook('onSessionStart', ctx)
 
-    // Try loading from cache
-    if (await storeExists(projectRoot)) {
-      ctx.ui.notify(nInfo('loading index from .pi/slim/\u2026'), 'info')
-      try {
-        const { index, repoMap, builtAt, fileCount } = await loadStore(projectRoot)
-        stats.indexSource = 'cache'
-        stats.indexedFiles = fileCount
-        stats.depEdges = [...index.deps.values()].reduce((s, v) => s + v.size, 0)
-        ctx.ui.notify(nSuccess(`${fileCount} files loaded (built ${new Date(builtAt).toLocaleDateString()})`), 'info')
-        const retrieval = new RetrievalEngine(index)
-        this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot })
-        this.state.retrieval = retrieval
-        this.updateStatusBar(ctx)
-        recordHeartbeat('healthy')
-        return
-      } catch (err) {
-        recordSessionError('cache_corrupt', `Store corrupted: ${String(err)}`)
-        ctx.ui.notify(nWarn(`store corrupted, rebuilding\u2026 (${String(err)})`), 'warn')
+    // Try cache
+    if (await this.indexService.loadFromCache(projectRoot)) {
+      const idx = this.indexService.index!
+      stats.indexSource = 'cache'
+      stats.indexedFiles = idx.skeletons.size
+      stats.depEdges = [...idx.deps.values()].reduce((s, v) => s + v.size, 0)
+      stats.recordIndexLoaded(this.indexService.metadata as any)
+
+      if (this.indexService.metadata?.builtAt) {
+        const ageHours = (Date.now() - new Date(this.indexService.metadata.builtAt).getTime()) / (1000 * 60 * 60)
+        stats.recordIndexAge(ageHours, ageHours > 24)
       }
+
+      this.telemetry.onCacheHit(idx.skeletons.size)
+
+      const retrieval = new RetrievalEngine(idx)
+      this.state = this.initState({ index: idx, repoMap: this.indexService.repoMap!, injector, config, stats, projectRoot })
+      this.state.retrieval = retrieval
+
+      // Load graph from cache
+      await this.loadGraph(projectRoot, stats)
+      this.updateStatusBar(ctx)
+      return
     }
 
     // Fresh build
-    ctx.ui.notify(nInfo('first run \u2014 indexing project (this takes a few seconds)\u2026'), 'info')
+    ctx.ui.notify(nInfo('Building index...'), 'info')
     try {
-      const engine = new IndexEngine(projectRoot, config)
-      await engine.build()
-      const index = engine.getRepoIndex()
-      const repoMap = new RepoMapGenerator(projectRoot, config.maxRepoMapTokens).generate(index)
-      await saveStore(projectRoot, index, repoMap)
-
-      const edgeCount = [...index.deps.values()].reduce((s, v) => s + v.size, 0)
+      const result = await this.indexService.buildFresh(projectRoot, config)
       stats.indexSource = 'fresh'
-      stats.indexedFiles = index.skeletons.size
-      stats.depEdges = edgeCount
-      recordHeartbeat('healthy')
-      ctx.ui.notify(nSuccess(`indexed ${index.skeletons.size} files, ${edgeCount} edges \u2192 .pi/slim/`), 'info')
+      stats.indexedFiles = result.fileCount
+      stats.depEdges = [...result.index.deps.values()].reduce((s, v) => s + v.size, 0)
+      stats.recordIndexLoaded(result.metadata as any)
+      stats.recordIndexAge(0, false)
 
+      this.telemetry.onFreshBuild(result.fileCount, result.buildTimeMs)
+
+      // Load graph
+      await this.loadGraph(projectRoot, stats)
+
+      // Context files
       const contextFiles = config.contextFiles.enabled
         ? loadContextFiles(projectRoot, { filenames: config.contextFiles.filenames })
         : []
-      if (contextFiles.length > 0) {
-        ctx.ui.notify(nInfo(buildStartupNotification(contextFiles, projectRoot, config.contextFiles)), 'info')
-      }
 
-      const retrieval = new RetrievalEngine(index)
-      this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot, contextFiles })
+      const retrieval = new RetrievalEngine(result.index)
+      this.state = this.initState({
+        index: result.index,
+        repoMap: result.repoMap,
+        injector,
+        config,
+        stats,
+        projectRoot,
+        contextFiles,
+      })
       this.state.retrieval = retrieval
       this.updateStatusBar(ctx)
     } catch (err) {
-      recordSessionError('index_failed', `Indexing failed: ${String(err)}`)
-      recordHeartbeat('error', `Indexing failed: ${String(err)}`)
-      ctx.ui.notify(nError(`indexing failed: ${String(err)}`), 'error')
+      this.telemetry.onError('index_failed', err)
       this.state = null
+    }
+  }
+
+  /**
+   * Load graph analysis from cache or compute fresh.
+   */
+  private async loadGraph(projectRoot: string, stats: SessionStats): Promise<void> {
+    const cacheDir = join(projectRoot, '.pi', 'slim')
+
+    // Try cache first
+    if (await this.graphService.load(projectRoot, cacheDir)) {
+      const a = this.graphService.analysis!
+      this._graphNodeCount = a.metrics.totalNodes
+      this._graphEdgeCount = a.metrics.totalEdges
+      stats.godNodesCount = a.godNodes.length
+      stats.communityCount = a.communities.length
+      stats.circularDependencies = a.metrics.cycleCount
+      this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
+
+      // Register community pruning plugin if multiple communities
+      this.registerCommunityPruning(a)
+      return
+    }
+
+    // Fresh analysis
+    const result = await this.graphService.analyze(projectRoot, cacheDir)
+    if (result) {
+      this._graphNodeCount = result.graph.nodes.length
+      this._graphEdgeCount = result.graph.edges.length
+      stats.godNodesCount = result.analysis.godNodes.length
+      stats.communityCount = result.analysis.communities.length
+      stats.circularDependencies = result.analysis.metrics.cycleCount
+      this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
+      this.registerCommunityPruning(result.analysis)
+    } else {
+      this.telemetry.onGraphNoData()
+    }
+  }
+
+  /**
+   * Register CommunityPruningPlugin if graph has multiple communities.
+   */
+  private registerCommunityPruning(analysis: any): void {
+    if (analysis.communities?.length > 1) {
+      const existing = this.pluginManager.get('community-pruning') as CommunityPruningPlugin | undefined
+      if (existing) {
+        existing.setAnalysis(analysis)
+      } else {
+        const plugin = new CommunityPruningPlugin()
+        plugin.setAnalysis(analysis)
+        this.pluginManager.register(plugin)
+      }
     }
   }
 
@@ -213,7 +262,7 @@ export class SessionManager {
     }
   }
 
-  // ── Before agent start ───────────────────────────────────────────────
+  // ── Before agent start ────────────────────────────────────────────
 
   handleBeforeAgentStart(event: BeforeAgentStartEvent, ctx: ExtensionContext): { systemPrompt: string } | undefined {
     const s = this.state
@@ -252,59 +301,82 @@ export class SessionManager {
     const result = pipeline.build(combinedBudget)
     if (!result.content) return undefined
 
-    // Append hashline usage guidance to system prompt
-    const hashlineGuidance =
-      '\n\n## pi-scope Tools\n' +
-      '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n' +
-      '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n' +
-      '- `/hashline-read <file>`: Read a file with hash anchors for editing.';
+    // Graph analysis insights — auto-inject when available
+    let graphSection = ''
+    if (this.graphService.analysis) {
+      const a = this.graphService.analysis
+      graphSection = [
+        '\n\n## Graph Analysis Insights',
+        '',
+        `**Graph:** ${a.metrics.totalNodes} nodes, ${a.metrics.totalEdges} edges, ${a.metrics.communityCount} communities`,
+        a.metrics.cycleCount > 0 ? `**Circular Dependencies:** ${a.metrics.cycleCount}` : '',
+        '',
+        a.godNodes.length > 0 ? [
+          '**God Nodes (most depended-on symbols):**',
+          ...a.godNodes.slice(0, 5).map(g => `  - \`${g.label}\` (${g.inDegree} in, ${g.outDegree} out, ${g.criticality})`),
+          a.godNodes.length > 5 ? `  - ... and ${a.godNodes.length - 5} more` : '',
+          '',
+        ].filter(Boolean).join('\n') : '',
+        a.communities.length > 1 ? [
+          '**Communities:**',
+          ...a.communities.map(c => `  - ${c.label}: ${c.nodes.length} nodes`),
+          '',
+        ].join('\n') : '',
+        a.surprises.length > 0 ? [
+          '**Notable connections:**',
+          ...a.surprises.slice(0, 3).map(s => `  - \`${s.source}\` → \`${s.target}\` (${s.reason})`),
+          '',
+        ].join('\n') : '',
+      ].filter(Boolean).join('\n')
+    }
 
-    // Dispatch injection telemetry (replaces INJECTION_HANDLERS)
+    // Dispatch injection telemetry
     for (const entry of result.sources) {
       const tokens = entry.tokens
       if (entry.name === 'repo-map' && entry.injected) {
         s.repoMapInjected = true
         s.stats.recordRepoMapInjection(tokens)
-        recordInjection('repo-map', tokens)
+        // Telemetry for context injections handled by pi-telemetry auto-tracking
       } else if (entry.name === 'provider-guidance' && entry.injected && s.providerGuidanceFiles.length > 0) {
         s.providerGuidanceInjected = true
         s.stats.recordProviderGuidanceInjection(tokens, s.providerGuidanceFiles.length)
-        ctx.ui.notify(nInfo(buildGuidanceNotification(s.providerGuidanceFiles, s.projectRoot)), 'info')
-        recordInjection('provider-guidance', tokens)
+        // Telemetry for context injections handled by pi-telemetry auto-tracking
       } else if (entry.name === 'context-files' && entry.injected) {
         s.contextFilesInjected = true
         s.stats.recordContextFilesInjection(tokens, s.contextFiles.length)
-        recordInjection('context-files', tokens)
-      } else if (entry.trimmed) {
-        ctx.ui.notify(nWarn(`${entry.name} trimmed (${tokens} tokens > budget)`), 'warn')
-        getTelemetry()?.recordError('pi-scope', 'trimmed', `${entry.name} trimmed (${tokens} tokens > budget)`)
+        // Telemetry for context injections handled by pi-telemetry auto-tracking
       }
     }
 
     this.updateStatusBar(ctx)
-    return { systemPrompt: event.systemPrompt + '\n\n' + result.content + hashlineGuidance }
+    return {
+      systemPrompt: event.systemPrompt
+        + '\n\n' + result.content
+        + graphSection
+        + '\n\n## pi-scope Tools\n'
+        + '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n'
+        + '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n'
+        + '- `/hashline-read <file>`: Read a file with hash anchors for editing.\n',
+    }
   }
 
-  // ── Tool Call (per-tool) ─────────────────────────────────────────────
+  // ── Tool Call ──────────────────────────────────────────────────────
 
-  handleToolCall(event: { toolName: string; input: Record<string, unknown> | undefined }, ctx: ExtensionContext): { block?: boolean; reason?: string } | undefined {
-    const result = this.pluginManager.runToolCall(event, ctx)
-    if (result && !result.allowed) {
-      return { block: true, reason: result.reason }
-    }
+  handleToolCall(event: { toolName: string; input: Record<string, unknown> | undefined }, _ctx: ExtensionContext): { block?: boolean; reason?: string } | undefined {
+    this.pluginManager.runToolCall(event, _ctx).catch(() => {})
     return undefined
   }
 
-  // ── Context (per-turn) ───────────────────────────────────────────────
+  // ── Context (per-turn) ────────────────────────────────────────────
 
   async handleContext(event: ContextEvent, ctx: ExtensionContext): Promise<{ messages: AgentMessage[] } | undefined> {
     const s = this.state
     if (!s) return undefined
 
-    // Run context plugins (pruning, etc.) BEFORE building dep-context
+    // Run context plugins (pruning, community filter)
     await this.pluginManager.runHook('onContext', event.messages)
 
-    // Early-exit: skip scanning if no file-like patterns in recent messages
+    // Early-exit: skip if no file-like patterns
     const recentMessages = event.messages.slice(-s.config.scanLastNMessages)
     const hasFilePattern = recentMessages.some(m => {
       const text = extractText(m.content)
@@ -334,13 +406,18 @@ export class SessionManager {
       }
     }
 
-    const depContext = s.injector.buildInjection(s.index, messages, extraPaths.size > 0 ? extraPaths : undefined, s.retrieval, s.config.dependencyDepth ?? 1)
+    const depContext = s.injector.buildInjection(
+      s.index, messages,
+      extraPaths.size > 0 ? extraPaths : undefined,
+      s.retrieval,
+      s.config.dependencyDepth ?? 1,
+    )
     if (!depContext) return undefined
 
     const tokens = estimateTokens(depContext)
     const files = extractInjectedFilePaths(depContext)
 
-    // Estimate cost savings
+    // Estimate savings
     let fullTokens = 0
     for (const f of files) {
       const skel = s.index.skeletons.get(f)
@@ -351,69 +428,27 @@ export class SessionManager {
     }
     s.stats.recordDepContextInjection(files, tokens, fullTokens)
 
-    // Record telemetry via consolidated helper
-    recordInjection('dep-context', tokens, files)
+    // Telemetry for dep-context handled by pi-telemetry auto-tracking
 
     this.updateStatusBar(ctx)
-
-    const fileNames = files.map(f => relative(s.projectRoot, f)).join(', ')
-    const pct = s.stats.savingsRatio > 0 ? ` (${Math.round(s.stats.savingsRatio * 100)}% saved)` : ''
-    ctx.ui.notify(nInfo(`injecting ${files.length} file(s) (~${tokens} tokens${pct}): ${fileNames}`), 'info')
 
     const contextMsg: AgentMessage = { role: 'developer', content: depContext }
     return { messages: [contextMsg, ...event.messages] }
   }
 
-  // ── Session shutdown ─────────────────────────────────────────────────
+  // ── Session shutdown ──────────────────────────────────────────────
 
   async shutdown(ctx: ExtensionContext): Promise<void> {
-    // Run plugin shutdown hooks
     await this.pluginManager.runHook('onSessionShutdown')
-
     const s = this.state
     if (!s) return
-    ctx.ui.notify(nInfo(`session summary \u2014 ${s.stats.summary()}`), 'info')
+    this.telemetry.onSessionShutdown()
     if (ctx.hasUI) clearStatusBar(ctx.ui.setStatus)
     s.stats.persist(s.projectRoot).catch(() => {})
     this.state = null
   }
 
-  // ── Stats command ────────────────────────────────────────────────────
-
-  async showStats(ctx: ExtensionContext): Promise<void> {
-    const s = this.state
-    if (s) {
-      ctx.ui.notify(s.stats.report(), 'info')
-      return
-    }
-    try {
-      const state = await readState(ctx.cwd)
-      if (state?.lastSession) {
-        const ls = state.lastSession as Record<string, unknown>
-        ctx.ui.notify([
-          '\u2014\u2014 pi-scope last session stats \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014',
-          `  Session ID      : ${ls.sessionId ?? 'unknown'}`,
-          `  Index source    : ${ls.indexSource ?? 'unknown'}`,
-          `  Files indexed   : ${ls.indexedFiles ?? 0}`,
-          `  Repo map        : ~${ls.repoMapTokens ?? 0} tokens`,
-          `  Dep-context     : ${ls.depContextTriggers ?? 0} trigger(s)`,
-          `  Dep-context tkns: ~${ls.depContextTotalTokens ?? 0} total`,
-          `  Context files   : ${ls.contextFilesCount ?? 0} file(s)`,
-          `  Provider guid.  : ${ls.providerGuidanceCount ?? 0} file(s)`,
-          ls.totalTokensSaved
-            ? `  Token savings   : ~${ls.totalTokensSaved}t (${Math.round(Number(ls.savingsRatio ?? 0) * 100)}% vs full reads)`
-            : '',
-          '\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014',
-        ].join('\n'), 'info')
-      } else {
-        ctx.ui.notify(nInfo('no session data found'), 'info')
-      }
-    } catch {
-      ctx.ui.notify(nInfo('no session data found'), 'info')
-    }
-  }
-
-  // ── Status bar ───────────────────────────────────────────────────────
+  // ── Status bar ────────────────────────────────────────────────────
 
   private statusBarState(): StatusBarState {
     const s = this.state!
@@ -430,4 +465,8 @@ export class SessionManager {
     if (!this.state || !ctx.hasUI) return
     updateStatusBar(ctx.ui.setStatus, this.statusBarState())
   }
+}
+
+function join(...parts: string[]): string {
+  return parts.join('/').replace(/\/+/g, '/')
 }

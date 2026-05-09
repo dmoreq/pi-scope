@@ -9,6 +9,11 @@ description: Use when pi-scope fails to find the right files by context, when yo
 
 At session start, pi-scope builds a **symbol index** of every exported name across all parsed files. When you mention a function/class/variable name, the retrieval engine matches against this index — not just filenames.
 
+When graph data is available (from `graphify-out/graph.json`), retrieval is further **boosted**:
+- God nodes get a 2× score multiplier
+- Surprising connections are injected as context breadcrumbs
+- Community pruning keeps only relevant community context per turn
+
 ## Scoring Formula
 
 ```
@@ -20,6 +25,8 @@ score(file) = 3 × symbolMatch + 2 × filenameMatch + 1 × depProximity
 | **symbolMatch** | 3× | Query token matches a symbol that `file` exports |
 | **filenameMatch** | 2× | Query token matches the file's basename (without extension) |
 | **depProximity** | 1× | File is already a transitive dep of an active file |
+
+**Graph boost (additional):** God nodes in the result set get 2× total score multiplication.
 
 ## What Gets Injected
 
@@ -44,6 +51,18 @@ export interface User { ... }
 </dep-context>
 ```
 
+## Graph-Enhanced Retrieval Commands
+
+When graph data is available, use these commands to understand the codebase structure:
+
+| Command | When to use |
+|---------|-------------|
+| `/wiki <symbol>` | Get a full auto-generated documentation page for any symbol |
+| `/wiki-god-nodes` | See which symbols are most depended-on (critical architecture) |
+| `/wiki-communities` | Understand how modules group into functional areas |
+| `/wiki-impact <symbol>` | Check what would break if you change a symbol |
+| `/wiki-search <keyword>` | Find symbols by name, type, or community membership |
+
 ## Influencing Retrieval
 
 **To make pi-scope find a file:**
@@ -52,8 +71,9 @@ export interface User { ... }
 2. **Mention the filename** — "look at `auth.ts`" → `filenameMatch` fires
 3. **Use `/hashline-read`** — file becomes visible to dep-proximity scoring
 4. **Call an LSP tool** — resolved locations feed into next context's `extraPaths`
+5. **Check god nodes** — if the symbol is a god node, it's automatically boosted 2×
 
-**Avoid vague queries** like "that validation module" — use the actual symbol name.
+**Avoid vague queries** like "that validation module" — use the actual symbol name or check `/wiki-search` first.
 
 ## Reading the `<dep-context>` Block
 
@@ -92,3 +112,4 @@ Configurable via `dependencyDepth` (0-3, default 1):
 | Expecting full file content | Only **skeletons** are injected | Read the file explicitly if you need full content |
 | Assuming all dirs indexed | Excluded dirs (`node_modules`, `dist`, patterns in `slim.exclude`) are skipped | Check your `exclude` config |
 | Path not in recent N messages | `scanLastNMessages` default = 10; older messages are ignored | Mention the path again in a recent message |
+| Ignoring god nodes on risky changes | High-impact symbols are marked in the graph | Always check `/wiki-impact` before modifying a symbol in `/wiki-god-nodes` |

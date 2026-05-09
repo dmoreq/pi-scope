@@ -26,6 +26,20 @@ All three tools use **0-indexed** line and column positions.
 
 **Servers must be on `$PATH`.** Install them via your package manager (npm, pip, go install, rustup).
 
+## Graph-Enhanced Hover (When Graph Data Available)
+
+When `graphify-out/graph.json` is present and graph analysis has run, the `lsp_hover` tool returns **enhanced information** beyond standard LSP type info:
+
+| Extra Field | What it shows |
+|-------------|---------------|
+| **God Node Status** | ⭐ if the symbol is a god node, with CRITICAL/HIGH/MEDIUM/LOW criticality |
+| **Centrality** | In-degree, out-degree, PageRank score |
+| **Community** | Which functional group the symbol belongs to |
+| **Surprising Connections** | Cross-community edges involving this symbol |
+| **Impact Analysis** | How many dependents would be affected by a change |
+
+This is automatic — no extra configuration needed. All standard LSP type info is still returned.
+
 ## How It Works
 
 1. **Lazy startup** — language servers start on first tool call, not at session start

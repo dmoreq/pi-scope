@@ -9,8 +9,6 @@ import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { slimDir } from '../shared/paths.js'
 import { writeState } from '../shared/runtime-state.js'
-import { recordMetric } from 'pi-telemetry/helpers'
-
 // ── Stored record ────────────────────────────────────────────────────────
 
 export interface SessionRecord {
@@ -19,6 +17,7 @@ export interface SessionRecord {
   endedAt: string
   indexSource: 'cache' | 'fresh'
   indexedFiles: number
+  symbolCount?: number
   depEdges: number
   repoMapTokens: number
   depContextTriggers: number
@@ -31,6 +30,16 @@ export interface SessionRecord {
   providerGuidanceCount: number
   totalTokensSaved: number
   savingsRatio: number
+  // ── Metadata (from StoredIndexV2) ──
+  indexBuiltAt?: string
+  indexAge?: number // hours
+  indexStale?: boolean
+  indexBuildTime?: number // milliseconds
+  indexLoadTime?: number // milliseconds
+  languages?: string[]
+  godNodesCount?: number
+  communityCount?: number
+  circularDependencies?: number
 }
 
 // ── Live tracker ──────────────────────────────────────────────────────────
@@ -38,9 +47,11 @@ export interface SessionRecord {
 export class SessionStats {
   readonly sessionId: string
   readonly startedAt = Date.now()
+  indexLoadStartedAt = Date.now()
 
   indexSource: 'cache' | 'fresh' = 'fresh'
   indexedFiles = 0
+  symbolCount = 0
   depEdges = 0
   repoMapTokens = 0
   contextFilesTokens = 0
@@ -52,6 +63,17 @@ export class SessionStats {
   totalTokensSaved = 0
   savingsRatio = 0
 
+  // Metadata from StoredIndexV2
+  indexBuiltAt?: string
+  indexAge?: number
+  indexBuildTime?: number
+  indexLoadTime?: number
+  languages: string[] = []
+  godNodesCount?: number
+  communityCount?: number
+  circularDependencies?: number
+  indexStale = false
+
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
 
@@ -59,7 +81,6 @@ export class SessionStats {
 
   recordRepoMapInjection(tokens: number): void {
     this.repoMapTokens = tokens;
-    recordMetric('repo-map-tokens', tokens, { cumulative: false });
   }
 
   recordDepContextInjection(paths: string[], tokens: number, fullFileTokens?: number): void {
@@ -81,14 +102,28 @@ export class SessionStats {
 
   recordContextFilesInjection(tokens: number, count: number): void {
     this.contextFilesTokens = tokens; this.contextFilesCount = count;
-    recordMetric('context-files-tokens', tokens, { cumulative: false });
-    recordMetric('context-files-count', count, { cumulative: false });
   }
 
   recordProviderGuidanceInjection(tokens: number, count: number): void {
     this.providerGuidanceTokens = tokens; this.providerGuidanceCount = count;
-    recordMetric('provider-guidance-tokens', tokens, { cumulative: false });
-    recordMetric('provider-guidance-count', count, { cumulative: false });
+  }
+
+  recordIndexLoaded(metadata?: any): void {
+    this.indexLoadTime = Date.now() - this.indexLoadStartedAt
+    if (metadata) {
+      this.indexBuiltAt = metadata.builtAt
+      this.indexBuildTime = metadata.buildDuration
+      this.symbolCount = metadata.symbolCount || 0
+      this.languages = metadata.languages || []
+      this.godNodesCount = metadata.godNodes?.length
+      this.communityCount = metadata.communities
+      this.circularDependencies = metadata.circularDependencies
+    }
+  }
+
+  recordIndexAge(ageHours: number, stale: boolean): void {
+    this.indexAge = ageHours
+    this.indexStale = stale
   }
 
   summary(): string {
@@ -143,6 +178,7 @@ export class SessionStats {
       endedAt: new Date().toISOString(),
       indexSource: this.indexSource,
       indexedFiles: this.indexedFiles,
+      symbolCount: this.symbolCount,
       depEdges: this.depEdges,
       repoMapTokens: this.repoMapTokens,
       depContextTriggers: this.depContextTriggers,
@@ -155,6 +191,15 @@ export class SessionStats {
       providerGuidanceCount: this.providerGuidanceCount,
       totalTokensSaved: this.totalTokensSaved,
       savingsRatio: Math.round(this.savingsRatio * 100) / 100,
+      indexBuiltAt: this.indexBuiltAt,
+      indexAge: this.indexAge,
+      indexStale: this.indexStale,
+      indexBuildTime: this.indexBuildTime,
+      indexLoadTime: this.indexLoadTime,
+      languages: this.languages,
+      godNodesCount: this.godNodesCount,
+      communityCount: this.communityCount,
+      circularDependencies: this.circularDependencies,
     }
   }
 

@@ -21,7 +21,7 @@
 import type { Plugin } from '../plugins/plugin.js';
 import type { ExtensionContext } from '../extension.js';
 import { applyPruningRules, DEFAULT_RULE_CONFIG, type PruningRuleConfig } from './pruning-rules.js';
-import { getTelemetry } from 'pi-telemetry';
+
 
 export class ContextPruningPlugin implements Plugin {
   readonly name = 'context-pruning';
@@ -54,23 +54,7 @@ export class ContextPruningPlugin implements Plugin {
       messages.length = 0;
       messages.push(...pruned);
 
-      // Report pruning activity via telemetry
-      try {
-        const t = getTelemetry();
-        const pct = Math.round((removed / (removed + messages.length)) * 100)
-        t?.recordEvent('pi-scope', 'pruning', `Pruned ${removed}/${removed + messages.length} messages (${pct}%)`, {
-          removed,
-          total: removed + messages.length,
-          percent: pct,
-        });
-        t?.recordMetric('pruned-messages', removed, { cumulative: true });
-        t?.notify(`\u2702\ufe0f Pruned ${removed}/${removed + messages.length} messages (${pct}%)`, {
-          severity: 'info',
-          badge: { text: 'pruning', variant: 'info' },
-        })
-      } catch {
-        // Telemetry is best-effort
-      }
+      // Telemetry handled by TelemetryService in manager.ts
     }
   }
 
