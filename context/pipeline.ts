@@ -4,8 +4,15 @@
  * Collects multiple sources (repo-map, context-files, provider-guidance,
  * dep-context), orders by priority, trims to a shared token budget,
  * and produces a single combined block for system prompt injection.
+ *
+ * Enhanced helpers (`buildEnhancedDependencyContext`, `enhanceRepoMapWithGraphPriorities`)
+ * layer graph + conversation intelligence without changing the legacy `register` / `build` flow.
  */
 import { estimateTokens } from '../shared/token.js'
+import type { ContextInsights } from '../shared/intelligence-types.js'
+import type { GraphifyAnalysis } from './graph-types.js'
+import { SmartDependencyContextGenerator } from './smart-dep-context.js'
+import { SmartRepositoryMapGenerator } from './smart-repo-map.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -29,7 +36,26 @@ export interface PipelineBuildResult {
 // ── Pipeline ──────────────────────────────────────────────────────────────
 
 export class InjectionPipeline {
+  private readonly smartDependencyContext = new SmartDependencyContextGenerator()
+  private readonly smartRepositoryMap = new SmartRepositoryMapGenerator()
   private sources: PipelineSource[] = []
+
+  /** Graph- and insight-aware dependency context (optional; callers still use `register` for injection). */
+  buildEnhancedDependencyContext(
+    insights: ContextInsights,
+    graphAnalysis: GraphifyAnalysis | null,
+  ): string {
+    return this.smartDependencyContext.generateEnhancedDependencyContext(insights, graphAnalysis)
+  }
+
+  /** Prefix repo-map with high-value graph navigation hints when analysis is available. */
+  enhanceRepoMapWithGraphPriorities(
+    baseRepoMap: string,
+    insights: ContextInsights,
+    graphAnalysis: GraphifyAnalysis | null,
+  ): string {
+    return this.smartRepositoryMap.generatePrioritizedRepoMap(baseRepoMap, insights, graphAnalysis)
+  }
 
   register(source: PipelineSource): void {
     const existing = this.sources.findIndex(s => s.name === source.name)
