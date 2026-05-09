@@ -64,6 +64,22 @@ describe('ConfigManager', () => {
     })
   })
 
+  it('should use projectRoot from loadConfig when file omits projectRoot', async () => {
+    const partialConfig = { enabled: false, maxTokens: 6000 }
+    vi.mocked(fs.access).mockResolvedValue(undefined as void)
+    vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(partialConfig))
+
+    const config = await configManager.loadConfig('/custom/path')
+
+    expect(config).toEqual({
+      projectRoot: '/custom/path',
+      enabled: false,
+      maxTokens: 6000,
+      plugins: [],
+      excludePatterns: [],
+    })
+  })
+
   it('should handle malformed JSON gracefully', async () => {
     vi.mocked(fs.access).mockResolvedValue(undefined as void)
     vi.mocked(fs.readFile).mockResolvedValue('{ invalid json }')

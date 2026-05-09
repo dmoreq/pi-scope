@@ -13,7 +13,7 @@ export class ConfigManager implements IConfigManager {
       await access(configPath)
       const configContent = await readFile(configPath, 'utf-8')
       const rawConfig = JSON.parse(configContent) as unknown
-      this.currentConfig = this.validateConfig(rawConfig)
+      this.currentConfig = this.validateConfig(rawConfig, projectRoot)
     } catch {
       this.currentConfig = this.getDefaultConfig(projectRoot)
     }
@@ -25,11 +25,11 @@ export class ConfigManager implements IConfigManager {
     return this.currentConfig
   }
 
-  validateConfig(config: unknown): SessionConfig {
+  validateConfig(config: unknown, projectRoot?: string): SessionConfig {
     const c = config && typeof config === 'object' ? (config as Record<string, unknown>) : {}
 
     return {
-      projectRoot: typeof c.projectRoot === 'string' ? c.projectRoot : '',
+      projectRoot: typeof c.projectRoot === 'string' ? c.projectRoot : (projectRoot || ''),
       enabled: normalizeEnabled(c.enabled),
       maxTokens: normalizeMaxTokens(c.maxTokens),
       plugins: Array.isArray(c.plugins) ? c.plugins.filter((p): p is string => typeof p === 'string') : [],
