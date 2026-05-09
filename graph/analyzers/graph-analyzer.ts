@@ -37,6 +37,10 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
   private identifyGodNodes(graph: Graph): GodNode[] {
     const connectivity = new Map<string, number>()
 
+    graph.nodes.forEach(node => {
+      connectivity.set(node.id, 0)
+    })
+
     graph.edges.forEach(edge => {
       connectivity.set(edge.from, (connectivity.get(edge.from) ?? 0) + 1)
       connectivity.set(edge.to, (connectivity.get(edge.to) ?? 0) + 1)
@@ -138,8 +142,51 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
     return maxInternalEdges > 0 ? internalEdges / maxInternalEdges : 0
   }
 
-  private calculateAverageClustering(_graph: Graph): number {
-    return 0.3
+  private calculateAverageClustering(graph: Graph): number {
+    if (graph.nodes.length < 3) return 0
+
+    let totalClustering = 0
+    let counted = 0
+
+    for (const node of graph.nodes) {
+      const neighbors = this.getNeighbors(node.id, graph)
+      if (neighbors.length < 2) continue
+
+      const possibleTriangles = (neighbors.length * (neighbors.length - 1)) / 2
+      let actualTriangles = 0
+
+      for (let i = 0; i < neighbors.length; i++) {
+        for (let j = i + 1; j < neighbors.length; j++) {
+          if (this.hasEdge(neighbors[i]!, neighbors[j]!, graph)) {
+            actualTriangles++
+          }
+        }
+      }
+
+      const clustering = possibleTriangles > 0 ? actualTriangles / possibleTriangles : 0
+      totalClustering += clustering
+      counted++
+    }
+
+    return counted > 0 ? totalClustering / counted : 0
+  }
+
+  private getNeighbors(nodeId: string, graph: Graph): string[] {
+    const neighbors = new Set<string>()
+
+    for (const edge of graph.edges) {
+      if (edge.from === nodeId) neighbors.add(edge.to)
+      if (edge.to === nodeId) neighbors.add(edge.from)
+    }
+
+    return Array.from(neighbors)
+  }
+
+  private hasEdge(node1: string, node2: string, graph: Graph): boolean {
+    return graph.edges.some(edge =>
+      (edge.from === node1 && edge.to === node2) ||
+      (edge.from === node2 && edge.to === node1),
+    )
   }
 
   private generateCacheKey(graph: Graph): string {
@@ -147,6 +194,9 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
       nodeCount: graph.nodes.length,
       edgeCount: graph.edges.length,
       nodeIds: graph.nodes.map(n => n.id).sort(),
+      edges: graph.edges
+        .map(e => `${e.from}->${e.to}:${e.type ?? ''}`)
+        .sort(),
     })
 
     let hash = 0

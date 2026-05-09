@@ -156,4 +156,67 @@ describe('GraphAnalyzer', () => {
     expect(result.metrics.edgeCount).toBe(0)
     expect(result.metrics.density).toBe(0)
   })
+
+  it('should generate different cache keys for different edge structures', async () => {
+    const graph1 = {
+      nodes: [{ id: 'a', type: 'function' }, { id: 'b', type: 'function' }],
+      edges: [{ from: 'a', to: 'b', type: 'calls' }],
+    }
+
+    const graph2 = {
+      nodes: [{ id: 'a', type: 'function' }, { id: 'b', type: 'function' }],
+      edges: [{ from: 'b', to: 'a', type: 'calls' }],
+    }
+
+    vi.mocked(mockCache.get).mockReturnValue(null)
+
+    await analyzer.analyze(graph1)
+    await analyzer.analyze(graph2)
+
+    expect(mockCache.set).toHaveBeenCalledTimes(2)
+    const firstKey = vi.mocked(mockCache.set).mock.calls[0]![0]
+    const secondKey = vi.mocked(mockCache.set).mock.calls[1]![0]
+    expect(firstKey).not.toBe(secondKey)
+  })
+
+  it('should calculate clustering coefficient correctly', async () => {
+    const triangleGraph = {
+      nodes: [
+        { id: 'a', type: 'function' },
+        { id: 'b', type: 'function' },
+        { id: 'c', type: 'function' },
+      ],
+      edges: [
+        { from: 'a', to: 'b', type: 'calls' },
+        { from: 'b', to: 'c', type: 'calls' },
+        { from: 'c', to: 'a', type: 'calls' },
+      ],
+    }
+
+    vi.mocked(mockCache.get).mockReturnValue(null)
+
+    const result = await analyzer.analyze(triangleGraph)
+
+    expect(result.metrics.avgClustering).toBe(1.0)
+  })
+
+  it('should include isolated nodes in god node ranking', async () => {
+    const graphWithIsolated = {
+      nodes: [
+        { id: 'connected', type: 'function' },
+        { id: 'isolated', type: 'function' },
+      ],
+      edges: [
+        { from: 'connected', to: 'connected', type: 'calls' },
+      ],
+    }
+
+    vi.mocked(mockCache.get).mockReturnValue(null)
+
+    const result = await analyzer.analyze(graphWithIsolated)
+
+    expect(result.godNodes).toHaveLength(1)
+    expect(result.godNodes[0]!.id).toBe('connected')
+    expect(result.godNodes[0]!.connectivity).toBeGreaterThan(0)
+  })
 })

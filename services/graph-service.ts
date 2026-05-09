@@ -19,8 +19,10 @@ import type { GraphifyGraph, GraphifyAnalysis } from '../context/graph-types.js'
 import { loadGraphifyJson, type LoadResult } from '../context/graph-loader.js'
 import { saveGraphCache, loadGraphCache } from '../persistence/graph-cache.js'
 import { repoIndexToGraphifyGraph } from '../graph/bridge.js'
-import { computeGraphifyAnalysis } from '../graph/analyzers/compute-graphify-analysis.js'
+import { assembleGraphifyAnalysis } from '../graph/analyzers/compute-graphify-analysis.js'
+import { GraphAnalyzer } from '../graph/analyzers/graph-analyzer.js'
 import { InMemoryAnalysisCache } from '../graph/cache/analysis-cache.js'
+import type { Graph as AnalysisGraph } from '../graph/interfaces/analyzer.interface.js'
 
 export interface GraphResult {
   graph: GraphifyGraph
@@ -63,6 +65,11 @@ export class GraphService {
   private _graph: GraphifyGraph | null = null
   private _source: 'external' | 'native' | null = null
   private readonly sessionAnalysisCache = new InMemoryAnalysisCache()
+  private readonly graphAnalyzer: GraphAnalyzer
+
+  constructor() {
+    this.graphAnalyzer = new GraphAnalyzer(new InMemoryAnalysisCache())
+  }
 
   get analysis(): GraphifyAnalysis | null { return this._analysis }
   get graph(): GraphifyGraph | null { return this._graph }
@@ -175,9 +182,26 @@ export class GraphService {
     if (cached) {
       return { graph, analysis: cached }
     }
-    const result = computeGraphifyAnalysis(graph)
-    this.sessionAnalysisCache.set(key, result.analysis)
-    return result
+    const analyzerResult = await this.graphAnalyzer.analyze(this.toAnalysisGraph(graph))
+    const analysis = assembleGraphifyAnalysis(graph, analyzerResult)
+    this.sessionAnalysisCache.set(key, analysis)
+    return { graph, analysis }
+  }
+
+  private toAnalysisGraph(graph: GraphifyGraph): AnalysisGraph {
+    return {
+      nodes: graph.nodes.map(n => ({
+        id: n.id,
+        type: n.type,
+        properties: n.metadata,
+      })),
+      edges: graph.edges.map(e => ({
+        from: e.source,
+        to: e.target,
+        type: e.type,
+        weight: e.weight,
+      })),
+    }
   }
 }
 

@@ -1,11 +1,13 @@
 /**
- * Graphify-shaped graph analysis — god nodes, communities, surprises, cycles, metrics.
- * Extracted from GraphService for a single analysis responsibility.
+ * Assemble Graphify-shaped analysis from a Graphify graph plus generic analyzer output.
+ * Louvain, cycles, surprises, and bottlenecks stay on Graphify types; clustering and
+ * god-node ranking come from {@link GraphAnalyzer}.
  */
 
 import type { GraphifyGraph, GraphifyAnalysis, GodNode } from '../../context/graph-types.js'
-import { computeDegreeCentrality, identifyGodNodesByDegree } from '../../algorithms/centrality.js'
-import { computePageRank, identifyGodNodesByPageRank } from '../../algorithms/pagerank.js'
+import type { AnalysisResult } from '../interfaces/analyzer.interface.js'
+import { computeDegreeCentrality } from '../../algorithms/centrality.js'
+import { computePageRank } from '../../algorithms/pagerank.js'
 import { detectCommunitiesLouvain } from '../../algorithms/community-detection.js'
 import { detectAllCycles } from '../../algorithms/cycle-detection.js'
 import { detectSurprisingConnections } from '../../algorithms/surprising-connections.js'
@@ -15,38 +17,42 @@ export interface GraphifyAnalysisResult {
   analysis: GraphifyAnalysis
 }
 
-export function computeGraphifyAnalysis(graph: GraphifyGraph): GraphifyAnalysisResult {
+/**
+ * Build full {@link GraphifyAnalysis} using Louvain/PageRank/cycles pipeline and
+ * analyzer-derived god-node set plus average clustering coefficient.
+ */
+export function assembleGraphifyAnalysis(
+  graph: GraphifyGraph,
+  analyzerResult: AnalysisResult,
+): GraphifyAnalysis {
   const degResults = computeDegreeCentrality(graph)
-
   const prResults = computePageRank(graph)
-  const pageRankGodNodeIds = identifyGodNodesByPageRank(prResults, 0.15)
 
   const degMap = new Map(degResults.map(d => [d.nodeId, d]))
   const prMap = new Map(prResults.map(p => [p.nodeId, p]))
 
-  const godNodeIds = new Set([
-    ...identifyGodNodesByDegree(degResults, 5),
-    ...pageRankGodNodeIds,
-  ])
-
-  const godNodes: GodNode[] = Array.from(godNodeIds).map(nodeId => ({
-    nodeId,
-    label: nodeId.includes(':') ? nodeId.split(':')[1] || nodeId : nodeId,
-    inDegree: degMap.get(nodeId)?.inDegree ?? 0,
-    outDegree: degMap.get(nodeId)?.outDegree ?? 0,
-    betweenness: 0,
-    pageRank: prMap.get(nodeId)?.score ?? 0,
-    community: '',
-    criticality: (degMap.get(nodeId)?.inDegree ?? 0) > 20 ? 'CRITICAL' as const :
-                 (degMap.get(nodeId)?.inDegree ?? 0) > 10 ? 'IMPORTANT' as const :
-                 'NORMAL' as const,
-  }))
-
   const communities = detectCommunitiesLouvain(graph)
 
-  for (const gn of godNodes) {
-    gn.community = communities.find(c => c.nodes.includes(gn.nodeId))?.id ?? 'unknown'
-  }
+  const godNodes: GodNode[] = analyzerResult.godNodes.map(gn => {
+    const nodeId = gn.id
+    const meta = graph.nodes.find(n => n.id === nodeId)
+    const d = degMap.get(nodeId)
+    const p = prMap.get(nodeId)
+    const inDegree = d?.inDegree ?? 0
+
+    return {
+      nodeId,
+      label: meta?.label ?? (nodeId.includes(':') ? nodeId.split(':')[1] || nodeId : nodeId),
+      inDegree,
+      outDegree: d?.outDegree ?? 0,
+      betweenness: 0,
+      pageRank: p?.score ?? 0,
+      community: communities.find(c => c.nodes.includes(nodeId))?.id ?? 'unknown',
+      criticality: inDegree > 20 ? 'CRITICAL' as const :
+                   inDegree > 10 ? 'IMPORTANT' as const :
+                   'NORMAL' as const,
+    }
+  })
 
   const communityMap = new Map<string, string>()
   for (const c of communities) {
@@ -96,7 +102,7 @@ export function computeGraphifyAnalysis(graph: GraphifyGraph): GraphifyAnalysisR
       averageDegree: avgDegree,
       maxDegree: Math.max(...degResults.map(d => d.totalDegree), 0),
       graphDensity: density,
-      avgClusteringCoeff: 0,
+      avgClusteringCoeff: analyzerResult.metrics.avgClustering,
       cycleCount: cycles.cycleCount,
       bottleneckCount: bottlenecks.length,
     },
@@ -104,5 +110,5 @@ export function computeGraphifyAnalysis(graph: GraphifyGraph): GraphifyAnalysisR
     version: '1.0.0',
   }
 
-  return { graph, analysis }
+  return analysis
 }
