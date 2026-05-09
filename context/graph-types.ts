@@ -6,8 +6,6 @@
  * computed analysis output (GraphifyAnalysis).
  */
 
-import type { ContextInsights, EnhancedContextLayer } from '../shared/intelligence-types.js'
-
 // ── Input: Graphify Graph Structure ────────────────────────────────────────
 
 /**
@@ -404,22 +402,8 @@ export interface ValidationResult {
   warnings: string[]
 }
 
-/**
- * Graph analysis plus actionable guidance for the intelligence system.
- */
-export interface EnhancedGraphInsights extends GraphifyAnalysis {
-  actionableGuidance: {
-    workflowOptimization: string
-    riskWarnings: string
-    architecturalGuidance: string
-    contextualSuggestions: string
-  }
-  intelligenceMetadata: {
-    generatedAt: number
-    conversationContext: ContextInsights
-    guidanceVersion: string
-  }
-}
+/** Graph analysis extended for the Enhanced Context Intelligence pipeline. */
+export interface EnhancedGraphInsights extends GraphifyAnalysis {}
 
 /**
  * Tunable limits for smart / enhanced context generation.

@@ -1,11 +1,6 @@
 // tests/shared/intelligence-types.test.ts
 import { describe, it, expect } from 'vitest'
-import type { 
-  ContextInsights, 
-  EditingContext, 
-  OptimizationSuggestion,
-  EnhancedContextLayer 
-} from '../../shared/intelligence-types.js'
+import type { ContextInsights, OptimizationSuggestion } from '../../shared/intelligence-types.js'
 
 describe('Intelligence Types', () => {
   it('should define ContextInsights interface', () => {
