@@ -32,6 +32,7 @@ import { ContextPruningPlugin } from './plugins/context-pruning.js'
 import { ReadAwarenessPlugin } from './plugins/read-awareness.js'
 import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { detectPathsInToolCall, detectPathsInOutput } from './shared/file-detector.js'
+import { scopeDir } from './shared/paths.js'
 import { info as nInfo, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
 import { IndexService } from './services/index-service.js'
 import { GraphService } from './services/graph-service.js'
@@ -193,7 +194,7 @@ export class SessionManager {
    * Load graph analysis from cache or compute fresh.
    */
   private async loadGraph(projectRoot: string, stats: SessionStats): Promise<void> {
-    const cacheDir = join(projectRoot, '.pi', 'slim')
+    const cacheDir = scopeDir(projectRoot)
 
     // Try cache first
     if (await this.graphService.load(projectRoot, cacheDir)) {

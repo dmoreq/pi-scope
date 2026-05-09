@@ -337,7 +337,7 @@
         "isPlainObject",
         "loadConfig"
       ],
-      "contentHash": "3bedbadfdbc8ad6e106f6f35e6ae379afc094a29f3fbd37cfdc9bfb0e8073305"
+      "contentHash": "3773e57769925458dc181e568ae2b14e956be5adad3d9693a4b097a1b6401ac6"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/context/pipeline.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/context/pipeline.ts",
@@ -616,7 +616,7 @@
         "buildChecksums",
         "formatStalenessResult"
       ],
-      "contentHash": "e7ac433d52132ce0110184038ffd251451c387a4a6ecb498c6747345cc406502"
+      "contentHash": "6a92eae6fb2dd31c15b17759a9befcaf66700312bea3133b0f5c593093d3794a"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/indexer/index-store.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/indexer/index-store.ts",
@@ -641,7 +641,7 @@
         "saveStore",
         "loadStore"
       ],
-      "contentHash": "47cdb14a5c4dee6a25fe0e4ccb3a13a4ad8487f20ca9ffcec68a19b3f6b6954e"
+      "contentHash": "2fb7410eae702d5bd9515043814747e41bef7fd05181b697e2cb4678862edae6"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/indexer/metadata.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/indexer/metadata.ts",
@@ -779,6 +779,7 @@
         "./plugins/read-awareness.js",
         "./plugins/community-pruning-plugin.js",
         "./shared/file-detector.js",
+        "./shared/paths.js",
         "./ui/notifications.js",
         "./services/index-service.js",
         "./services/graph-service.js",
@@ -793,7 +794,7 @@
         "SessionManager",
         "join"
       ],
-      "contentHash": "83f80057fa5356faaefdcd6a5063a491e410dcf8642cee0bb0b2f21bf6341f7d"
+      "contentHash": "e33a239f644c91dfa43a0e478f5c4dacee826c12c936535b1d0666b2ef7d2443"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/metrics/cost-estimator.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/metrics/cost-estimator.ts",
@@ -847,7 +848,7 @@
         "SessionStats",
         "shorten"
       ],
-      "contentHash": "b55d8e7321e75dae67164fe0a668a91da400118ef709ff59ce04a82a1cc369cf"
+      "contentHash": "12d25ce4d517a7e58fd2c1c607a93017da642cd264b3356336971e9b7eedc79e"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/parsers/language-parser.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/parsers/language-parser.ts",
@@ -933,7 +934,7 @@
         "clearGraphCache",
         "getGraphCacheStats"
       ],
-      "contentHash": "72b3aaf8f6b2e6d5286f946b3c6be7663ab31c9ef89c93fe743d49987e3e2a27"
+      "contentHash": "6b63431999b80d30b4b04b3b0f1109a91ba14bd3efdf0e014123836186af321c"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/plugins/community-pruning-plugin.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/plugins/community-pruning-plugin.ts",
@@ -1101,14 +1102,14 @@
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/shared/paths.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/shared/paths.ts",
-      "skeleton": "export function slimDir(projectRoot: string): string { ... }",
+      "skeleton": "export function scopeDir(projectRoot: string): string { ... }",
       "imports": [
         "node:path"
       ],
       "exports": [
-        "slimDir"
+        "scopeDir"
       ],
-      "contentHash": "511e46e1f167029bc1010f54a517a1b47cfc8cdfd49ac4f14b8d9578e65bec6a"
+      "contentHash": "b8b4c251b79e92a957999200833273b2f75b3953134bf31061aff84a9265ed42"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/shared/runtime-state.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/shared/runtime-state.ts",
@@ -1129,7 +1130,7 @@
         "writeStateSync",
         "removeState"
       ],
-      "contentHash": "8df595a066effa3c262a146d5757b190bb17ab612425a5879bbee0b372a281b3"
+      "contentHash": "f22e62ec0e6d9ed1524ae87f0d02d61add625fc4a05e85715396884f0d1a155d"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/shared/schema-v2.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/shared/schema-v2.ts",
@@ -1340,7 +1341,7 @@
       "exports": [
         "writeProjectConfig"
       ],
-      "contentHash": "0d114d21e24d295f11e8f4d9a549309730c1b7c9cd590f7dbda2f6eaae17af2d"
+      "contentHash": "e1ef35097859377daf8f8a8e4822b6e6e1cd715272c85f46c9909548b98779d3"
     },
     "/Users/quy.doan/Workspace/personal/pi-scope/tests/context/pipeline.test.ts": {
       "path": "/Users/quy.doan/Workspace/personal/pi-scope/tests/context/pipeline.test.ts",
