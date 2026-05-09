@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.1] - 2026-05-09
+
+### Added
+- **Broad codebase query detection** — `handleContext()` now triggers context injection for high-level introspection queries (e.g., "what does this codebase do", "show me the architecture", "what are the key files") that don't mention specific file paths or symbol names.
+  - `shared/query-intent.ts` — `isBroadCodebaseQuery()` classifier with 14 regex patterns covering overview, structure, purpose, and key-file queries
+  - `context/dep-context.ts` — `getBroadOverviewFiles()` injects top files by reverse-dependency centrality plus entry-point files; `buildModuleStructureListing()` adds compact directory grouping
+  - `manager.ts` — new `hasCodebaseQuery` trigger before the early-exit gate in `handleContext()`
+
+### Fixed
+- Context injection now activates on first-turn broad codebase questions (previously required specific file paths, tool calls, or symbol matches)
+
 ## [0.7.0] - 2026-05-04
 
 ### Added
