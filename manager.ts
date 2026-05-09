@@ -22,6 +22,7 @@ import { SessionStats } from './metrics/tracker.js'
 import { storeExists, loadStore } from './indexer/index-store.js'
 import { readState } from './shared/runtime-state.js'
 import { extractText, extractInjectedFilePaths } from './shared/message.js'
+import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import { estimateTokens } from './shared/token.js'
 import { loadContextFiles, formatContextSection, type ContextFile } from './context/context-files.js'
 import { loadProviderGuidance, formatProviderGuidanceSection, type ProviderGuidanceFile } from './context/guidance.js'
@@ -405,7 +406,12 @@ export class SessionManager {
         })()
       : false
 
-    if (!hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch) {
+    // Broad codebase-introspection query (no specific paths/symbols, but clearly codebase-related)
+    const hasCodebaseQuery = !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch
+      ? isBroadCodebaseQuery(extractText(recentMessages[recentMessages.length - 1]?.content ?? ''))
+      : false
+
+    if (!hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch && !hasCodebaseQuery) {
       return undefined
     }
 

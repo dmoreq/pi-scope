@@ -1,5 +1,6 @@
 import { relative } from 'node:path'
 import { extractText } from '../shared/message.js'
+import { isBroadCodebaseQuery } from '../shared/query-intent.js'
 import { estimateTokens } from '../shared/token.js'
 import type { RepoIndex } from '../shared/types.js'
 import { RetrievalEngine, type ScoredFile } from './retrieval.js'
@@ -29,12 +30,30 @@ export class ContextInjector {
 
   buildInjection(index: RepoIndex, messages: Message[], extraPaths?: Set<string>, retrieval?: RetrievalEngine, transitiveDepth: number = 1): string {
     const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval)
+
+    // Broad codebase overview: inject top files by centrality when the query
+    // is a high-level codebase question with no specific paths/symbols.
+    const query = messages.length > 0 ? extractText(messages[messages.length - 1].content) : ''
+    let isBroadOverview = false
+    if (inFocus.size === 0 && isBroadCodebaseQuery(query)) {
+      const overviewFiles = getBroadOverviewFiles(index, 5)
+      for (const f of overviewFiles) inFocus.add(f)
+      isBroadOverview = true
+    }
+
     if (inFocus.size === 0) return ''
 
     const sections: string[] = []
     let tokenBudget = this.maxTokens
 
-    const activeLines: string[] = ['## Active files']
+    if (isBroadOverview) {
+      sections.push(`## Codebase Overview (${index.skeletons.size} files, ${index.symbolIndex.size} symbols)`)
+      // Add module structure listing
+      const moduleListing = buildModuleStructureListing(index, this.projectRoot)
+      if (moduleListing) sections.push(moduleListing)
+    }
+
+    const activeLines: string[] = ['## Key files']
     for (const absPath of inFocus) {
       const skeleton = index.skeletons.get(absPath)
       if (!skeleton) continue
@@ -141,4 +160,72 @@ export class ContextInjector {
     }
     return inFocus
   }
+}
+
+// ── Broad codebase overview helpers ─────────────────────────────────
+
+/** Entry-point file basenames that are important for understanding a codebase. */
+const ENTRY_POINT_NAMES = new Set([
+  'extension.ts', 'extension.js',
+  'manager.ts', 'manager.js',
+  'index.ts', 'index.js',
+  'main.ts', 'main.js',
+  'app.ts', 'app.js',
+  'server.ts', 'server.js',
+])
+
+/**
+ * Get the top-N most important files for understanding the codebase.
+ * Uses reverse-dependency centrality (most depended-on) and entry-point detection.
+ */
+function getBroadOverviewFiles(index: RepoIndex, k: number = 5): Set<string> {
+  const files = new Set<string>()
+
+  // 1. Entry points
+  for (const absPath of index.skeletons.keys()) {
+    const name = absPath.split('/').pop() ?? ''
+    if (ENTRY_POINT_NAMES.has(name)) {
+      files.add(absPath)
+    }
+  }
+
+  // 2. Top-N by reverse dependency count
+  const byDepCount = new Map<string, number>()
+  for (const [path, rdeps] of index.reverseDeps) {
+    byDepCount.set(path, rdeps.size)
+  }
+  const top = [...byDepCount.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, k)
+  for (const [path] of top) files.add(path)
+
+  return files
+}
+
+/**
+ * Build a compact module structure listing grouped by top-level directory.
+ */
+function buildModuleStructureListing(index: RepoIndex, projectRoot: string): string {
+  const dirs = new Map<string, Set<string>>()
+
+  for (const absPath of index.skeletons.keys()) {
+    const rel = relative(projectRoot, absPath)
+    const parts = rel.split('/')
+    if (parts.length <= 1) continue // root-level file, skip
+    const dir = parts[0] // top-level directory
+    const baseName = parts[parts.length - 1]?.replace(/\.[^.]+$/, '') ?? ''
+    if (!dirs.has(dir)) dirs.set(dir, new Set())
+    dirs.get(dir)!.add(baseName)
+  }
+
+  if (dirs.size === 0) return ''
+
+  const lines: string[] = ['## Module Structure']
+  for (const [dir, files] of [...dirs.entries()].sort()) {
+    const fileList = [...files].sort().slice(0, 8).join(', ')
+    const suffix = files.size > 8 ? ` ... +${files.size - 8} more` : ''
+    lines.push(`- ${dir}/ (${fileList}${suffix})`)
+  }
+
+  return lines.join('\n')
 }
