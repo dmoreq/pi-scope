@@ -89,16 +89,53 @@ describe('ServiceContainer', () => {
     expect(service.version).toBe(2)
   })
 
-  it('should maintain singleton identity after re-registration', () => {
+  it('should maintain singleton identity after re-registration as singleton', () => {
     container.registerSingleton('SingletonService', () => ({ id: Math.random() }))
 
-    const first = container.resolve<{ id: number }>('SingletonService')
+    const first = container.resolve('SingletonService')
 
+    // Re-register as singleton with new factory (should keep existing instance)
     container.registerSingleton('SingletonService', () => ({ id: Math.random() }))
 
-    const second = container.resolve<{ id: number }>('SingletonService')
+    const second = container.resolve('SingletonService')
 
+    // Should still return the same instance (already created)
     expect(first).toBe(second)
+  })
+
+  it('should convert singleton to transient when using register()', () => {
+    let counter = 0
+
+    // First register as singleton
+    container.registerSingleton('ConvertService', () => ({ id: ++counter }))
+
+    const singleton1 = container.resolve('ConvertService')
+    const singleton2 = container.resolve('ConvertService')
+
+    expect(singleton1).toBe(singleton2) // Should be same instance
+    expect(singleton1.id).toBe(1)
+
+    // Now register as transient (should override singleton behavior)
+    container.register('ConvertService', () => ({ id: ++counter }))
+
+    const transient1 = container.resolve('ConvertService')
+    const transient2 = container.resolve('ConvertService')
+
+    expect(transient1).not.toBe(transient2) // Should be different instances
+    expect(transient1.id).toBe(2)
+    expect(transient2.id).toBe(3)
+  })
+
+  it('should maintain has() correctness for singleton registrations', () => {
+    expect(container.has('SingletonOnly')).toBe(false)
+
+    container.registerSingleton('SingletonOnly', () => ({ test: true }))
+
+    expect(container.has('SingletonOnly')).toBe(true)
+
+    // Should still return true after resolving
+    container.resolve('SingletonOnly')
+    expect(container.has('SingletonOnly')).toBe(true)
   })
 
   it('should handle factory exceptions gracefully', () => {
