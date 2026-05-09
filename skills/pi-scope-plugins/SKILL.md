@@ -5,6 +5,17 @@ description: Use when extending pi-scope with custom behavior via plugins, regis
 
 # pi-scope Plugins
 
+## Prerequisites
+
+No special install needed — the plugin system is built into pi-scope and works with the same npm deps.
+
+For the **CommunityPruningPlugin** to activate, install graphify for graph generation:
+```bash
+pip install graphifyy
+cd your-project && graphify .
+# Restart pi session — plugin auto-registers when communities > 1
+```
+
 ## Plugin Interface
 
 Every plugin implements the `Plugin` interface from `plugins/plugin.ts`. All hooks are **optional** — implement only what you need.

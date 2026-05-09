@@ -5,6 +5,18 @@ description: Use when editing files with hashline anchors, when hashline_edit re
 
 # pi-scope Hashline Editing
 
+## Prerequisites
+
+Hashline editing requires the `xxhash-wasm` npm package (auto-installed with pi-scope).
+```bash
+# Verify:
+npm ls xxhash-wasm 2>/dev/null | head -2
+```
+
+No external tools needed — hashline is self-contained.
+
+## Overview
+
 ## How Hashline Anchors Work
 
 Every line in a file has a `LINE+BIGRAM` anchor — a 1-indexed line number followed by a 2-letter hash:

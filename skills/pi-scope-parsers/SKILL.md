@@ -5,6 +5,16 @@ description: Use when working with TypeScript, Python, or Rust AST parsing; addi
 
 # pi-scope Multi-Language Parsers
 
+## Prerequisites
+
+Parsers require tree-sitter language packages (auto-installed with pi-scope):
+```bash
+# Already installed. Verify with:
+npm ls tree-sitter tree-sitter-typescript tree-sitter-python tree-sitter-rust 2>/dev/null | head -3
+```
+
+**Adding a new language** requires writing a parser file and adding its tree-sitter npm package as a dependency.
+
 ## How Parsing Works
 
 Each language is parsed via **tree-sitter**. Files are:

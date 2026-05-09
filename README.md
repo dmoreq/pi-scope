@@ -45,6 +45,34 @@ pi install git:github.com/dmoreq/pi-scope
 
 Restart pi. First session indexes your project (~1-2s for 1,000 files). Subsequent sessions load from cache instantly.
 
+### Optional: Install LSP Servers (for code navigation)
+
+pi-scope works without these — LSP tools just log a warning and skip the missing language.
+
+```bash
+# TypeScript / JavaScript
+npm install -g typescript typescript-language-server
+
+# Python
+pip install pyright
+
+# Go
+go install golang.org/x/tools/gopls@latest
+
+# Rust
+rustup component add rust-analyzer
+```
+
+### Optional: Install Graphify (for graph analysis)
+
+Without graphify, pi-scope runs normally with all core features. Graph analysis is purely additive.
+
+```bash
+pip install graphifyy
+cd your-project && graphify .
+# pi-scope auto-detects graphify-out/graph.json on next restart
+```
+
 ---
 
 ## How It Works

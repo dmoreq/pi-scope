@@ -5,6 +5,26 @@ description: Use when you need go-to-definition, find-references, hover type inf
 
 # pi-scope LSP Code Navigation
 
+## Prerequisites: Install LSP Servers
+
+Each language needs its LSP server on `$PATH`. pi-scope logs which are found and which are missing at session start.
+
+```bash
+# TypeScript / JavaScript (recommended for all TS/JS projects)
+npm install -g typescript typescript-language-server
+
+# Python
+pip install pyright
+
+# Go
+go install golang.org/x/tools/gopls@latest
+
+# Rust
+rustup component add rust-analyzer
+```
+
+**Missing server?** The corresponding `lsp_*` tool logs a warning and skips that language — no crash, no blocking.
+
 ## Available Tools
 
 | Tool | Description | Parameters |

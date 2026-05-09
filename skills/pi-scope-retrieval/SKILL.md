@@ -14,6 +14,8 @@ When graph data is available (from `graphify-out/graph.json`), retrieval is furt
 - Surprising connections are injected as context breadcrumbs
 - Community pruning keeps only relevant community context per turn
 
+**No user commands needed.** Scoring, boosting, and injection are fully automatic.
+
 ## Scoring Formula
 
 ```
@@ -26,7 +28,7 @@ score(file) = 3 × symbolMatch + 2 × filenameMatch + 1 × depProximity
 | **filenameMatch** | 2× | Query token matches the file's basename (without extension) |
 | **depProximity** | 1× | File is already a transitive dep of an active file |
 
-**Graph boost (additional):** God nodes in the result set get 2× total score multiplication.
+**Graph boost (automatic):** God nodes in the result set get 2× total score multiplication. No action needed.
 
 ## What Gets Injected
 
@@ -51,17 +53,27 @@ export interface User { ... }
 </dep-context>
 ```
 
-## Graph-Enhanced Retrieval Commands
+## Graph Data Is Already In Your Context
 
-When graph data is available, use these commands to understand the codebase structure:
+When graph data is available, the system prompt automatically includes:
 
-| Command | When to use |
-|---------|-------------|
-| `/wiki <symbol>` | Get a full auto-generated documentation page for any symbol |
-| `/wiki-god-nodes` | See which symbols are most depended-on (critical architecture) |
-| `/wiki-communities` | Understand how modules group into functional areas |
-| `/wiki-impact <symbol>` | Check what would break if you change a symbol |
-| `/wiki-search <keyword>` | Find symbols by name, type, or community membership |
+```
+**God Nodes (most depended-on symbols):**
+  - `Client` (26 connections, CRITICAL)
+  - `AsyncClient` (25 connections, CRITICAL)
+**Communities:**
+  - Transport Layer: 8 nodes
+  - Auth & Security: 9 nodes
+```
+
+**Use this in your responses:**
+
+| Situation | What to do |
+|-----------|------------|
+| Suggesting files to edit | Check if they're god nodes — higher risk, more affected code |
+| Explaining architecture | Reference communities as landmarks ("the Transport Layer community") |
+| Assessing change risk | God nodes with CRITICAL criticality need careful review |
+| Exploring unfamiliar code | God nodes are the best starting points — they're load-bearing abstractions |
 
 ## Influencing Retrieval
 
@@ -69,11 +81,18 @@ When graph data is available, use these commands to understand the codebase stru
 
 1. **Mention the symbol name** — "edit the `authenticate` function" → finds files exporting `authenticate`
 2. **Mention the filename** — "look at `auth.ts`" → `filenameMatch` fires
-3. **Use `/hashline-read`** — file becomes visible to dep-proximity scoring
-4. **Call an LSP tool** — resolved locations feed into next context's `extraPaths`
-5. **Check god nodes** — if the symbol is a god node, it's automatically boosted 2×
+3. **Call an LSP tool** — resolved locations feed into next context's `extraPaths`
 
-**Avoid vague queries** like "that validation module" — use the actual symbol name or check `/wiki-search` first.
+**Avoid vague queries** like "that validation module" — use the actual symbol name.
+
+## Prerequisites
+
+**No install needed** for basic retrieval (works with npm deps installed by pi). For graph boost, install graphify:
+```bash
+pip install graphifyy
+cd your-project && graphify .
+# Restart pi session — graph data loads automatically
+```
 
 ## Reading the `<dep-context>` Block
 
@@ -112,4 +131,4 @@ Configurable via `dependencyDepth` (0-3, default 1):
 | Expecting full file content | Only **skeletons** are injected | Read the file explicitly if you need full content |
 | Assuming all dirs indexed | Excluded dirs (`node_modules`, `dist`, patterns in `slim.exclude`) are skipped | Check your `exclude` config |
 | Path not in recent N messages | `scanLastNMessages` default = 10; older messages are ignored | Mention the path again in a recent message |
-| Ignoring god nodes on risky changes | High-impact symbols are marked in the graph | Always check `/wiki-impact` before modifying a symbol in `/wiki-god-nodes` |
+| Ignoring god nodes on risky changes | High-impact symbols are marked in the graph | Cross-check god nodes before suggesting changes to critical paths |

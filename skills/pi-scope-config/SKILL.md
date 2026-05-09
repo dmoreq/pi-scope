@@ -5,6 +5,41 @@ description: Use when configuring pi-scope settings, troubleshooting indexing or
 
 # pi-scope Configuration
 
+## Prerequisites: Install Required Tools
+
+Before first use, ensure required tools are on `$PATH`. pi-scope works with what's available — missing tools just disable the corresponding feature.
+
+### Essential (npm deps, auto-installed by pi)
+```bash
+# Already installed. Verify with:
+npm ls diff ignore jsonc-parser pi-telemetry tree-sitter tree-sitter-python tree-sitter-rust tree-sitter-typescript vscode-jsonrpc xxhash-wasm zod 2>/dev/null | head -3
+```
+
+### LSP Servers (for code navigation — one per language you use)
+```bash
+# TypeScript / JavaScript
+npm install -g typescript typescript-language-server
+
+# Python
+pip install pyright
+
+# Go
+go install golang.org/x/tools/gopls@latest
+
+# Rust
+rustup component add rust-analyzer
+```
+
+If a server is missing, the corresponding `lsp_*` tool logs a warning and skips that language — no crash.
+
+### Graphify (optional — for richer graph extraction with 15+ languages)
+```bash
+pip install graphifyy
+# Then in your project root:
+graphify .
+# pi-scope auto-detects graphify-out/graph.json on next session start
+```
+
 ## Configuration Layers (Priority: Highest Wins)
 
 | Priority | Layer | Location |
