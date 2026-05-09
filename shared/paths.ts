@@ -5,12 +5,12 @@
  * change propagates everywhere.
  */
 
-import { join } from 'node:path'
+import { PathUtils } from './utils/path-utils.js'
 
 /** Relative path from project root to the scope data directory. */
-export const SCOPE_DIR = join('.pi', 'scope')
+export const SCOPE_DIR = PathUtils.joinSafe('.pi', 'scope')
 
 /** Absolute path to the scope data directory for a project. */
 export function scopeDir(projectRoot: string): string {
-  return join(projectRoot, SCOPE_DIR)
+  return PathUtils.joinSafe(projectRoot, SCOPE_DIR)
 }
