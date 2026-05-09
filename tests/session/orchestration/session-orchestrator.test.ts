@@ -35,7 +35,7 @@ describe('SessionOrchestrator', () => {
   })
 
   it('should start session successfully', async () => {
-    const mockConfig = { projectRoot: '/test' }
+    const mockConfig = { projectRoot: '/test', enabled: true, maxTokens: 4000 }
     mockConfigManager.loadConfig.mockResolvedValue(mockConfig)
     mockStateManager.getState.mockReturnValue(null)
 
@@ -49,7 +49,7 @@ describe('SessionOrchestrator', () => {
   })
 
   it('should update state during startup', async () => {
-    const mockConfig = { projectRoot: '/test', enabled: true }
+    const mockConfig = { projectRoot: '/test', enabled: true, maxTokens: 4000 }
     mockConfigManager.loadConfig.mockResolvedValue(mockConfig)
 
     await orchestrator.start('/test')

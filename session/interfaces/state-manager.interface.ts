@@ -1,7 +1,15 @@
 // session/interfaces/state-manager.interface.ts
+export interface SessionConfig {
+  projectRoot: string
+  enabled: boolean
+  maxTokens: number
+  plugins?: string[]
+  excludePatterns?: string[]
+}
+
 export interface SessionState {
   projectRoot: string
-  config: any
+  config: SessionConfig
   initialized: boolean
   stats?: {
     indexedFiles: number

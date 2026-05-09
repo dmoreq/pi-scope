@@ -1,5 +1,5 @@
 // tests/session/state/state-manager.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { StateManager } from '../../../session/state/state-manager.js'
 import type { SessionState } from '../../../session/interfaces/state-manager.interface.js'
 
@@ -18,7 +18,7 @@ describe('StateManager', () => {
   it('should update state correctly', async () => {
     const newState: SessionState = {
       projectRoot: '/test',
-      config: { projectRoot: '/test' },
+      config: { projectRoot: '/test', enabled: true, maxTokens: 4000 },
       initialized: true,
     }
 
@@ -28,10 +28,46 @@ describe('StateManager', () => {
     expect(state).toEqual(newState)
   })
 
+  it('should require complete state on first update', async () => {
+    await expect(stateManager.updateState({ initialized: true })).rejects.toThrow(
+      'First state update must include projectRoot, config, and initialized',
+    )
+
+    const completeState: SessionState = {
+      projectRoot: '/test',
+      config: { projectRoot: '/test', enabled: true, maxTokens: 4000 },
+      initialized: true,
+    }
+
+    await stateManager.updateState(completeState)
+    expect(stateManager.getState()).toEqual(completeState)
+  })
+
+  it('should work with typed config', async () => {
+    const state: SessionState = {
+      projectRoot: '/test',
+      config: {
+        projectRoot: '/test',
+        enabled: false,
+        maxTokens: 8000,
+        plugins: ['plugin1'],
+        excludePatterns: ['*.test.ts'],
+      },
+      initialized: true,
+    }
+
+    await stateManager.updateState(state)
+    const retrieved = stateManager.getState()
+
+    expect(retrieved?.config.enabled).toBe(false)
+    expect(retrieved?.config.maxTokens).toBe(8000)
+    expect(retrieved?.config.plugins).toEqual(['plugin1'])
+  })
+
   it('should clear state', async () => {
     const newState: SessionState = {
       projectRoot: '/test',
-      config: { projectRoot: '/test' },
+      config: { projectRoot: '/test', enabled: true, maxTokens: 4000 },
       initialized: true,
     }
 
@@ -44,7 +80,7 @@ describe('StateManager', () => {
   it('should merge partial state updates', async () => {
     const initialState: SessionState = {
       projectRoot: '/test',
-      config: { enabled: true },
+      config: { projectRoot: '/test', enabled: true, maxTokens: 4000 },
       initialized: false,
     }
 
@@ -54,7 +90,7 @@ describe('StateManager', () => {
     const state = stateManager.getState()
     expect(state).toEqual({
       projectRoot: '/test',
-      config: { enabled: true },
+      config: { projectRoot: '/test', enabled: true, maxTokens: 4000 },
       initialized: true,
     })
   })
@@ -62,7 +98,7 @@ describe('StateManager', () => {
   it('should handle stats updates', async () => {
     const initialState: SessionState = {
       projectRoot: '/test',
-      config: {},
+      config: { projectRoot: '/test', enabled: true, maxTokens: 4000 },
       initialized: true,
     }
 
@@ -82,13 +118,13 @@ describe('StateManager', () => {
   it('should return null after multiple clear operations', async () => {
     const newState: SessionState = {
       projectRoot: '/test',
-      config: {},
+      config: { projectRoot: '/test', enabled: true, maxTokens: 4000 },
       initialized: true,
     }
 
     await stateManager.updateState(newState)
     await stateManager.clearState()
-    await stateManager.clearState() // Multiple clears should be safe
+    await stateManager.clearState()
 
     expect(stateManager.getState()).toBe(null)
   })
