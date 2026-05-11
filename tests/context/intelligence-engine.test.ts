@@ -441,6 +441,39 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
     expect(guidance).toContain('safe to refactor')
   })
 
+  describe('LSP tool guidance', () => {
+    it('recommends lsp_go_to_definition for definition navigation', () => {
+      const engine = new ContextIntelligenceEngine()
+      const analysis = makeAnalysis()
+      const messages = [{ role: 'user' as const, content: 'where is SessionManager defined?' }]
+      const insights = engine.analyzeConversationContext(messages, analysis)
+      const guidance = engine.generateActionableGuidance(insights, analysis)
+      expect(guidance).toContain('lsp_go_to_definition')
+      expect(guidance).toContain('canonical declaration')
+    })
+
+    it('recommends lsp_find_references for references navigation', () => {
+      const engine = new ContextIntelligenceEngine()
+      const analysis = makeAnalysis()
+      const messages = [{ role: 'user' as const, content: 'find references to handleContext' }]
+      const insights = engine.analyzeConversationContext(messages, analysis)
+      const guidance = engine.generateActionableGuidance(insights, analysis)
+      expect(guidance).toContain('lsp_find_references')
+      expect(guidance).toContain('call sites')
+    })
+
+    it('recommends lsp_hover for type information in workflow tips', () => {
+      const engine = new ContextIntelligenceEngine()
+      const analysis = makeAnalysis()
+      const messages = [{ role: 'user' as const, content: 'what is the type of buildInjection?' }]
+      const insights = engine.analyzeConversationContext(messages, analysis)
+      const guidance = engine.generateActionableGuidance(insights, analysis)
+      // Workflow tips always present; hover must be described as type/docs lookup
+      expect(guidance).toContain('lsp_hover')
+      expect(guidance).toContain('type info')
+    })
+  })
+
   it('should handle edge cases gracefully', () => {
     const empty = engine.analyzeConversationContext([])
 

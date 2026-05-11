@@ -163,17 +163,12 @@ export class ContextIntelligenceEngine {
    * Generate workflow optimization guidance.
    */
   private generateWorkflowGuidance(insights: ContextInsights): string {
-    const tips: string[] = []
-
-    tips.push(
-      '- When editing code: Use `hashline_edit` tool for hash-verified edits',
-    )
-    tips.push(
-      '- When finding symbols: Use `lsp_go_to_definition` instead of asking for file paths',
-    )
-    tips.push(
-      '- When exploring code: Use `lsp_find_references` to see usage patterns',
-    )
+    const tips: string[] = [
+      '- When editing code: Use `hashline_edit` for hash-verified edits',
+      '- When locating a symbol declaration: Use `lsp_go_to_definition` to jump to the canonical declaration',
+      '- When finding all usages: Use `lsp_find_references` to enumerate call sites and usages',
+      '- When checking type info: Use `lsp_hover` to get type info and docs without opening the file',
+    ]
 
     if (insights.editingIntent.hasHashAnnotations) {
       tips.push(
@@ -185,8 +180,9 @@ export class ContextIntelligenceEngine {
       const toolSuggestion = this.navigationToolSuggestion(
         insights.navigationRequests.requestType,
       )
+      const desc = this.navigationToolDescription(insights.navigationRequests.requestType)
       tips.push(
-        `- Navigation request detected: Use \`${toolSuggestion}\` instead of manual search`,
+        `- Navigation request detected: Use \`${toolSuggestion}\` — ${desc}`,
       )
     }
 
@@ -345,6 +341,20 @@ export class ContextIntelligenceEngine {
       .map((pattern: OptimizationSuggestion) => `- ${pattern.recommendation}`)
       .join('\n')
     return `💡 OPTIMIZATION SUGGESTIONS:\n${suggestions}`
+  }
+
+  private navigationToolDescription(
+    requestType: NavigationContext['requestType'],
+  ): string {
+    switch (requestType) {
+      case 'references':
+        return 'enumerate call sites and usages'
+      case 'definition':
+      case 'file_location':
+        return 'jump to the canonical declaration'
+      default:
+        return 'jump to the canonical declaration'
+    }
   }
 
   private navigationToolSuggestion(
