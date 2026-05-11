@@ -16,11 +16,6 @@ import type {
   CommunityAnalysis
 } from './graph-types.js'
 
-// GraphifyAnalysis doesn't carry .graph — provide it separately
-interface AnalysisWithGraph extends Omit<GraphifyAnalysis, 'graph'> {
-  graph?: GraphifyGraph
-}
-
 /**
  * Wikipedia page for a symbol.
  */
@@ -58,7 +53,7 @@ export interface WikiMetadata {
  * Generate a wiki page for a symbol.
  *
  * @param symbol Symbol name
- * @param analysis Graph analysis (may include a .graph field if available)
+ * @param analysis Graph analysis (does NOT carry a .graph field)
  * @param graph Optional graph data (needed for edge/node lookups)
  * @returns Wiki page
  */
@@ -69,28 +64,28 @@ export function generateWikiPage(symbol: string, analysis: GraphifyAnalysis | nu
     return createEmptyWikiPage(symbol)
   }
 
-  // Support both old convention (analysis.graph) and explicit graph param
-  const effectiveGraph = graph ?? (analysis as any).graph ?? null
+  // Callers must pass the graph explicitly; we do not cast analysis to access it.
+  const effectiveGraph = graph ?? null
 
   const sections: WikiSection[] = []
 
   // Overview section
-  sections.push(createOverviewSection(symbol, analysis))
+  sections.push(createOverviewSection(symbol, analysis, effectiveGraph))
 
   // Metrics section
-  const metrics = getSymbolMetrics(nodeId, analysis)
+  const metrics = getSymbolMetrics(nodeId, analysis, effectiveGraph)
   if (metrics) {
     sections.push(createMetricsSection(metrics))
   }
 
   // Dependencies section
-  const deps = getSymbolDependencies(nodeId, analysis)
+  const deps = getSymbolDependencies(nodeId, analysis, effectiveGraph)
   if (deps.length > 0) {
     sections.push(createDependenciesSection(symbol, deps, analysis))
   }
 
   // Dependents section
-  const dependents = getSymbolDependents(nodeId, analysis)
+  const dependents = getSymbolDependents(nodeId, analysis, effectiveGraph)
   if (dependents.length > 0) {
     sections.push(createDependentsSection(symbol, dependents, analysis))
   }
@@ -108,7 +103,7 @@ export function generateWikiPage(symbol: string, analysis: GraphifyAnalysis | nu
   }
 
   // Risks & Recommendations
-  sections.push(createRisksSection(symbol, analysis))
+  sections.push(createRisksSection(symbol, analysis, effectiveGraph))
 
   // Metadata
   const edgeCountIn = effectiveGraph
@@ -142,13 +137,14 @@ export function generateWikiPage(symbol: string, analysis: GraphifyAnalysis | nu
  *
  * @param symbol Symbol name
  * @param analysis Graph analysis
+ * @param graph Graph data (optional)
  * @returns Wiki section
  */
-function createOverviewSection(symbol: string, analysis: GraphifyAnalysis): WikiSection {
+function createOverviewSection(symbol: string, analysis: GraphifyAnalysis, graph: GraphifyGraph | null): WikiSection {
   const nodeId = normalizeSymbol(symbol)
   const godNode = findGodNode(nodeId, analysis)
-  const deps = getSymbolDependencies(nodeId, analysis)
-  const dependents = getSymbolDependents(nodeId, analysis)
+  const deps = getSymbolDependencies(nodeId, analysis, graph)
+  const dependents = getSymbolDependents(nodeId, analysis, graph)
 
   let overview = `**${symbol}** is a `
 
@@ -211,7 +207,7 @@ function createDependenciesSection(
   if (godDeps.length > 0) {
     content += `**Critical Dependencies** (may affect multiple modules):\n`
     godDeps.slice(0, 5).forEach((dep) => {
-      content += `- \`${dep}\` (god node)\n`
+      content += `- \`${dep}\`\n`
     })
     content += `\n`
   }
@@ -339,12 +335,13 @@ Modifications require careful review and comprehensive testing.
  *
  * @param symbol Symbol name
  * @param analysis Graph analysis
+ * @param graph Graph data (optional)
  * @returns Wiki section
  */
-function createRisksSection(symbol: string, analysis: GraphifyAnalysis): WikiSection {
+function createRisksSection(symbol: string, analysis: GraphifyAnalysis, graph: GraphifyGraph | null): WikiSection {
   const nodeId = normalizeSymbol(symbol)
-  const dependents = getSymbolDependents(nodeId, analysis)
-  const deps = getSymbolDependencies(nodeId, analysis)
+  const dependents = getSymbolDependents(nodeId, analysis, graph)
+  const deps = getSymbolDependencies(nodeId, analysis, graph)
   const godNode = findGodNode(nodeId, analysis)
 
   const recommendations: string[] = []
@@ -443,9 +440,10 @@ interface SymbolMetrics {
  *
  * @param nodeId Node ID
  * @param analysis Graph analysis
+ * @param graph Graph data (optional)
  * @returns Metrics or undefined
  */
-function getSymbolMetrics(nodeId: string, analysis: GraphifyAnalysis): SymbolMetrics | undefined {
+function getSymbolMetrics(nodeId: string, analysis: GraphifyAnalysis, graph: GraphifyGraph | null): SymbolMetrics | undefined {
   const godNode = analysis.godNodes.find((gn) => normalizeSymbol(gn.nodeId) === nodeId)
 
   if (godNode) {
@@ -458,8 +456,7 @@ function getSymbolMetrics(nodeId: string, analysis: GraphifyAnalysis): SymbolMet
     }
   }
 
-  // Can't get graph metrics without a graph field — use godNodes as fallback
-  const graph = (analysis as any).graph as GraphifyGraph | undefined
+  // Fall back to explicit graph for non-god nodes
   if (graph) {
     const graphNode = graph.nodes.find((n) => normalizeSymbol(n.id) === nodeId)
     if (graphNode) {
@@ -483,11 +480,11 @@ function getSymbolMetrics(nodeId: string, analysis: GraphifyAnalysis): SymbolMet
  * Get dependencies of a symbol.
  *
  * @param nodeId Node ID
- * @param analysis Graph analysis
+ * @param _analysis Graph analysis (unused, kept for signature compat)
+ * @param graph Graph data
  * @returns Array of dependent node IDs
  */
-function getSymbolDependencies(nodeId: string, analysis: GraphifyAnalysis): string[] {
-  const graph = (analysis as any).graph as GraphifyGraph | undefined
+function getSymbolDependencies(nodeId: string, _analysis: GraphifyAnalysis, graph: GraphifyGraph | null): string[] {
   if (!graph) return []
   return graph.edges
     .filter((e) => normalizeSymbol(e.source) === nodeId)
@@ -499,11 +496,11 @@ function getSymbolDependencies(nodeId: string, analysis: GraphifyAnalysis): stri
  * Get dependents of a symbol.
  *
  * @param nodeId Node ID
- * @param analysis Graph analysis
+ * @param _analysis Graph analysis (unused, kept for signature compat)
+ * @param graph Graph data
  * @returns Array of dependent node IDs
  */
-function getSymbolDependents(nodeId: string, analysis: GraphifyAnalysis): string[] {
-  const graph = (analysis as any).graph as GraphifyGraph | undefined
+function getSymbolDependents(nodeId: string, _analysis: GraphifyAnalysis, graph: GraphifyGraph | null): string[] {
   if (!graph) return []
   return Array.from(
     new Set(

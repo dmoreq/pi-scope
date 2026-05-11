@@ -3,25 +3,26 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { generateWikiPage, wikiPageToMarkdown } from '../../context/graph-wikipedia'
-import type { GraphifyAnalysis } from '../../context/graph-types'
+import { generateWikiPage, wikiPageToMarkdown } from '../../context/graph-wikipedia.js'
+import type { GraphifyAnalysis, GraphifyGraph } from '../../context/graph-types.js'
+
+const sampleGraph: GraphifyGraph = {
+  nodes: [
+    { id: 'core', type: 'function', label: 'Core' },
+    { id: 'auth', type: 'function', label: 'Auth' },
+    { id: 'database', type: 'module', label: 'Database' },
+    { id: 'cache', type: 'module', label: 'Cache' },
+  ],
+  edges: [
+    { source: 'auth', target: 'core', type: 'calls' },
+    { source: 'cache', target: 'core', type: 'calls' },
+    { source: 'core', target: 'database', type: 'calls' },
+    { source: 'auth', target: 'database', type: 'calls' },
+  ],
+}
 
 const createMockAnalysis = (): GraphifyAnalysis => {
   return {
-    graph: {
-      nodes: [
-        { id: 'core', type: 'function', label: 'Core' },
-        { id: 'auth', type: 'function', label: 'Auth' },
-        { id: 'database', type: 'module', label: 'Database' },
-        { id: 'cache', type: 'module', label: 'Cache' }
-      ],
-      edges: [
-        { source: 'auth', target: 'core', type: 'calls' },
-        { source: 'cache', target: 'core', type: 'calls' },
-        { source: 'core', target: 'database', type: 'calls' },
-        { source: 'auth', target: 'database', type: 'calls' }
-      ]
-    },
     godNodes: [
       {
         nodeId: 'core',
@@ -31,8 +32,8 @@ const createMockAnalysis = (): GraphifyAnalysis => {
         betweenness: 0.8,
         pageRank: 0.75,
         community: 'core-comm',
-        criticality: 'CRITICAL'
-      }
+        criticality: 'CRITICAL',
+      },
     ],
     communities: [
       {
@@ -42,7 +43,7 @@ const createMockAnalysis = (): GraphifyAnalysis => {
         internalDensity: 0.0,
         externalDensity: 1.0,
         interfaceNodes: ['core'],
-        bottlenecks: ['core']
+        bottlenecks: ['core'],
       },
       {
         id: 'auth-comm',
@@ -51,10 +52,38 @@ const createMockAnalysis = (): GraphifyAnalysis => {
         internalDensity: 0.0,
         externalDensity: 1.0,
         interfaceNodes: ['auth'],
-        bottlenecks: []
-      }
-    ]
+        bottlenecks: [],
+      },
+    ],
+    surprises: [],
+    bottlenecks: [],
+    anomalies: [],
+    wikipedia: {
+      entries: new Map(),
+      query: () => [],
+      get: () => undefined,
+      find: () => [],
+    },
+    metrics: {
+      totalNodes: 4,
+      totalEdges: 4,
+      godNodeCount: 1,
+      communityCount: 2,
+      averageDegree: 2,
+      maxDegree: 2,
+      graphDensity: 0.33,
+      avgClusteringCoeff: 0,
+      cycleCount: 0,
+      bottleneckCount: 1,
+    },
+    computedAt: Date.now(),
+    version: '1',
   }
+}
+
+/** Shorthand: pass analysis + graph together (callers now pass graph explicitly) */
+function pageFor(symbol: string): ReturnType<typeof generateWikiPage> {
+  return generateWikiPage(symbol, createMockAnalysis(), sampleGraph)
 }
 
 describe('Wikipedia', () => {
@@ -62,8 +91,7 @@ describe('Wikipedia', () => {
 
   describe('generateWikiPage', () => {
     it('generates page for god node', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       expect(page.title).toContain('core')
       expect(page.symbol).toBe('core')
@@ -73,8 +101,7 @@ describe('Wikipedia', () => {
     })
 
     it('generates page for regular node', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('auth', analysis)
+      const page = pageFor('auth')
 
       expect(page.symbol).toBe('auth')
       expect(page.metadata.type).toBe('regular_node')
@@ -82,8 +109,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes overview section', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       const overview = page.section.find((s) => s.title === 'Overview')
       expect(overview).toBeDefined()
@@ -91,8 +117,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes metrics section for nodes with data', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       const metrics = page.section.find((s) => s.title === 'Key Metrics')
       expect(metrics).toBeDefined()
@@ -100,8 +125,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes dependencies section', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       const deps = page.section.find((s) => s.title === 'Dependencies')
       expect(deps).toBeDefined()
@@ -109,8 +133,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes dependents section', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       const dependents = page.section.find((s) => s.title === 'Direct Dependents')
       expect(dependents).toBeDefined()
@@ -118,8 +141,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes community section when applicable', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       const community = page.section.find((s) => s.title.includes('Community'))
       expect(community).toBeDefined()
@@ -127,8 +149,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes god node section for critical nodes', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       const godNode = page.section.find((s) => s.title.includes('God Node'))
       expect(godNode).toBeDefined()
@@ -136,8 +157,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes risks and recommendations', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       const risks = page.section.find((s) => s.title === 'Risks & Recommendations')
       expect(risks).toBeDefined()
@@ -154,8 +174,7 @@ describe('Wikipedia', () => {
     })
 
     it('handles unknown symbols', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('unknownModule', analysis)
+      const page = pageFor('unknownModule')
 
       expect(page.symbol).toBe('unknownModule')
       expect(page.metadata.type).toBe('isolated')
@@ -163,10 +182,16 @@ describe('Wikipedia', () => {
     })
 
     it('sets generation date', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       expect(page.generatedAt).toBeInstanceOf(Date)
+    })
+
+    it('uses explicit graph param instead of any-cast analysis.graph', () => {
+      const analysis = createMockAnalysis()
+      // analysis has NO .graph property — only the explicit param should work
+      const page = generateWikiPage('core', analysis, sampleGraph)
+      expect(page.metadata.inDegree).toBe(2) // from sampleGraph edges
     })
   })
 
@@ -174,8 +199,7 @@ describe('Wikipedia', () => {
 
   describe('wikiPageToMarkdown', () => {
     it('converts page to markdown', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
       const markdown = wikiPageToMarkdown(page)
 
       expect(markdown).toContain('# ')
@@ -183,8 +207,7 @@ describe('Wikipedia', () => {
     })
 
     it('includes section headers', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
       const markdown = wikiPageToMarkdown(page)
 
       expect(markdown).toContain('## ')
@@ -192,26 +215,22 @@ describe('Wikipedia', () => {
     })
 
     it('includes generation date', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
       const markdown = wikiPageToMarkdown(page)
 
       expect(markdown).toContain('Auto-generated')
     })
 
     it('is valid markdown', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
       const markdown = wikiPageToMarkdown(page)
 
-      // Check for markdown structure
-      expect(markdown).toMatch(/^#/m)  // Has headers
+      expect(markdown).toMatch(/^#/m)
       expect(markdown.length).toBeGreaterThan(100)
     })
 
     it('preserves content hierarchy', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
       const markdown = wikiPageToMarkdown(page)
 
       const lines = markdown.split('\n')
@@ -220,11 +239,10 @@ describe('Wikipedia', () => {
     })
 
     it('includes metrics tables', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
       const markdown = wikiPageToMarkdown(page)
 
-      expect(markdown).toContain('|')  // Table separator
+      expect(markdown).toContain('|')
     })
   })
 
@@ -232,8 +250,7 @@ describe('Wikipedia', () => {
 
   describe('Wiki metadata', () => {
     it('tracks metadata correctly', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
 
       expect(page.metadata.symbol).toBe('core')
       expect(page.metadata.type).toBe('god_node')
@@ -244,16 +261,14 @@ describe('Wikipedia', () => {
     })
 
     it('identifies isolated nodes', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('isolated', analysis)
+      const page = pageFor('isolated')
 
       expect(page.metadata.type).toBe('isolated')
     })
 
     it('normalizes symbol names', () => {
-      const analysis = createMockAnalysis()
-      const page1 = generateWikiPage('Core', analysis)
-      const page2 = generateWikiPage('CORE', analysis)
+      const page1 = pageFor('Core')
+      const page2 = pageFor('CORE')
 
       // Both should find the same node
       expect(page1.metadata.type).toBe('god_node')
@@ -265,8 +280,7 @@ describe('Wikipedia', () => {
 
   describe('Full workflow', () => {
     it('generates and formats wiki page', () => {
-      const analysis = createMockAnalysis()
-      const page = generateWikiPage('core', analysis)
+      const page = pageFor('core')
       const markdown = wikiPageToMarkdown(page)
 
       expect(markdown).toContain('core')
@@ -276,11 +290,10 @@ describe('Wikipedia', () => {
     })
 
     it('generates comprehensive documentation', () => {
-      const analysis = createMockAnalysis()
       const symbols = ['core', 'auth', 'database', 'cache']
 
       for (const symbol of symbols) {
-        const page = generateWikiPage(symbol, analysis)
+        const page = pageFor(symbol)
         expect(page.section.length).toBeGreaterThan(0)
       }
     })
