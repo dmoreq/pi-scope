@@ -667,20 +667,8 @@ export class SessionManager {
 
     await this.pluginManager.runHook('onContext', event.messages ?? [])
 
-    let enhancedBlock = ''
-    try {
-      const snapshot = await this.buildIntelligenceSnapshot()
-      const actionable = this.intelligenceEngine.generateActionableGuidance(
-        snapshot.insights,
-        snapshot.graph,
-      )
-      const smart = new SmartDependencyContextGenerator()
-      const depBlock = smart.generateEnhancedDependencyContext(snapshot.insights, snapshot.graph)
-      enhancedBlock = [actionable, depBlock].filter((s) => s.trim().length > 0).join('\n\n')
-    } catch (error) {
-      console.warn('handleContext: enhanced guidance generation failed:', error)
-      /* steer best-effort */
-    }
+    const snapshot = await this.buildIntelligenceSnapshot()
+    const graph = snapshot.graph ?? this.graphService.analysis ?? null
 
     // Dep-context gates (unchanged)
     const recentMessages = (event.messages ?? []).slice(-s.config.scanLastNMessages)
@@ -712,14 +700,14 @@ export class SessionManager {
     const triggersDepContext =
       hasFilePattern || hasToolCall || hasToolResultWithFiles || hasSymbolMatch || hasCodebaseQuery
 
-    let depContext: string | null = null
-    const messagesPlain = (event.messages ?? []).map(m => ({
-      role: m.role ?? 'user',
-      content: extractText(m.content),
-    }))
-
+    // Build dep-context content ahead of time so we can extract file paths for stats
+    let depContextContent: string | null = null
     if (triggersDepContext) {
       const extraPaths = new Set<string>()
+      const messagesPlain = (event.messages ?? []).map(m => ({
+        role: m.role ?? 'user',
+        content: extractText(m.content),
+      }))
       for (const msg of event.messages ?? []) {
         const tn = (msg as Record<string, unknown>).toolName as string | undefined
         if (tn) {
@@ -739,48 +727,70 @@ export class SessionManager {
         }
       }
 
-      depContext = s.injector.buildInjection(
-        s.index, messagesPlain,
+      depContextContent = s.injector.buildInjection(
+        s.index,
+        messagesPlain,
         extraPaths.size > 0 ? extraPaths : undefined,
         s.retrieval,
         s.config.dependencyDepth ?? 1,
       )
     }
 
-    const trimmedGuidance = enhancedBlock.trim()
+    // Assemble all context through the pipeline
+    const pipeline = new InjectionPipeline()
+    const budget = s.config.maxInjectionTokens
 
-    let finalBody: string
-    if (depContext != null && depContext.trim() !== '' && trimmedGuidance !== '') {
-      finalBody = `${trimmedGuidance}\n\n---\n\n${depContext}`
-    }
-    else if (depContext != null && depContext.trim() !== '') {
-      finalBody = depContext
-    }
-    else if (trimmedGuidance !== '') {
-      finalBody = trimmedGuidance
-    }
-    else {
-      return undefined
+    pipeline.register({
+      name: 'context-intelligence',
+      priority: 4,
+      produce: () => {
+        const g = this.intelligenceEngine.generateActionableGuidance(snapshot.insights, graph)
+        return g.trim() ? g : null
+      },
+    })
+
+    pipeline.register({
+      name: 'smart-dep-context',
+      priority: 5,
+      produce: () => {
+        const gen = new SmartDependencyContextGenerator()
+        const dep = gen.generateEnhancedDependencyContext(snapshot.insights, graph)
+        return dep.trim() ? dep : null
+      },
+    })
+
+    if (depContextContent?.trim()) {
+      pipeline.register({
+        name: 'dep-context',
+        priority: 7,
+        produce: () => depContextContent,
+      })
     }
 
-    if (depContext != null && depContext.trim() !== '') {
-      const tokens = estimateTokens(depContext)
-      const files = extractInjectedFilePaths(depContext)
-      let fullTokens = 0
-      for (const f of files) {
-        const skel = s.index.skeletons.get(f)
-        if (skel) {
-          const est = estimateFileSavings(f, skel)
-          fullTokens += est.fullTokens
+    const result = pipeline.build(budget)
+    if (!result.content) return undefined
+
+    // Record stats per injected source
+    for (const entry of result.sources) {
+      if (entry.name === 'context-intelligence' && entry.injected) {
+        s.stats.recordIntelligenceInjection(entry.tokens)
+      } else if (entry.name === 'smart-dep-context' && entry.injected) {
+        s.stats.recordSmartDepContextInjection(entry.tokens)
+      } else if (entry.name === 'dep-context' && entry.injected && depContextContent) {
+        const files = extractInjectedFilePaths(depContextContent)
+        let fullTokens = 0
+        for (const f of files) {
+          const skel = s.index.skeletons.get(f)
+          if (skel) fullTokens += estimateFileSavings(f, skel).fullTokens
         }
+        s.stats.recordDepContextInjection(files, entry.tokens, fullTokens)
       }
-      s.stats.recordDepContextInjection(files, tokens, fullTokens)
     }
 
     this.updateStatusBar(ctx)
 
-    const contextMsg: AgentMessage = { role: 'developer', content: finalBody }
-    return { messages: [contextMsg, ...(event.messages ?? [])], content: finalBody }
+    const contextMsg: AgentMessage = { role: 'developer', content: result.content }
+    return { messages: [contextMsg, ...(event.messages ?? [])], content: result.content }
   }
 
   // ── Session shutdown ──────────────────────────────────────────────
