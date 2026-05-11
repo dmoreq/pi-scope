@@ -193,6 +193,18 @@ export class ContextIntelligenceEngine {
     return `🎯 WORKFLOW OPTIMIZATION:\n${tips.join('\n')}`
   }
 
+  private sortGodNodesByRisk(nodes: GodNode[]): GodNode[] {
+    const order: Record<GodNode['criticality'], number> = {
+      CRITICAL: 0,
+      IMPORTANT: 1,
+      NORMAL: 2,
+    }
+    return [...nodes].sort(
+      (a, b) =>
+        order[a.criticality] - order[b.criticality] || b.inDegree - a.inDegree,
+    )
+  }
+
   /**
    * Generate risk warnings for god nodes touched by editing intent.
    */
@@ -200,29 +212,27 @@ export class ContextIntelligenceEngine {
     affectedGodNodes: string[],
     graphAnalysis: GraphifyAnalysis,
   ): string {
-    const warnings: string[] = []
-
-    for (const nodeId of affectedGodNodes) {
-      const godNode = graphAnalysis.godNodes.find(
-        (gn) =>
-          gn.nodeId.toLowerCase().includes(nodeId.toLowerCase()) ||
-          gn.label.toLowerCase().includes(nodeId.toLowerCase()),
+    const matched = affectedGodNodes
+      .map((nodeId) =>
+        graphAnalysis.godNodes.find(
+          (gn) =>
+            gn.nodeId.toLowerCase().includes(nodeId.toLowerCase()) ||
+            gn.label.toLowerCase().includes(nodeId.toLowerCase()),
+        ),
       )
+      .filter((gn): gn is GodNode => gn !== undefined)
 
-      if (godNode) {
-        const dependencies = godNode.inDegree
-        const criticalityIcon =
+    const warnings = this.sortGodNodesByRisk(matched)
+      .slice(0, 5)
+      .map((godNode) => {
+        const icon =
           godNode.criticality === 'CRITICAL'
             ? '🔥'
             : godNode.criticality === 'IMPORTANT'
               ? '⚠️'
               : '🔍'
-
-        warnings.push(
-          `- ${criticalityIcon} \`${godNode.label}\` (${dependencies} dependencies) - Changes affect ${this.estimateAffectedCommunities(godNode, graphAnalysis)} communities`,
-        )
-      }
-    }
+        return `- ${icon} \`${godNode.label}\` (${godNode.inDegree} dependencies) - Changes affect ${this.estimateAffectedCommunities(godNode, graphAnalysis)} communities`
+      })
 
     return `⚠️ HIGH-IMPACT SYMBOLS (edit carefully):\n${warnings.join('\n')}`
   }

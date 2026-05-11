@@ -9,6 +9,25 @@ import type {
 } from '../../context/graph-types.js'
 import type { ContextInsights } from '../../shared/intelligence-types.js'
 
+function makeAnalysis(overrides?: Partial<GraphifyAnalysis>): GraphifyAnalysis {
+  return {
+    godNodes: [],
+    communities: [],
+    surprises: [],
+    bottlenecks: [],
+    anomalies: [],
+    wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
+    metrics: {
+      totalNodes: 0, totalEdges: 0, godNodeCount: 0, communityCount: 0,
+      averageDegree: 0, maxDegree: 0, graphDensity: 0, avgClusteringCoeff: 0,
+      cycleCount: 0, bottleneckCount: 0,
+    },
+    computedAt: Date.now(),
+    version: '1',
+    ...overrides,
+  }
+}
+
 describe('ContextIntelligenceEngine', () => {
   const engine = new ContextIntelligenceEngine()
 
@@ -144,6 +163,35 @@ describe('ContextIntelligenceEngine', () => {
     expect(
       engine.detectAffectedGodNodes(editing, mockGraphAnalysis),
     ).not.toContain('Client')
+  })
+})
+
+describe('ContextIntelligenceEngine – god node sort', () => {
+  it('outputs CRITICAL before IMPORTANT before NORMAL in risk warnings', () => {
+    const engine = new ContextIntelligenceEngine()
+    const analysis = makeAnalysis({
+      godNodes: [
+        { nodeId: 'normal_node', label: 'NormalNode', criticality: 'NORMAL',
+          inDegree: 5, outDegree: 1, betweenness: 0, pageRank: 0, community: 'c1' },
+        { nodeId: 'critical_node', label: 'CriticalNode', criticality: 'CRITICAL',
+          inDegree: 10, outDegree: 2, betweenness: 0.8, pageRank: 0.9, community: 'c1' },
+        { nodeId: 'important_node', label: 'ImportantNode', criticality: 'IMPORTANT',
+          inDegree: 7, outDegree: 1, betweenness: 0.4, pageRank: 0.5, community: 'c1' },
+      ],
+    })
+    // Messages that trigger editing intent for all three nodes
+    const messages = [
+      { role: 'user' as const, content: 'please edit CriticalNode, ImportantNode, and NormalNode' },
+    ]
+    const insights = engine.analyzeConversationContext(messages, analysis)
+    const guidance = engine.generateActionableGuidance(insights, analysis)
+
+    // Extract lines in the HIGH-IMPACT section
+    const lines = guidance.split('\n').filter(l => l.includes('Node'))
+    expect(lines.findIndex(l => l.includes('CriticalNode')))
+      .toBeLessThan(lines.findIndex(l => l.includes('ImportantNode')))
+    expect(lines.findIndex(l => l.includes('ImportantNode')))
+      .toBeLessThan(lines.findIndex(l => l.includes('NormalNode')))
   })
 })
 
