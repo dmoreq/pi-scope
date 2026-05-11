@@ -502,7 +502,8 @@ describe('Graphify Integration', () => {
       const hover = enhanceHoverWithGraphMetrics('auth', 'function authenticate()', { ...analysis, graph })
       expect(hover.baseInfo).toContain('authenticate')
       expect(hover.godNodeInfo).toBeDefined()
-      expect(hover.godNodeInfo!.isGodNode).toBe(true)
+      // godNodeInfo is GodNode & { recommendation } — isGodNode is not present; presence itself suffices
+      expect(hover.godNodeInfo!.criticality).toBeDefined()
 
       const markdown = formatHoverAsMarkdown(hover)
       expect(markdown).toContain('God Node')

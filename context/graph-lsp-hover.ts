@@ -13,7 +13,7 @@ import type {
   GraphifyGraph,
   GraphifyAnalysis,
   GodNode,
-  SurprisingConnection
+  SurprisingConnection,
 } from './graph-types.js'
 
 /**
@@ -42,18 +42,9 @@ export interface GraphMetrics {
 }
 
 /**
- * Information about god node status.
+ * GodNode fields plus a pre-computed recommendation string.
  */
-export interface GodNodeInfo {
-  isGodNode: boolean
-  criticality: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
-  label: string
-  inDegree: number
-  outDegree: number
-  pageRank: number
-  community: string
-  recommendation: string
-}
+type GodNodeInfo = GodNode & { recommendation: string }
 
 /**
  * Surprising connection information.
@@ -79,12 +70,12 @@ export interface CommunityInfo {
 }
 
 /**
- * Impact analysis for code changes.
+ * Impact analysis for code changes — does not redeclare GodNode fields.
  */
-export interface ImpactAnalysis {
+interface ImpactAnalysis {
   dependentCount: number
   affectedCommunities: number
-  criticalityLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  criticalityLevel: GodNode['criticality'] | 'LOW'
   recommendation: string
   example?: string
 }
@@ -308,29 +299,22 @@ function findSurprises(nodeId: string, analysis: GraphifyAnalysis): SurprisingCo
 }
 
 /**
- * Create god node info object.
+ * Create god node info object — spreads all GodNode fields plus recommendation.
  *
  * @param godNode God node data
  * @returns God node info
  */
 function createGodNodeInfo(godNode: GodNode): GodNodeInfo {
-  const recommendations: Record<string, string> = {
+  const recommendations: Partial<Record<GodNode['criticality'], string>> = {
     CRITICAL:
       'This is a critical hub. Changes may affect many dependent modules. Request code review.',
-    HIGH: 'This is a high-importance node. Monitor changes carefully.',
-    MEDIUM: 'This node has moderate importance. Standard review applies.',
-    LOW: 'This is a low-importance node.'
+    IMPORTANT: 'This is a high-importance node. Monitor changes carefully.',
+    NORMAL: 'This node has normal importance. Standard review applies.',
   }
 
   return {
-    isGodNode: true,
-    criticality: godNode.criticality as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW',
-    label: godNode.label,
-    inDegree: godNode.inDegree,
-    outDegree: godNode.outDegree,
-    pageRank: godNode.pageRank,
-    community: godNode.community,
-    recommendation: recommendations[godNode.criticality]
+    ...godNode,
+    recommendation: recommendations[godNode.criticality] ?? 'Standard review applies.',
   }
 }
 
@@ -416,7 +400,7 @@ function analyzeImpact(nodeId: string, analysis: GraphifyAnalysis): ImpactAnalys
 
   // Determine criticality
   const godNode = analysis.godNodes.find((gn) => normalizeNodeId(gn.nodeId) === nodeId)
-  const criticality = godNode ? godNode.criticality : 'LOW'
+  const criticality: GodNode['criticality'] | 'LOW' = godNode ? godNode.criticality : 'LOW'
 
   const recommendations: Record<string, string> = {
     CRITICAL: `Changes here will impact ${dependentCount} dependents across ${affectedCommunities.size} communities. Schedule mandatory code review.`,
@@ -428,7 +412,7 @@ function analyzeImpact(nodeId: string, analysis: GraphifyAnalysis): ImpactAnalys
   return {
     dependentCount,
     affectedCommunities: affectedCommunities.size,
-    criticalityLevel: criticality as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW',
+    criticalityLevel: criticality,
     recommendation: recommendations[criticality],
     example: dependentCount > 0 ? `e.g., ${dependents[0]?.target}` : undefined
   }

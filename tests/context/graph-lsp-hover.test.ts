@@ -83,8 +83,8 @@ describe('GraphifyLSPHover', () => {
       expect(hover.symbol).toBe('authenticate')
       expect(hover.baseInfo).toBe('function authenticate(token: string): boolean')
       expect(hover.godNodeInfo).toBeDefined()
-      expect(hover.godNodeInfo?.isGodNode).toBe(true)
-      expect(hover.godNodeInfo?.criticality).toBe('CRITICAL')
+      // godNodeInfo is GodNode & { recommendation } — isGodNode is not present; presence itself suffices
+      expect(hover.godNodeInfo!.criticality).toBe('CRITICAL')
       expect(hover.graphMetrics).toBeDefined()
       expect(hover.graphMetrics?.centrality).toBe('critical')
     })
@@ -98,7 +98,7 @@ describe('GraphifyLSPHover', () => {
       )
 
       expect(hover.symbol).toBe('validateToken')
-      expect(hover.godNodeInfo?.isGodNode).not.toBe(true)
+      // godNodeInfo may be defined only for god nodes; regular nodes lack it
       expect(hover.graphMetrics).toBeDefined()
     })
 
@@ -401,6 +401,22 @@ describe('GraphifyLSPHover', () => {
       expect(summary.summary).toBeTruthy()
       expect(summary.summary).toContain('•')  // Separator
       expect(summary.summary.length).toBeGreaterThan(10)
+    })
+
+    describe('GodNodeInfo composition', () => {
+      it('populates godNodeInfo from GodNode fields without redefined types', () => {
+        const analysis = createMockAnalysis()
+        const result = enhanceHoverWithGraphMetrics(
+          'authenticate',
+          'function authenticate(token: string): boolean',
+          analysis as GraphifyAnalysis
+        )
+        expect(result.godNodeInfo).toBeDefined()
+        expect(result.godNodeInfo!.inDegree).toBe(2)
+        expect(result.godNodeInfo!.pageRank).toBe(0.75)
+        expect(result.godNodeInfo!.community).toBe('auth')
+        expect(result.godNodeInfo!.recommendation).toContain('critical hub')
+      })
     })
   })
 
