@@ -41,6 +41,7 @@ import { ContextIntelligenceEngine } from './context/intelligence-engine.js'
 import { SmartDependencyContextGenerator } from './context/smart-dep-context.js'
 import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import { produceDefaults } from './context/schema.js'
+import { setLspGraphAnalysis } from './tools/lsp-navigation.js'
 import type { GraphifyAnalysis } from './context/graph-types.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
 import type { PipelineSource } from './context/pipeline.js'
@@ -439,6 +440,7 @@ export class SessionManager {
    */
   private async loadGraph(projectRoot: string, stats: SessionStats): Promise<void> {
     const cacheDir = scopeDir(projectRoot)
+    setLspGraphAnalysis(null) // clear stale analysis
 
     // Try external graphify cache first
     if (await this.graphService.load(projectRoot, cacheDir)) {
@@ -450,6 +452,7 @@ export class SessionManager {
       stats.circularDependencies = a.metrics.cycleCount
       this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
       this.registerCommunityPruning(a)
+      setLspGraphAnalysis(a)
       return
     }
 
@@ -463,6 +466,7 @@ export class SessionManager {
       stats.circularDependencies = extResult.analysis.metrics.cycleCount
       this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
       this.registerCommunityPruning(extResult.analysis)
+      setLspGraphAnalysis(extResult.analysis)
       return
     }
 
@@ -470,6 +474,7 @@ export class SessionManager {
     const index = this.indexService.index
     if (!index || index.skeletons.size === 0) {
       this.telemetry.onGraphNoData()
+      setLspGraphAnalysis(null)
       return
     }
 
@@ -481,6 +486,7 @@ export class SessionManager {
     stats.circularDependencies = nativeResult.analysis.metrics.cycleCount
     this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
     this.registerCommunityPruning(nativeResult.analysis)
+    setLspGraphAnalysis(nativeResult.analysis)
   }
 
   /**

@@ -11,6 +11,19 @@ import { Type } from "@mariozechner/pi-ai";
 import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { resolve } from "node:path";
 import { LspNavigationService } from "../lsp/service.js";
+import type { GraphifyAnalysis } from "../context/graph-types.js";
+import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from "../context/graph-lsp-hover.js";
+
+// Module-level cache of current graph analysis, set by SessionManager.
+let currentAnalysis: GraphifyAnalysis | null = null
+
+/**
+ * Set the current graph analysis for hover tool enrichment.
+ * Called by SessionManager when graph data is loaded/unloaded.
+ */
+export function setLspGraphAnalysis(a: GraphifyAnalysis | null): void {
+  currentAnalysis = a
+}
 
 let service: LspNavigationService | null = null;
 
@@ -73,15 +86,31 @@ const findRefsTool = defineTool({
 
 // ── Tool: hoverInfo ──────────────────────────────────────────────────────
 
+/** Extract a symbol name from file path + line/column — crude but sufficient for graph matching. */
+function symbolFromPosition(fp: string, line: number, column: number): string {
+  // Use the filename stem as the symbol hint (LSP hover text has the actual symbol name)
+  const name = fp.split('/').pop()?.replace(/\.[^.]+$/, '') ?? ''
+  return name
+}
+
 const hoverTool = defineTool({
   name: "lsp_hover",
   label: "Hover Info",
-  description: "Get type information and documentation at a cursor position using LSP.",
+  description: "Get type information and documentation at a cursor position using LSP. Enriched with graph metrics when available.",
   parameters: fpParams,
   async execute(_tid: string, p: { path: string; line: number; column: number }, _sig: AbortSignal | undefined, _upd: unknown, ctx: unknown) {
     try {
       const fp = resolve(ctxDir(ctx), p.path);
       const result = await getService().hoverInfo(fp, p.line, p.column, ctxDir(ctx));
+      
+      // Enrich with graph metrics if analysis data is available
+      if (currentAnalysis && result && !result.startsWith('No hover info')) {
+        const symbol = symbolFromPosition(fp, p.line, p.column)
+        const enhanced = enhanceHoverWithGraphMetrics(symbol, result, currentAnalysis)
+        const markdown = formatHoverAsMarkdown(enhanced)
+        return { content: [{ type: "text" as const, text: markdown }], details: { ok: true } }
+      }
+      
       return { content: [{ type: "text" as const, text: result }], details: { ok: true } };
     } catch (err: any) {
       return { content: [{ type: "text" as const, text: `LSP error: ${err.message ?? String(err)}` }], details: { ok: false } };
