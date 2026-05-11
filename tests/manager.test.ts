@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-import type { GraphifyAnalysis } from '../context/graph-types.js'
+import type { GraphifyAnalysis, GodNode } from '../context/graph-types.js'
 import { ContextIntelligenceEngine } from '../context/intelligence-engine.js'
 import type { ExtensionContext } from '../manager.js'
-import { SessionManager } from '../manager.js'
+import { SessionManager, buildRepoMapSource, formatGraphInsightsSection } from '../manager.js'
+import type { ContextInsights } from '../shared/intelligence-types.js'
 
 function ctxStub(): ExtensionContext {
   return {
@@ -178,6 +179,83 @@ describe('SessionManager Intelligence Integration - Error Handling', () => {
     const guidance = await manager.generateIntelligentGuidance()
     expect(guidance.length).toBeGreaterThan(0)
     expect(guidance).toContain('WORKFLOW OPTIMIZATION')
+  })
+})
+
+function makeAnalysis(overrides?: Partial<GraphifyAnalysis>): GraphifyAnalysis {
+  return {
+    godNodes: [],
+    communities: [],
+    surprises: [],
+    bottlenecks: [],
+    anomalies: [],
+    wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
+    metrics: {
+      totalNodes: 5, totalEdges: 8, godNodeCount: 1, communityCount: 2,
+      averageDegree: 3, maxDegree: 5, graphDensity: 0.4, avgClusteringCoeff: 0.3,
+      cycleCount: 1, bottleneckCount: 0,
+    },
+    computedAt: Date.now(),
+    version: '1',
+    ...overrides,
+  }
+}
+
+const mockInsights: ContextInsights = {
+  editingIntent: { detected: false, targetSymbols: [], targetFiles: [], hasHashAnnotations: false, affectedGodNodes: [] },
+  navigationRequests: { detected: false, requestedSymbols: [], requestType: 'none' as const },
+  suboptimalPatterns: [],
+  conversationContext: { recentMessages: 0, codebaseRelevant: false, mentionedCommunities: [], mentionedFiles: [] },
+}
+
+describe('buildRepoMapSource', () => {
+  it('applies smart enhancement when graph is non-null', () => {
+    const analysis = makeAnalysis()
+    const source = buildRepoMapSource('# repo', mockInsights, analysis)
+    const content = source.produce()
+    expect(content).toBeDefined()
+    expect(typeof content).toBe('string')
+  })
+
+  it('returns raw base map when graph is null', () => {
+    const source = buildRepoMapSource('# raw-repo-map', mockInsights, null)
+    expect(source.produce()).toBe('# raw-repo-map')
+  })
+
+  it('returns null when baseMap is empty', () => {
+    const source = buildRepoMapSource('', mockInsights, null)
+    expect(source.produce()).toBeNull()
+  })
+
+  it('registers with name=repo-map and priority=1', () => {
+    const source = buildRepoMapSource('# map', mockInsights, null)
+    expect(source.name).toBe('repo-map')
+    expect(source.priority).toBe(1)
+  })
+})
+
+describe('formatGraphInsightsSection', () => {
+  it('includes node/edge/community counts', () => {
+    const result = formatGraphInsightsSection(makeAnalysis())
+    expect(result).toContain('5 nodes')
+    expect(result).toContain('8 edges')
+    expect(result).toContain('2 communities')
+  })
+
+  it('includes cycle count when cycles exist', () => {
+    const result = formatGraphInsightsSection(makeAnalysis())
+    expect(result).toContain('Circular Dependencies')
+    expect(result).toContain('1')
+  })
+
+  it('includes god node labels when present', () => {
+    const godNode: GodNode = {
+      nodeId: 'svc', label: 'MyService', criticality: 'CRITICAL',
+      inDegree: 12, outDegree: 3, betweenness: 0.7, pageRank: 0.9, community: 'core',
+    }
+    const result = formatGraphInsightsSection(makeAnalysis({ godNodes: [godNode] }))
+    expect(result).toContain('MyService')
+    expect(result).toContain('12 in')
   })
 })
 

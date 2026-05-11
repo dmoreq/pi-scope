@@ -43,6 +43,8 @@ import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import { produceDefaults } from './context/schema.js'
 import type { GraphifyAnalysis } from './context/graph-types.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
+import type { PipelineSource } from './context/pipeline.js'
+import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import type { AgentMessage } from './shared/agent-message.js'
 import type { OptionalGraphAnalysisLoader } from './shared/optional-graph-analysis-loader.js'
 
@@ -88,6 +90,71 @@ export interface SessionState {
   providerGuidanceFiles: ProviderGuidanceFile[]
   providerGuidanceInjected: boolean
   retrieval: RetrievalEngine | undefined
+}
+
+// ── Exported helpers ───────────────────────────────────────────────────
+
+/**
+ * Build a PipelineSource for the repo map.
+ * Applies graph-prioritized enhancement when analysis is available;
+ * falls back to the raw map otherwise.
+ */
+export function buildRepoMapSource(
+  baseMap: string,
+  insights: ContextInsights,
+  graph: GraphifyAnalysis | null,
+): PipelineSource {
+  return {
+    name: 'repo-map',
+    priority: 1,
+    produce(): string | null {
+      if (!baseMap) return null
+      if (graph) {
+        return new SmartRepositoryMapGenerator()
+          .generatePrioritizedRepoMap(baseMap, insights, graph)
+      }
+      return baseMap
+    },
+  }
+}
+
+/**
+ * Format the graph analysis insights block for system-prompt injection.
+ */
+export function formatGraphInsightsSection(a: GraphifyAnalysis): string {
+  const lines: string[] = [
+    '## Graph Analysis Insights',
+    '',
+    `**Graph:** ${a.metrics.totalNodes} nodes, ${a.metrics.totalEdges} edges, ${a.metrics.communityCount} communities`,
+  ]
+  if (a.metrics.cycleCount > 0) {
+    lines.push(`**Circular Dependencies:** ${a.metrics.cycleCount}`)
+  }
+  lines.push('')
+  if (a.godNodes.length > 0) {
+    lines.push('**God Nodes (most depended-on symbols):**')
+    for (const g of a.godNodes.slice(0, 5)) {
+      lines.push(`  - \`${g.label}\` (${g.inDegree} in, ${g.outDegree} out, ${g.criticality})`)
+    }
+    if (a.godNodes.length > 5) {
+      lines.push(`  - ... and ${a.godNodes.length - 5} more`)
+    }
+    lines.push('')
+  }
+  if (a.communities.length > 1) {
+    lines.push('**Communities:**')
+    for (const c of a.communities) {
+      lines.push(`  - ${c.label}: ${c.nodes.length} nodes`)
+    }
+    lines.push('')
+  }
+  if (a.surprises.length > 0) {
+    lines.push('**Notable connections:**')
+    for (const s of a.surprises.slice(0, 3)) {
+      lines.push(`  - \`${s.source}\` → \`${s.target}\` (${s.reason})`)
+    }
+  }
+  return lines.filter(l => l !== undefined).join('\n').trimEnd()
 }
 
 // ── Manager ────────────────────────────────────────────────────────────
