@@ -213,27 +213,23 @@ export class CommunityPruningPlugin implements Plugin {
   }
 
   /**
-   * Check if message content includes non-relevant community context.
+   * Check if message content includes non-relevant community context
+   * from graph injection markers.
    */
   private containsNonRelevantContent(
     content: string,
     _relevantNodes: Set<string>,
     _interfaceNodes: Set<string>
   ): boolean {
-    // Look for community-related markers
-    const communityPatterns = [
-      /Community \d+/gi,
-      /community-/gi,
-      /module group/i,
+    const graphInjectionMarkers = [
+      'GRAPH-PRIORITIZED NAVIGATION',
+      'ARCHITECTURAL CONTEXT',
+      'ARCHITECTURAL GUIDANCE',
+      '## Graph Analysis Insights',
+      'HIGH-PRIORITY SYMBOLS',
+      'FOCUS AREAS (graph impact)',
     ]
-
-    for (const pattern of communityPatterns) {
-      if (pattern.test(content)) {
-        return true
-      }
-    }
-
-    return false
+    return graphInjectionMarkers.some(marker => content.includes(marker))
   }
 
   /**
@@ -249,14 +245,21 @@ export class CommunityPruningPlugin implements Plugin {
     let inCommunitySection = false
     let keepSection = false
 
-    for (const line of lines) {
-      // Detect community section boundaries
-      const communityMatch = line.match(/^(?:#+\s*)?Community\s+(\d+)/i)
+    const SECTION_HEADERS = [
+      'GRAPH-PRIORITIZED NAVIGATION',
+      'ARCHITECTURAL CONTEXT',
+      'ARCHITECTURAL GUIDANCE',
+      '## Graph Analysis Insights',
+      'HIGH-PRIORITY SYMBOLS',
+      'FOCUS AREAS',
+    ]
 
-      if (communityMatch) {
+    for (const line of lines) {
+      // Detect section headers via marker list
+      const isSectionHeader = SECTION_HEADERS.some(h => line.includes(h))
+
+      if (isSectionHeader) {
         inCommunitySection = true
-        // Check if this specific community is relevant
-        // We keep it if we don't have specific info to filter
         keepSection = true
         trimmedLines.push(line)
         continue
