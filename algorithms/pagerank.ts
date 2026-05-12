@@ -12,8 +12,8 @@ import type { GraphifyGraph } from '../context/graph-types.js'
  */
 export interface PageRankScore {
   nodeId: string
-  score: number  // 0-1, normalized importance
-  rawScore: number  // Before normalization
+  score: number // 0-1, normalized importance
+  rawScore: number // Before normalization
 }
 
 /**
@@ -35,9 +35,9 @@ export interface PageRankScore {
  */
 export function computePageRank(
   graph: GraphifyGraph,
-  damping: number = 0.85,
-  maxIterations: number = 30,
-  tolerance: number = 1e-6
+  damping = 0.85,
+  maxIterations = 30,
+  tolerance = 1e-6
 ): PageRankScore[] {
   const n = graph.nodes.length
 
@@ -47,7 +47,7 @@ export function computePageRank(
     return []
   }
 
-  const nodeIds = graph.nodes.map((n) => n.id)
+  const nodeIds = graph.nodes.map(n => n.id)
   const baseScore = (1 - damping) / n
 
   const rank = new Map<string, number>()
@@ -115,14 +115,14 @@ export function computePageRank(
   const minScore = Math.min(...scores, 0)
   const range = maxScore - minScore || 1
 
-  const results: PageRankScore[] = nodeIds.map((id) => {
+  const results: PageRankScore[] = nodeIds.map(id => {
     const rawScore = rank.get(id) ?? 0
     const normalizedScore = (rawScore - minScore) / range
 
     return {
       nodeId: id,
       score: normalizedScore,
-      rawScore
+      rawScore,
     }
   })
 
@@ -140,13 +140,8 @@ export function computePageRank(
  * @param threshold Minimum score threshold (default 0.1)
  * @returns Node IDs that are god nodes by PageRank
  */
-export function identifyGodNodesByPageRank(
-  pageRankScores: PageRankScore[],
-  threshold: number = 0.1
-): string[] {
-  return pageRankScores
-    .filter((score) => score.score >= threshold)
-    .map((score) => score.nodeId)
+export function identifyGodNodesByPageRank(pageRankScores: PageRankScore[], threshold = 0.1): string[] {
+  return pageRankScores.filter(score => score.score >= threshold).map(score => score.nodeId)
 }
 
 /**
@@ -157,10 +152,7 @@ export function identifyGodNodesByPageRank(
  * @param limit Return top N (default: all)
  * @returns Top N most important nodes
  */
-export function rankByPageRank(
-  pageRankScores: PageRankScore[],
-  limit?: number
-): PageRankScore[] {
+export function rankByPageRank(pageRankScores: PageRankScore[], limit?: number): PageRankScore[] {
   const sorted = [...pageRankScores]
 
   return limit ? sorted.slice(0, limit) : sorted
@@ -187,11 +179,11 @@ export function getPageRankStats(pageRankScores: PageRankScore[]): {
       avgScore: 0,
       medianScore: 0,
       stdDev: 0,
-      percentile95: 0
+      percentile95: 0,
     }
   }
 
-  const scores = pageRankScores.map((s) => s.score)
+  const scores = pageRankScores.map(s => s.score)
 
   const max = Math.max(...scores)
   const min = Math.min(...scores)
@@ -203,13 +195,9 @@ export function getPageRankStats(pageRankScores: PageRankScore[]): {
   const median =
     scores.length % 2 !== 0
       ? sorted[Math.floor(scores.length / 2)]
-      : (sorted[Math.floor(scores.length / 2) - 1] +
-          sorted[Math.floor(scores.length / 2)]) /
-        2
+      : (sorted[Math.floor(scores.length / 2) - 1] + sorted[Math.floor(scores.length / 2)]) / 2
 
-  const variance =
-    scores.reduce((sum, score) => sum + Math.pow(score - avg, 2), 0) /
-    scores.length
+  const variance = scores.reduce((sum, score) => sum + (score - avg) ** 2, 0) / scores.length
   const stdDev = Math.sqrt(variance)
 
   const percentileIndex = Math.ceil((95 / 100) * scores.length) - 1
@@ -221,7 +209,7 @@ export function getPageRankStats(pageRankScores: PageRankScore[]): {
     avgScore: avg,
     medianScore: median,
     stdDev,
-    percentile95
+    percentile95,
   }
 }
 
@@ -238,8 +226,8 @@ export function getPageRankStats(pageRankScores: PageRankScore[]): {
 export function combineImportanceScores(
   degreeScores: Map<string, number>,
   pageRankScores: Map<string, number>,
-  degreeWeight: number = 0.4,
-  pageRankWeight: number = 0.6
+  degreeWeight = 0.4,
+  pageRankWeight = 0.6
 ): Map<string, number> {
   const combined = new Map<string, number>()
 
@@ -250,8 +238,7 @@ export function combineImportanceScores(
 
   for (const [nodeId, degree] of degreeScores.entries()) {
     const pageRank = pageRankScores.get(nodeId) ?? 0
-    const importance =
-      normDegreeWeight * degree + normPageRankWeight * pageRank
+    const importance = normDegreeWeight * degree + normPageRankWeight * pageRank
 
     combined.set(nodeId, importance)
   }

@@ -96,15 +96,19 @@ export function detectAllCycles(graph: GraphifyGraph): CycleDetectionResult {
 
   // Calculate statistics
   const cycleNodes = new Set<string>()
-  cycles.forEach((c) => c.nodes.forEach((n) => cycleNodes.add(n)))
+  for (const c of cycles) {
+    for (const n of c.nodes) {
+      cycleNodes.add(n)
+    }
+  }
 
   return {
     hasCycles: cycles.length > 0,
     cycleCount: cycles.length,
     totalNodesInCycles: cycleNodes.size,
-    cycles: cycles.slice(0, 50),  // Limit to 50 cycles
+    cycles: cycles.slice(0, 50), // Limit to 50 cycles
     strongComponents: sccs,
-    anomalies
+    anomalies,
   }
 }
 
@@ -149,7 +153,7 @@ function detectCyclesDFS(
         edges: cycleEdges,
         length: cyclePath.length - 1,
         severity: determineCycleSeverity(cyclePath.length - 1),
-        recommendation: getCycleRecommendation(cyclePath.length - 1)
+        recommendation: getCycleRecommendation(cyclePath.length - 1),
       })
     }
   }
@@ -165,7 +169,7 @@ function detectCyclesDFS(
  * @param graph Graph data
  * @returns Array of edges
  */
-function getCycleEdges(path: string[], graph: GraphifyGraph): Array<[string, string]> {
+function getCycleEdges(path: string[], _graph: GraphifyGraph): Array<[string, string]> {
   const edges: Array<[string, string]> = []
 
   for (let i = 0; i < path.length - 1; i++) {
@@ -183,7 +187,7 @@ function getCycleEdges(path: string[], graph: GraphifyGraph): Array<[string, str
  */
 function determineCycleSeverity(length: number): 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' {
   if (length === 2) {
-    return 'CRITICAL'  // Direct circular dependency
+    return 'CRITICAL' // Direct circular dependency
   }
   if (length <= 4) {
     return 'HIGH'
@@ -222,9 +226,7 @@ function getCycleRecommendation(length: number): string {
  * @param graph The graph
  * @returns Array of strongly connected components
  */
-export function detectStronglyConnectedComponents(
-  graph: GraphifyGraph
-): StronglyConnectedComponent[] {
+export function detectStronglyConnectedComponents(graph: GraphifyGraph): StronglyConnectedComponent[] {
   const index = new Map<string, number>()
   const lowLink = new Map<string, number>()
   const onStack = new Set<string>()
@@ -252,16 +254,23 @@ export function detectStronglyConnectedComponents(
     for (const neighbor of neighbors) {
       if (!index.has(neighbor)) {
         strongConnect(neighbor)
-        lowLink.set(node, Math.min(lowLink.get(node) ?? Infinity, lowLink.get(neighbor) ?? Infinity))
+        lowLink.set(
+          node,
+          Math.min(lowLink.get(node) ?? Number.POSITIVE_INFINITY, lowLink.get(neighbor) ?? Number.POSITIVE_INFINITY)
+        )
       } else if (onStack.has(neighbor)) {
-        lowLink.set(node, Math.min(lowLink.get(node) ?? Infinity, index.get(neighbor) ?? Infinity))
+        lowLink.set(
+          node,
+          Math.min(lowLink.get(node) ?? Number.POSITIVE_INFINITY, index.get(neighbor) ?? Number.POSITIVE_INFINITY)
+        )
       }
     }
 
     if (lowLink.get(node) === index.get(node)) {
       const component: string[] = []
       while (true) {
-        const popped = stack.pop()!
+        const popped = stack.pop()
+        if (!popped) break
         onStack.delete(popped)
         component.push(popped)
         if (popped === node) break
@@ -274,7 +283,7 @@ export function detectStronglyConnectedComponents(
           nodes: component,
           size: component.length,
           isCycle: component.length > 1,
-          density
+          density,
         })
       }
     }
@@ -318,24 +327,24 @@ function computeComponentDensity(nodes: string[], graph: GraphifyGraph): number 
  * @param graph Graph data
  * @returns Array of anomalies
  */
-function detectAnomalies(
-  cycles: Cycle[],
-  sccs: StronglyConnectedComponent[],
-  graph: GraphifyGraph
-): Anomaly[] {
+function detectAnomalies(cycles: Cycle[], _sccs: StronglyConnectedComponent[], graph: GraphifyGraph): Anomaly[] {
   const anomalies: Anomaly[] = []
 
   // Circular dependency anomalies
   if (cycles.length > 0) {
     const nodesInCycles = new Set<string>()
-    cycles.forEach((c) => c.nodes.forEach((n) => nodesInCycles.add(n)))
+    for (const c of cycles) {
+      for (const n of c.nodes) {
+        nodesInCycles.add(n)
+      }
+    }
 
     anomalies.push({
       type: 'circular',
-      severity: cycles.some((c) => c.severity === 'CRITICAL') ? 'CRITICAL' : 'HIGH',
+      severity: cycles.some(c => c.severity === 'CRITICAL') ? 'CRITICAL' : 'HIGH',
       affectedNodes: Array.from(nodesInCycles),
       description: `${cycles.length} circular dependencies detected`,
-      recommendation: 'Break cycles by extracting shared dependencies or inverting dependencies'
+      recommendation: 'Break cycles by extracting shared dependencies or inverting dependencies',
     })
   }
 
@@ -347,7 +356,7 @@ function detectAnomalies(
       severity: 'MEDIUM',
       affectedNodes: highCouplingNodes,
       description: `${highCouplingNodes.length} nodes have excessive coupling`,
-      recommendation: 'Consider modularizing or extracting interfaces'
+      recommendation: 'Consider modularizing or extracting interfaces',
     })
   }
 
@@ -359,7 +368,7 @@ function detectAnomalies(
       severity: 'LOW',
       affectedNodes: orphanNodes,
       description: `${orphanNodes.length} isolated nodes detected`,
-      recommendation: 'Review if these should be integrated or removed'
+      recommendation: 'Review if these should be integrated or removed',
     })
   }
 
@@ -399,9 +408,7 @@ function detectOrphans(graph: GraphifyGraph): string[] {
     connected.add(edge.target)
   }
 
-  return graph.nodes
-    .map((n) => n.id)
-    .filter((id) => !connected.has(id))
+  return graph.nodes.map(n => n.id).filter(id => !connected.has(id))
 }
 
 /**
@@ -417,7 +424,7 @@ export function getCycleDetectionSummary(result: CycleDetectionResult): string {
     `Has Cycles: ${result.hasCycles ? 'YES' : 'NO'}`,
     `Total Cycles: ${result.cycleCount}`,
     `Nodes in Cycles: ${result.totalNodesInCycles}`,
-    `Strongly Connected Components: ${result.strongComponents.length}`
+    `Strongly Connected Components: ${result.strongComponents.length}`,
   ]
 
   if (result.cycleCount > 0) {
@@ -431,9 +438,9 @@ export function getCycleDetectionSummary(result: CycleDetectionResult): string {
   if (result.anomalies.length > 0) {
     lines.push('')
     lines.push(`Anomalies Detected: ${result.anomalies.length}`)
-    result.anomalies.slice(0, 3).forEach((a) => {
+    for (const a of result.anomalies.slice(0, 3)) {
       lines.push(`  • [${a.severity}] ${a.type}: ${a.description}`)
-    })
+    }
   }
 
   return lines.join('\n')

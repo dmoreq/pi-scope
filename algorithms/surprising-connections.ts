@@ -5,20 +5,17 @@
  * These are edges that appear unusual based on various criteria.
  */
 
-import type {
-  GraphifyGraph,
-  SurprisingConnection
-} from '../context/graph-types.js'
+import type { GraphifyGraph, SurprisingConnection } from '../context/graph-types.js'
 
 /**
  * Reasons why a connection might be surprising.
  */
 export type SurpriseReason =
-  | 'cross-community'  // Connects different modules
-  | 'legacy'           // Connects to deprecated/legacy code
-  | 'circular'         // Part of a cycle
-  | 'hidden'           // Not directly imported, but used
-  | 'unexpected'       // Defies expected patterns
+  | 'cross-community' // Connects different modules
+  | 'legacy' // Connects to deprecated/legacy code
+  | 'circular' // Part of a cycle
+  | 'hidden' // Not directly imported, but used
+  | 'unexpected' // Defies expected patterns
 
 /**
  * Detect all surprising connections in a graph.
@@ -40,11 +37,11 @@ export type SurpriseReason =
  */
 export function detectSurprisingConnections(
   graph: GraphifyGraph,
-  communities?: Map<string, string>,  // nodeId -> communityId
-  cycles?: Set<string>                // "source->target" edges in cycles
+  communities?: Map<string, string>, // nodeId -> communityId
+  cycles?: Set<string> // "source->target" edges in cycles
 ): SurprisingConnection[] {
   const surprises: SurprisingConnection[] = []
-  const seenPairs = new Set<string>()  // Deduplicate
+  const seenPairs = new Set<string>() // Deduplicate
 
   for (const edge of graph.edges) {
     const pairKey = `${edge.source}→${edge.target}`
@@ -67,7 +64,7 @@ export function detectSurprisingConnections(
           target: edge.target,
           reason: 'cross-community',
           confidence: 0.75,
-          explanation: `Connects ${sourceComm} to ${targetComm}`
+          explanation: `Connects ${sourceComm} to ${targetComm}`,
         })
         continue
       }
@@ -77,10 +74,7 @@ export function detectSurprisingConnections(
 
     const isLegacy = (nodeId: string) => {
       return (
-        nodeId.includes('legacy') ||
-        nodeId.includes('deprecated') ||
-        nodeId.includes('old') ||
-        nodeId.match(/v\d+/i)  // version suffixes
+        nodeId.includes('legacy') || nodeId.includes('deprecated') || nodeId.includes('old') || nodeId.match(/v\d+/i) // version suffixes
       )
     }
 
@@ -90,20 +84,20 @@ export function detectSurprisingConnections(
         target: edge.target,
         reason: 'legacy',
         confidence: 0.85,
-        explanation: `Modern code depends on legacy: ${edge.target}`
+        explanation: `Modern code depends on legacy: ${edge.target}`,
       })
       continue
     }
 
     // ── Check for circular edge ──────────────────────────────────────
 
-    if (cycles && cycles.has(pairKey)) {
+    if (cycles?.has(pairKey)) {
       surprises.push({
         source: edge.source,
         target: edge.target,
         reason: 'circular',
         confidence: 1.0,
-        explanation: `Part of circular dependency`
+        explanation: 'Part of circular dependency',
       })
       continue
     }
@@ -115,17 +109,13 @@ export function detectSurprisingConnections(
     const edgeType = edge.type
 
     // Modules shouldn't call individual functions (use other modules)
-    if (
-      sourceIsModule &&
-      targetIsFunction &&
-      edgeType === 'calls'
-    ) {
+    if (sourceIsModule && targetIsFunction && edgeType === 'calls') {
       surprises.push({
         source: edge.source,
         target: edge.target,
         reason: 'unexpected',
         confidence: 0.6,
-        explanation: `Module directly calls function instead of module`
+        explanation: 'Module directly calls function instead of module',
       })
     }
   }
@@ -143,23 +133,20 @@ export function detectSurprisingConnections(
  */
 export function filterHighImpactSurprises(
   surprises: SurprisingConnection[],
-  minConfidence: number = 0.7
+  minConfidence = 0.7
 ): SurprisingConnection[] {
-  const highImpact = surprises.filter((s) => s.confidence >= minConfidence)
+  const highImpact = surprises.filter(s => s.confidence >= minConfidence)
 
   // Prioritize by reason (some are more important than others)
   const reasonPriority: Record<SurpriseReason, number> = {
-    circular: 10,      // Most critical
-    legacy: 8,         // Important technical debt
+    circular: 10, // Most critical
+    legacy: 8, // Important technical debt
     'cross-community': 6,
     hidden: 4,
-    unexpected: 2      // Least critical
+    unexpected: 2, // Least critical
   }
 
-  return highImpact.sort(
-    (a, b) =>
-      (reasonPriority[b.reason] || 0) - (reasonPriority[a.reason] || 0)
-  )
+  return highImpact.sort((a, b) => (reasonPriority[b.reason] || 0) - (reasonPriority[a.reason] || 0))
 }
 
 /**
@@ -168,16 +155,13 @@ export function filterHighImpactSurprises(
  * @param surprises All detected surprises
  * @returns Breakdown by reason
  */
-export function categorizeSurprises(surprises: SurprisingConnection[]): Record<
-  SurpriseReason,
-  SurprisingConnection[]
-> {
+export function categorizeSurprises(surprises: SurprisingConnection[]): Record<SurpriseReason, SurprisingConnection[]> {
   const categories: Record<SurpriseReason, SurprisingConnection[]> = {
     'cross-community': [],
     legacy: [],
     circular: [],
     hidden: [],
-    unexpected: []
+    unexpected: [],
   }
 
   for (const surprise of surprises) {
@@ -211,13 +195,8 @@ export function getSurpriseNodes(surprises: SurprisingConnection[]): Set<string>
  * @param limit Number to return (default: 10)
  * @returns Top N surprises
  */
-export function getTopSurprises(
-  surprises: SurprisingConnection[],
-  limit: number = 10
-): SurprisingConnection[] {
-  return [...surprises]
-    .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, limit)
+export function getTopSurprises(surprises: SurprisingConnection[], limit = 10): SurprisingConnection[] {
+  return [...surprises].sort((a, b) => b.confidence - a.confidence).slice(0, limit)
 }
 
 /**
@@ -238,12 +217,10 @@ export interface SurpriseStats {
  * @param surprises All detected surprises
  * @returns Statistics
  */
-export function computeSurpriseStats(
-  surprises: SurprisingConnection[]
-): SurpriseStats {
+export function computeSurpriseStats(surprises: SurprisingConnection[]): SurpriseStats {
   const categories = categorizeSurprises(surprises)
   const nodes = getSurpriseNodes(surprises)
-  const confidences = surprises.map((s) => s.confidence)
+  const confidences = surprises.map(s => s.confidence)
 
   return {
     totalCount: surprises.length,
@@ -252,15 +229,12 @@ export function computeSurpriseStats(
       legacy: categories.legacy.length,
       circular: categories.circular.length,
       hidden: categories.hidden.length,
-      unexpected: categories.unexpected.length
+      unexpected: categories.unexpected.length,
     },
-    avgConfidence:
-      confidences.length > 0
-        ? confidences.reduce((a, b) => a + b, 0) / confidences.length
-        : 0,
+    avgConfidence: confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : 0,
     maxConfidence: Math.max(...confidences, 0),
     minConfidence: Math.min(...confidences, 1),
-    nodeCount: nodes.size
+    nodeCount: nodes.size,
   }
 }
 
@@ -270,9 +244,7 @@ export function computeSurpriseStats(
  * @param surprise The surprising connection
  * @returns Actionable recommendation
  */
-export function getSurpriseRecommendation(
-  surprise: SurprisingConnection
-): string {
+export function getSurpriseRecommendation(surprise: SurprisingConnection): string {
   const { source, target, reason } = surprise
 
   switch (reason) {

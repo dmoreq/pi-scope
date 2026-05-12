@@ -5,7 +5,7 @@
  * Iteratively optimizes modularity to find natural groupings in the graph.
  */
 
-import type { GraphifyGraph, CommunityAnalysis } from '../context/graph-types.js'
+import type { CommunityAnalysis, GraphifyGraph } from '../context/graph-types.js'
 
 /**
  * Modularity statistics for a community.
@@ -30,10 +30,7 @@ export interface ModularityStats {
  * @param maxIterations Maximum iterations (default: 10)
  * @returns Array of detected communities
  */
-export function detectCommunitiesLouvain(
-  graph: GraphifyGraph,
-  maxIterations: number = 10
-): CommunityAnalysis[] {
+export function detectCommunitiesLouvain(graph: GraphifyGraph, maxIterations = 10): CommunityAnalysis[] {
   const n = graph.nodes.length
 
   if (n === 0) {
@@ -41,8 +38,8 @@ export function detectCommunitiesLouvain(
   }
 
   // Initialize: each node is its own community
-  const nodeIds = graph.nodes.map((n) => n.id)
-  let communities = new Map<string, Set<string>>()
+  const nodeIds = graph.nodes.map(n => n.id)
+  const communities = new Map<string, Set<string>>()
 
   for (const nodeId of nodeIds) {
     communities.set(nodeId, new Set([nodeId]))
@@ -50,7 +47,7 @@ export function detectCommunitiesLouvain(
 
   // Build adjacency for efficiency
   const neighbors = buildNeighborMap(graph)
-  const m = graph.edges.length  // Total edges (undirected count)
+  const m = graph.edges.length // Total edges (undirected count)
 
   // Iteratively optimize modularity
   let iteration = 0
@@ -79,15 +76,7 @@ export function detectCommunitiesLouvain(
       let bestDelta = 0
 
       for (const targetComm of neighboringCommunities) {
-        const delta = computeModularityDelta(
-          nodeId,
-          currentCommunity,
-          targetComm,
-          communities,
-          graph,
-          neighbors,
-          m
-        )
+        const delta = computeModularityDelta(nodeId, currentCommunity, targetComm, communities, graph, neighbors, m)
 
         if (delta > bestDelta) {
           bestDelta = delta
@@ -122,7 +111,7 @@ export function detectCommunitiesLouvain(
         internalDensity: density,
         externalDensity: externalEdges > 0 ? externalEdges / (members.size * (graph.nodes.length - members.size)) : 0,
         interfaceNodes,
-        bottlenecks: findBottlenecksInCommunity(members, neighbors)
+        bottlenecks: findBottlenecksInCommunity(members, neighbors),
       })
 
       for (const member of members) {
@@ -193,11 +182,11 @@ function computeModularityDelta(
   fromCommunity: string,
   toCommunity: string,
   communities: Map<string, Set<string>>,
-  graph: GraphifyGraph,
+  _graph: GraphifyGraph,
   neighbors: Map<string, Set<string>>,
-  m: number
+  _m: number
 ): number {
-  const fromMembers = communities.get(fromCommunity) ?? new Set()
+  const _fromMembers = communities.get(fromCommunity) ?? new Set()
   const toMembers = communities.get(toCommunity) ?? new Set()
   const nodeNeighbors = neighbors.get(nodeId) ?? new Set()
 
@@ -270,7 +259,7 @@ function computeDensity(community: Set<string>, internalEdges: number): number {
     return 0
   }
 
-  const maxEdges = n * (n - 1)  // Directed
+  const maxEdges = n * (n - 1) // Directed
   return maxEdges > 0 ? internalEdges / maxEdges : 0
 }
 
@@ -307,10 +296,7 @@ function findInterfaceNodes(community: Set<string>, graph: GraphifyGraph): strin
  * @param neighbors Neighbor map
  * @returns Array of bottleneck node IDs
  */
-function findBottlenecksInCommunity(
-  community: Set<string>,
-  neighbors: Map<string, Set<string>>
-): string[] {
+function findBottlenecksInCommunity(community: Set<string>, neighbors: Map<string, Set<string>>): string[] {
   const degrees = new Map<string, number>()
 
   // Count degree within community
@@ -328,8 +314,7 @@ function findBottlenecksInCommunity(
   }
 
   // Find nodes with above-average degree
-  const avgDegree =
-    Array.from(degrees.values()).reduce((a, b) => a + b, 0) / community.size
+  const avgDegree = Array.from(degrees.values()).reduce((a, b) => a + b, 0) / community.size
 
   const bottlenecks: string[] = []
   for (const [nodeId, degree] of degrees) {
@@ -349,10 +334,7 @@ function findBottlenecksInCommunity(
  * @param graph The graph
  * @returns Modularity score (0-1)
  */
-export function computeGlobalModularity(
-  communities: CommunityAnalysis[],
-  graph: GraphifyGraph
-): number {
+export function computeGlobalModularity(communities: CommunityAnalysis[], graph: GraphifyGraph): number {
   let modularity = 0
 
   for (const community of communities) {
@@ -365,9 +347,7 @@ export function computeGlobalModularity(
     // Modularity contribution of this community
     const communityModularity =
       internalEdges / totalEdges -
-      ((community.nodes.length * community.nodes.length) /
-        (graph.nodes.length * graph.nodes.length)) *
-        0.1  // Penalty for size
+      ((community.nodes.length * community.nodes.length) / (graph.nodes.length * graph.nodes.length)) * 0.1 // Penalty for size
 
     modularity += communityModularity
   }
@@ -398,12 +378,12 @@ export function getCommunityStats(communities: CommunityAnalysis[]): {
       maxSize: 0,
       avgDensity: 0,
       minDensity: 0,
-      maxDensity: 0
+      maxDensity: 0,
     }
   }
 
-  const sizes = communities.map((c) => c.nodes.length)
-  const densities = communities.map((c) => c.internalDensity)
+  const sizes = communities.map(c => c.nodes.length)
+  const densities = communities.map(c => c.internalDensity)
 
   return {
     count: communities.length,
@@ -412,6 +392,6 @@ export function getCommunityStats(communities: CommunityAnalysis[]): {
     maxSize: Math.max(...sizes),
     avgDensity: densities.reduce((a, b) => a + b) / densities.length,
     minDensity: Math.min(...densities),
-    maxDensity: Math.max(...densities)
+    maxDensity: Math.max(...densities),
   }
 }

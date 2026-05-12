@@ -14,10 +14,10 @@ import type { GraphifyGraph } from '../context/graph-types.js'
  */
 export interface DegreeScore {
   nodeId: string
-  inDegree: number    // Incoming edges (depends on this)
-  outDegree: number   // Outgoing edges (depends on)
+  inDegree: number // Incoming edges (depends on this)
+  outDegree: number // Outgoing edges (depends on)
   totalDegree: number // In + Out
-  normalized: number  // 0-1, normalized by max
+  normalized: number // 0-1, normalized by max
 }
 
 /**
@@ -65,7 +65,7 @@ export function computeDegreeCentrality(graph: GraphifyGraph): DegreeScore[] {
       inDegree: in_,
       outDegree: out,
       totalDegree: total,
-      normalized: maxDegree > 0 ? total / maxDegree : 0
+      normalized: maxDegree > 0 ? total / maxDegree : 0,
     })
   }
 
@@ -83,13 +83,8 @@ export function computeDegreeCentrality(graph: GraphifyGraph): DegreeScore[] {
  * @param threshold Minimum in-degree to be considered a god node (default: 3)
  * @returns Node IDs that are god nodes
  */
-export function identifyGodNodesByDegree(
-  degreeScores: DegreeScore[],
-  threshold: number = 3
-): string[] {
-  return degreeScores
-    .filter((score) => score.inDegree >= threshold)
-    .map((score) => score.nodeId)
+export function identifyGodNodesByDegree(degreeScores: DegreeScore[], threshold = 3): string[] {
+  return degreeScores.filter(score => score.inDegree >= threshold).map(score => score.nodeId)
 }
 
 /**
@@ -101,13 +96,8 @@ export function identifyGodNodesByDegree(
  * @param threshold Minimum out-degree (default: 5)
  * @returns Node IDs that are bottlenecks
  */
-export function identifyBottlenecksByDegree(
-  degreeScores: DegreeScore[],
-  threshold: number = 5
-): string[] {
-  return degreeScores
-    .filter((score) => score.outDegree >= threshold)
-    .map((score) => score.nodeId)
+export function identifyBottlenecksByDegree(degreeScores: DegreeScore[], threshold = 5): string[] {
+  return degreeScores.filter(score => score.outDegree >= threshold).map(score => score.nodeId)
 }
 
 /**
@@ -118,13 +108,8 @@ export function identifyBottlenecksByDegree(
  * @param limit Return top N (default: all)
  * @returns Top N most-depended-on nodes
  */
-export function rankByInDegree(
-  degreeScores: DegreeScore[],
-  limit?: number
-): DegreeScore[] {
-  const sorted = [...degreeScores].sort(
-    (a, b) => b.inDegree - a.inDegree
-  )
+export function rankByInDegree(degreeScores: DegreeScore[], limit?: number): DegreeScore[] {
+  const sorted = [...degreeScores].sort((a, b) => b.inDegree - a.inDegree)
 
   return limit ? sorted.slice(0, limit) : sorted
 }
@@ -146,16 +131,14 @@ export function getDegreeCentralityStats(degreeScores: DegreeScore[]): {
   medianOutDegree: number
   medianTotalDegree: number
 } {
-  const inDegrees = degreeScores.map((s) => s.inDegree)
-  const outDegrees = degreeScores.map((s) => s.outDegree)
-  const totalDegrees = degreeScores.map((s) => s.totalDegree)
+  const inDegrees = degreeScores.map(s => s.inDegree)
+  const outDegrees = degreeScores.map(s => s.outDegree)
+  const totalDegrees = degreeScores.map(s => s.totalDegree)
 
   const getMedian = (arr: number[]) => {
     const sorted = [...arr].sort((a, b) => a - b)
     const mid = Math.floor(sorted.length / 2)
-    return sorted.length % 2 !== 0
-      ? sorted[mid]
-      : (sorted[mid - 1] + sorted[mid]) / 2
+    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
   }
 
   const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
@@ -166,12 +149,10 @@ export function getDegreeCentralityStats(degreeScores: DegreeScore[]): {
     maxOutDegree: max(outDegrees),
     maxTotalDegree: max(totalDegrees),
     avgInDegree: inDegrees.length > 0 ? sum(inDegrees) / inDegrees.length : 0,
-    avgOutDegree:
-      outDegrees.length > 0 ? sum(outDegrees) / outDegrees.length : 0,
-    avgTotalDegree:
-      totalDegrees.length > 0 ? sum(totalDegrees) / totalDegrees.length : 0,
+    avgOutDegree: outDegrees.length > 0 ? sum(outDegrees) / outDegrees.length : 0,
+    avgTotalDegree: totalDegrees.length > 0 ? sum(totalDegrees) / totalDegrees.length : 0,
     medianInDegree: getMedian(inDegrees),
     medianOutDegree: getMedian(outDegrees),
-    medianTotalDegree: getMedian(totalDegrees)
+    medianTotalDegree: getMedian(totalDegrees),
   }
 }
