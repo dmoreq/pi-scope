@@ -15,8 +15,8 @@
  * @module
  */
 
+import type { GraphEdge, GraphNode, GraphifyGraph } from '../context/graph-types.js'
 import type { RepoIndex } from '../shared/types.js'
-import type { GraphifyGraph, GraphNode, GraphEdge } from '../context/graph-types.js'
 
 /**
  * Convert a RepoIndex (from AST parsing) into a GraphifyGraph.
@@ -25,14 +25,11 @@ import type { GraphifyGraph, GraphNode, GraphEdge } from '../context/graph-types
  * @param projectRoot  Project root for generating relative labels
  * @returns A GraphifyGraph compatible with all 5 graph algorithms
  */
-export function repoIndexToGraphifyGraph(
-  index: RepoIndex,
-  projectRoot: string,
-): GraphifyGraph {
+export function repoIndexToGraphifyGraph(index: RepoIndex, projectRoot: string): GraphifyGraph {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
   const nodeIds = new Set<string>()
-  const fileNodeIds = new Map<string, string>()  // absPath → nodeId
+  const fileNodeIds = new Map<string, string>() // absPath → nodeId
 
   // Phase 1: Create file-level module nodes
   for (const absPath of index.skeletons.keys()) {
@@ -153,10 +150,7 @@ export function repoIndexToGraphifyGraph(
  * Get the broader overview graph (file-level only, no symbol expansion).
  * More compact for large codebases; still powers all algorithms.
  */
-export function repoIndexToFileGraph(
-  index: RepoIndex,
-  projectRoot: string,
-): GraphifyGraph {
+export function repoIndexToFileGraph(index: RepoIndex, projectRoot: string): GraphifyGraph {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
   const processedEdges = new Set<string>()
@@ -191,16 +185,12 @@ export function repoIndexToFileGraph(
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function fileNodeId(absPath: string, projectRoot: string): string {
-  const rel = absPath.startsWith(projectRoot)
-    ? absPath.slice(projectRoot.length + 1)
-    : absPath
+  const rel = absPath.startsWith(projectRoot) ? absPath.slice(projectRoot.length + 1) : absPath
   return `file:${rel}`
 }
 
 function fileLabel(absPath: string, projectRoot: string): string {
-  return absPath.startsWith(projectRoot)
-    ? absPath.slice(projectRoot.length + 1)
-    : absPath
+  return absPath.startsWith(projectRoot) ? absPath.slice(projectRoot.length + 1) : absPath
 }
 
 function inferSymbolType(name: string): 'function' | 'class' | 'interface' | 'variable' {

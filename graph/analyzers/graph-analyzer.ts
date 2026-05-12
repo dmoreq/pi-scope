@@ -2,16 +2,16 @@
  * Generic graph analysis with injected cache (SRP: analysis only).
  */
 
+import type { AnalysisCache } from '../cache/analysis-cache.js'
 import type {
-  Graph,
   AnalysisResult,
-  GraphAnalyzer as GraphAnalyzerContract,
-  GodNode,
   Community,
+  GodNode,
+  Graph,
+  GraphAnalyzer as GraphAnalyzerContract,
   GraphMetrics,
   SurprisingConnection,
 } from '../interfaces/analyzer.interface.js'
-import type { AnalysisCache } from '../cache/analysis-cache.js'
 
 export class GraphAnalyzer implements GraphAnalyzerContract {
   constructor(private readonly cache: AnalysisCache) {}
@@ -83,8 +83,8 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
     const queue = [startNode]
 
     while (queue.length > 0) {
-      const current = queue.shift()!
-      if (visited.has(current)) continue
+      const current = queue.shift()
+      if (!current || visited.has(current)) continue
 
       visited.add(current)
       community.push(current)
@@ -107,7 +107,7 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
   private computeMetrics(graph: Graph): GraphMetrics {
     const nodeCount = graph.nodes.length
     const edgeCount = graph.edges.length
-    const maxPossibleEdges = nodeCount * (nodeCount - 1) / 2
+    const maxPossibleEdges = (nodeCount * (nodeCount - 1)) / 2
 
     return {
       nodeCount,
@@ -134,11 +134,9 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
   private calculateCohesion(nodes: string[], graph: Graph): number {
     if (nodes.length < 2) return 0
 
-    const internalEdges = graph.edges.filter(e =>
-      nodes.includes(e.from) && nodes.includes(e.to),
-    ).length
+    const internalEdges = graph.edges.filter(e => nodes.includes(e.from) && nodes.includes(e.to)).length
 
-    const maxInternalEdges = nodes.length * (nodes.length - 1) / 2
+    const maxInternalEdges = (nodes.length * (nodes.length - 1)) / 2
     return maxInternalEdges > 0 ? internalEdges / maxInternalEdges : 0
   }
 
@@ -157,7 +155,7 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
 
       for (let i = 0; i < neighbors.length; i++) {
         for (let j = i + 1; j < neighbors.length; j++) {
-          if (this.hasEdge(neighbors[i]!, neighbors[j]!, graph)) {
+          if (neighbors[i] && neighbors[j] && this.hasEdge(neighbors[i], neighbors[j], graph)) {
             actualTriangles++
           }
         }
@@ -183,9 +181,8 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
   }
 
   private hasEdge(node1: string, node2: string, graph: Graph): boolean {
-    return graph.edges.some(edge =>
-      (edge.from === node1 && edge.to === node2) ||
-      (edge.from === node2 && edge.to === node1),
+    return graph.edges.some(
+      edge => (edge.from === node1 && edge.to === node2) || (edge.from === node2 && edge.to === node1)
     )
   }
 
@@ -194,15 +191,13 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
       nodeCount: graph.nodes.length,
       edgeCount: graph.edges.length,
       nodeIds: graph.nodes.map(n => n.id).sort(),
-      edges: graph.edges
-        .map(e => `${e.from}->${e.to}:${e.type ?? ''}`)
-        .sort(),
+      edges: graph.edges.map(e => `${e.from}->${e.to}:${e.type ?? ''}`).sort(),
     })
 
     let hash = 0
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
+      hash = (hash << 5) - hash + char
       hash |= 0
     }
 
