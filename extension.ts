@@ -30,14 +30,14 @@ export type { ExtensionContext }
 // ── Flags ──────────────────────────────────────────────────────────────
 
 const FLAGS: Array<{ name: string; description: string }> = [
-  { name: 'slim.enabled', description: 'Inject repo map and dependency skeletons into every LLM call' },
-  { name: 'slim.maxRepoMapTokens', description: 'Token budget for the global repo map (injected into system prompt)' },
-  { name: 'slim.maxInjectionTokens', description: 'Token budget for per-turn dependency skeleton injection' },
-  { name: 'slim.scanLastNMessages', description: 'How many recent messages to scan for file path mentions' },
-  { name: 'slim.contextFiles.enabled', description: 'Inject project-local context files into system prompt' },
-  { name: 'slim.contextFiles.filenames', description: 'Comma-separated context file names to search for' },
-  { name: 'slim.providerGuidance.enabled', description: 'Inject provider-specific guidance files' },
-  { name: 'slim.config', description: 'Path to JSONC config file' },
+  { name: 'scope.enabled', description: 'Inject repo map and dependency skeletons into every LLM call' },
+  { name: 'scope.maxRepoMapTokens', description: 'Token budget for the global repo map (injected into system prompt)' },
+  { name: 'scope.maxInjectionTokens', description: 'Token budget for per-turn dependency skeleton injection' },
+  { name: 'scope.scanLastNMessages', description: 'How many recent messages to scan for file path mentions' },
+  { name: 'scope.contextFiles.enabled', description: 'Inject project-local context files into system prompt' },
+  { name: 'scope.contextFiles.filenames', description: 'Comma-separated context file names to search for' },
+  { name: 'scope.providerGuidance.enabled', description: 'Inject provider-specific guidance files' },
+  { name: 'scope.config', description: 'Path to JSONC config file' },
 ]
 
 function registerFlags(pi: ExtensionAPI): void {

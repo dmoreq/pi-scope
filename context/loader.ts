@@ -78,11 +78,11 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 // ── Config loading ────────────────────────────────────────────────────────
 
-const GLOBAL_CONFIG_PATH = PathUtils.joinSafe(homedir(), '.pi', 'agent', 'slim.jsonc')
+const GLOBAL_CONFIG_PATH = PathUtils.joinSafe(homedir(), '.pi', 'agent', 'scope.jsonc')
 const PROJECT_CONFIG_REL = '.pi/scope.jsonc'
 
 /**
- * Load the slim configuration from all layers.
+ * Load the scope configuration from all layers.
  *
  * Priority (highest wins):
  *   1. CLI flag overrides (passed as `flags`)
@@ -112,28 +112,28 @@ export function loadConfig(projectRoot: string, flags?: Record<string, unknown>)
   // Layer 4: CLI flags
   if (flags) {
     const flagConfig: Record<string, unknown> = {}
-    if (flags['slim.enabled'] !== undefined) {
-      flagConfig.enabled = Boolean(flags['slim.enabled'])
+    if (flags['scope.enabled'] !== undefined) {
+      flagConfig.enabled = Boolean(flags['scope.enabled'])
     }
-    if (flags['slim.maxRepoMapTokens'] !== undefined) {
-      flagConfig.maxRepoMapTokens = Number(flags['slim.maxRepoMapTokens'])
+    if (flags['scope.maxRepoMapTokens'] !== undefined) {
+      flagConfig.maxRepoMapTokens = Number(flags['scope.maxRepoMapTokens'])
     }
-    if (flags['slim.maxInjectionTokens'] !== undefined) {
-      flagConfig.maxInjectionTokens = Number(flags['slim.maxInjectionTokens'])
+    if (flags['scope.maxInjectionTokens'] !== undefined) {
+      flagConfig.maxInjectionTokens = Number(flags['scope.maxInjectionTokens'])
     }
-    if (flags['slim.scanLastNMessages'] !== undefined) {
-      flagConfig.scanLastNMessages = Number(flags['slim.scanLastNMessages'])
+    if (flags['scope.scanLastNMessages'] !== undefined) {
+      flagConfig.scanLastNMessages = Number(flags['scope.scanLastNMessages'])
     }
-    if (flags['slim.contextFiles.enabled'] !== undefined) {
+    if (flags['scope.contextFiles.enabled'] !== undefined) {
       flagConfig.contextFiles = {
         ...((merged.contextFiles ?? {}) as Record<string, unknown>),
-        enabled: Boolean(flags['slim.contextFiles.enabled']),
+        enabled: Boolean(flags['scope.contextFiles.enabled']),
       }
     }
-    if (flags['slim.providerGuidance.enabled'] !== undefined) {
+    if (flags['scope.providerGuidance.enabled'] !== undefined) {
       flagConfig.providerGuidance = {
         ...((merged.providerGuidance ?? {}) as Record<string, unknown>),
-        enabled: Boolean(flags['slim.providerGuidance.enabled']),
+        enabled: Boolean(flags['scope.providerGuidance.enabled']),
       }
     }
     merged = deepMerge(merged, flagConfig)
@@ -142,7 +142,7 @@ export function loadConfig(projectRoot: string, flags?: Record<string, unknown>)
   // Validate final merged config
   const result = SlimConfigSchema.safeParse(merged)
   if (!result.success) {
-    throw new Error(`[slim] Invalid configuration:\n${result.error.message}`)
+    throw new Error(`[scope] Invalid configuration:\n${result.error.message}`)
   }
 
   return result.data as SlimConfig

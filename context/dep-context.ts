@@ -20,7 +20,7 @@ export class ContextInjector {
   private readonly maxTokens: number
   private readonly scanLastN: number
 
-  /** Last explanation for /slim explain */
+  /** Last explanation for /scope explain */
   lastExplanation: ScoredFile[] = []
 
   constructor(projectRoot: string, maxTokens: number, scanLastN: number) {
