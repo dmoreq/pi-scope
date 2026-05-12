@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import Parser from 'tree-sitter'
-import Rust from 'tree-sitter-rust'
 import type { SyntaxNode } from 'tree-sitter'
-import type { LanguageParser } from './language-parser.js'
+import Rust from 'tree-sitter-rust'
 import type { FileIndex } from '../shared/types.js'
+import type { LanguageParser } from './language-parser.js'
 
 const parser = new Parser()
 // @ts-ignore — grammar's Language type has `unknown` internals incompatible with tree-sitter's declared type
@@ -11,20 +11,13 @@ parser.setLanguage(Rust)
 
 const BLOCK_TYPES = new Set(['block', 'declaration_list', 'field_declaration_list', 'enum_variant_list'])
 
-const SIGNATURE_TYPES = new Set([
-  'function_item',
-  'struct_item',
-  'enum_item',
-  'trait_item',
-  'impl_item',
-  'type_item',
-])
+const SIGNATURE_TYPES = new Set(['function_item', 'struct_item', 'enum_item', 'trait_item', 'impl_item', 'type_item'])
 
 function nodeSig(node: SyntaxNode, source: string): string | null {
   if (!SIGNATURE_TYPES.has(node.type)) return null
   const body = node.children.find(c => BLOCK_TYPES.has(c.type))
   if (body) {
-    return source.slice(node.startIndex, body.startIndex).trimEnd() + ' { ... }'
+    return `${source.slice(node.startIndex, body.startIndex).trimEnd()} { ... }`
   }
   return source.slice(node.startIndex, node.endIndex)
 }
@@ -32,7 +25,10 @@ function nodeSig(node: SyntaxNode, source: string): string | null {
 function walk(node: SyntaxNode, source: string, sigs: string[], imports: string[], exports: string[]): void {
   if (node.type === 'mod_item') {
     const name = node.childForFieldName('name')
-    if (name) { exports.push(name.text); imports.push('mod:' + name.text) }
+    if (name) {
+      exports.push(name.text)
+      imports.push(`mod:${name.text}`)
+    }
     return
   }
 
@@ -67,7 +63,8 @@ export class RustParser implements LanguageParser {
     const sigs: string[] = []
     const imports: string[] = []
 
-    const exports: string[] = []; walk(tree.rootNode, content, sigs, imports, exports)
+    const exports: string[] = []
+    walk(tree.rootNode, content, sigs, imports, exports)
 
     return {
       path,

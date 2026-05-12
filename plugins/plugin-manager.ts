@@ -25,8 +25,8 @@
  * ```
  */
 
-import type { ExtensionContext } from '../extension.js';
-import type { Plugin, PluginToolCallResult } from './plugin.js';
+import type { ExtensionContext } from '../extension.js'
+import type { Plugin, PluginToolCallResult } from './plugin.js'
 
 // ── Error Class ────────────────────────────────────────────────────────────
 
@@ -34,10 +34,10 @@ export class PluginError extends Error {
   constructor(
     message: string,
     public readonly pluginName: string,
-    public readonly hookName: string,
+    public readonly hookName: string
   ) {
-    super(`[${pluginName}] ${hookName}: ${message}`);
-    this.name = 'PluginError';
+    super(`[${pluginName}] ${hookName}: ${message}`)
+    this.name = 'PluginError'
   }
 }
 
@@ -51,21 +51,21 @@ export type PluginHookName =
   | 'onTurnEnd'
   | 'onAgentEnd'
   | 'onToolCall'
-  | 'onSessionShutdown';
+  | 'onSessionShutdown'
 
 /** Hook names that modify return values (need special handling). */
-const TOOL_CALL_HOOK: PluginHookName = 'onToolCall';
-const BEFORE_AGENT_HOOK: PluginHookName = 'onBeforeAgentStart';
-const CONTEXT_HOOK: PluginHookName = 'onContext';
+const _TOOL_CALL_HOOK: PluginHookName = 'onToolCall'
+const _BEFORE_AGENT_HOOK: PluginHookName = 'onBeforeAgentStart'
+const _CONTEXT_HOOK: PluginHookName = 'onContext'
 
 // ── Plugin Manager ─────────────────────────────────────────────────────────
 
 export class PluginManager {
   /** Registered plugins, keyed by name. */
-  private plugins: Map<string, Plugin> = new Map();
+  private plugins: Map<string, Plugin> = new Map()
 
   /** Hook execution order (plugins are called in registration order within each hook). */
-  private registerOrder: string[] = [];
+  private registerOrder: string[] = []
 
   // ── Registration ─────────────────────────────────────────────────────────
 
@@ -75,13 +75,13 @@ export class PluginManager {
    */
   register(plugin: Plugin): void {
     if (!plugin.name || typeof plugin.name !== 'string') {
-      throw new PluginError('Plugin must have a valid name', 'unknown', 'register');
+      throw new PluginError('Plugin must have a valid name', 'unknown', 'register')
     }
     if (this.plugins.has(plugin.name)) {
-      throw new PluginError(`Plugin '${plugin.name}' already registered`, plugin.name, 'register');
+      throw new PluginError(`Plugin '${plugin.name}' already registered`, plugin.name, 'register')
     }
-    this.plugins.set(plugin.name, plugin);
-    this.registerOrder.push(plugin.name);
+    this.plugins.set(plugin.name, plugin)
+    this.registerOrder.push(plugin.name)
   }
 
   /**
@@ -89,39 +89,39 @@ export class PluginManager {
    * Returns true if the plugin was removed, false if not found.
    */
   unregister(name: string): boolean {
-    const existed = this.plugins.delete(name);
+    const existed = this.plugins.delete(name)
     if (existed) {
-      this.registerOrder = this.registerOrder.filter(n => n !== name);
+      this.registerOrder = this.registerOrder.filter(n => n !== name)
     }
-    return existed;
+    return existed
   }
 
   /**
    * Get a registered plugin by name.
    */
   get(name: string): Plugin | undefined {
-    return this.plugins.get(name);
+    return this.plugins.get(name)
   }
 
   /**
    * Get all registered plugins.
    */
   getAll(): Plugin[] {
-    return this.registerOrder.map(name => this.plugins.get(name)!).filter(Boolean);
+    return this.registerOrder.map(name => this.plugins.get(name)!).filter(Boolean)
   }
 
   /**
    * Get the count of registered plugins.
    */
   get count(): number {
-    return this.plugins.size;
+    return this.plugins.size
   }
 
   /**
    * Check if a plugin with the given name is registered.
    */
   has(name: string): boolean {
-    return this.plugins.has(name);
+    return this.plugins.has(name)
   }
 
   // ── Hook Execution ──────────────────────────────────────────────────────
@@ -132,20 +132,20 @@ export class PluginManager {
    */
   async runHook(hook: PluginHookName, ...args: unknown[]): Promise<void> {
     for (const pluginName of this.registerOrder) {
-      const plugin = this.plugins.get(pluginName);
-      if (!plugin) continue;
+      const plugin = this.plugins.get(pluginName)
+      if (!plugin) continue
 
       const fn = (plugin as unknown as Record<string, unknown>)[hook] as
         | ((...a: unknown[]) => Promise<unknown>)
-        | undefined;
+        | undefined
 
-      if (typeof fn !== 'function') continue;
+      if (typeof fn !== 'function') continue
 
       try {
-        await fn.apply(plugin, args);
+        await fn.apply(plugin, args)
       } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[pi-scope] Plugin ${pluginName} hook ${hook} failed: ${errMsg}`);
+        const errMsg = err instanceof Error ? err.message : String(err)
+        console.error(`[pi-scope] Plugin ${pluginName} hook ${hook} failed: ${errMsg}`)
         // Continue with next plugin — one failure doesn't stop others
       }
     }
@@ -158,27 +158,27 @@ export class PluginManager {
    */
   async runToolCall(
     event: { toolName: string; input: Record<string, unknown> | undefined; toolCallId?: string },
-    ctx: ExtensionContext,
+    ctx: ExtensionContext
   ): Promise<PluginToolCallResult> {
     for (const pluginName of this.registerOrder) {
-      const plugin = this.plugins.get(pluginName);
-      if (!plugin || !plugin.onToolCall) continue;
+      const plugin = this.plugins.get(pluginName)
+      if (!plugin || !plugin.onToolCall) continue
 
       try {
-        const result = await plugin.onToolCall(event, ctx);
+        const result = await plugin.onToolCall(event, ctx)
         if (result && !result.allowed) {
           // Short-circuit: plugin blocked the tool call
-          return result;
+          return result
         }
       } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[pi-scope] Plugin ${pluginName} onToolCall failed: ${errMsg}`);
+        const errMsg = err instanceof Error ? err.message : String(err)
+        console.error(`[pi-scope] Plugin ${pluginName} onToolCall failed: ${errMsg}`)
         // Continue with next plugin
       }
     }
 
     // All plugins allowed the tool call
-    return { allowed: true };
+    return { allowed: true }
   }
 
   // ── State Management ─────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ export class PluginManager {
    * Clear all registered plugins.
    */
   clear(): void {
-    this.plugins.clear();
-    this.registerOrder = [];
+    this.plugins.clear()
+    this.registerOrder = []
   }
 }

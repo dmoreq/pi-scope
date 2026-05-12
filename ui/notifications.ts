@@ -96,7 +96,7 @@ export function buildStatusText(state: StatusBarState): string {
 export function updateStatusBar(
   setStatus: (key: string, text?: string) => void,
   state: StatusBarState,
-  theme?: { fg?: (style: string, text: string) => string },
+  theme?: { fg?: (style: string, text: string) => string }
 ): void {
   const text = buildStatusText(state)
   if (!text) {
@@ -104,9 +104,7 @@ export function updateStatusBar(
     return
   }
 
-  const display = theme?.fg
-    ? theme.fg('dim', `SmartCtx: ${text}`)
-    : `SmartCtx: ${text}`
+  const display = theme?.fg ? theme.fg('dim', `SmartCtx: ${text}`) : `SmartCtx: ${text}`
 
   setStatus(STATUS_KEY, display)
 }
@@ -114,8 +112,6 @@ export function updateStatusBar(
 /**
  * Clear the status bar entry.
  */
-export function clearStatusBar(
-  setStatus: (key: string, text?: string) => void,
-): void {
+export function clearStatusBar(setStatus: (key: string, text?: string) => void): void {
   setStatus(STATUS_KEY, undefined)
 }

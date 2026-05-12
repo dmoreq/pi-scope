@@ -16,8 +16,8 @@
  *   await writeState(projectRoot, state);
  */
 
-import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { scopeDir } from '../shared/paths.js'
 import { PathUtils } from './utils/path-utils.js'
 
@@ -36,7 +36,7 @@ function statePath(projectRoot: string): string {
  * Read runtime state (async). Returns null if no state file exists.
  */
 export async function readState<T extends Record<string, StateValue> = Record<string, StateValue>>(
-  projectRoot: string,
+  projectRoot: string
 ): Promise<T | null> {
   try {
     const raw = await readFile(statePath(projectRoot), 'utf-8')
@@ -53,7 +53,7 @@ export async function readState<T extends Record<string, StateValue> = Record<st
  */
 export async function writeState<T extends Record<string, StateValue> = Record<string, StateValue>>(
   projectRoot: string,
-  state: T,
+  state: T
 ): Promise<void> {
   try {
     await mkdir(stateDir(projectRoot), { recursive: true })
@@ -68,7 +68,7 @@ export async function writeState<T extends Record<string, StateValue> = Record<s
  * Read runtime state (sync). Returns null if no state file exists.
  */
 export function readStateSync<T extends Record<string, StateValue> = Record<string, StateValue>>(
-  projectRoot: string,
+  projectRoot: string
 ): T | null {
   try {
     const filePath = statePath(projectRoot)
@@ -85,7 +85,7 @@ export function readStateSync<T extends Record<string, StateValue> = Record<stri
  */
 export function writeStateSync<T extends Record<string, StateValue> = Record<string, StateValue>>(
   projectRoot: string,
-  state: T,
+  state: T
 ): void {
   try {
     mkdirSync(stateDir(projectRoot), { recursive: true })

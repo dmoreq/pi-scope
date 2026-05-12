@@ -7,8 +7,8 @@
 
 import { appendFile, mkdir } from 'node:fs/promises'
 import { scopeDir } from '../shared/paths.js'
-import { PathUtils } from '../shared/utils/path-utils.js'
 import { writeState } from '../shared/runtime-state.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 // ── Stored record ────────────────────────────────────────────────────────
 
 export interface SessionRecord {
@@ -83,10 +83,12 @@ export class SessionStats {
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
 
-  constructor(sessionId: string) { this.sessionId = sessionId }
+  constructor(sessionId: string) {
+    this.sessionId = sessionId
+  }
 
   recordRepoMapInjection(tokens: number): void {
-    this.repoMapTokens = tokens;
+    this.repoMapTokens = tokens
   }
 
   recordDepContextInjection(paths: string[], tokens: number, fullFileTokens?: number): void {
@@ -94,9 +96,10 @@ export class SessionStats {
     this.depContextTotalTokens += tokens
     if (fullFileTokens !== undefined && fullFileTokens > tokens) {
       this.totalTokensSaved += fullFileTokens - tokens
-      this.savingsRatio = this.depContextTotalTokens > 0
-        ? 1 - (this.depContextTotalTokens / (this.depContextTotalTokens + this.totalTokensSaved))
-        : 0
+      this.savingsRatio =
+        this.depContextTotalTokens > 0
+          ? 1 - this.depContextTotalTokens / (this.depContextTotalTokens + this.totalTokensSaved)
+          : 0
     }
     for (const f of paths) {
       if (!this.injectedFiles.has(f) || f.startsWith('/')) {
@@ -107,11 +110,13 @@ export class SessionStats {
   }
 
   recordContextFilesInjection(tokens: number, count: number): void {
-    this.contextFilesTokens = tokens; this.contextFilesCount = count;
+    this.contextFilesTokens = tokens
+    this.contextFilesCount = count
   }
 
   recordProviderGuidanceInjection(tokens: number, count: number): void {
-    this.providerGuidanceTokens = tokens; this.providerGuidanceCount = count;
+    this.providerGuidanceTokens = tokens
+    this.providerGuidanceCount = count
   }
 
   recordGraphInsightsInjection(tokens: number): void {
@@ -152,11 +157,15 @@ export class SessionStats {
     ]
     if (this.contextFilesCount > 0) parts.push(`ctx-files: ${this.contextFilesCount}`)
     if (this.providerGuidanceCount > 0) parts.push(`guidance: ${this.providerGuidanceCount}`)
-    if (this.totalTokensSaved > 0) parts.push(`saved ~${this.totalTokensSaved}t (${Math.round(this.savingsRatio * 100)}%)`)
+    if (this.totalTokensSaved > 0)
+      parts.push(`saved ~${this.totalTokensSaved}t (${Math.round(this.savingsRatio * 100)}%)`)
     parts.push(`unique: ${this.injectedFiles.size}`)
     if (this.mentionCounts.size > 0) {
-      const top = [...this.mentionCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
-        .map(([f, n]) => `${shorten(f)}\u00d7${n}`).join(', ')
+      const top = [...this.mentionCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([f, n]) => `${shorten(f)}\u00d7${n}`)
+        .join(', ')
       parts.push(`top: ${top}`)
     }
     return parts.join('  |  ')
@@ -169,10 +178,14 @@ export class SessionStats {
     lines.push(`  Dep edges        : ${this.depEdges}`)
     lines.push(`  Repo map         : ~${this.repoMapTokens}t (once)`)
     lines.push(`  Dep-context      : ${this.depContextTriggers}x, ~${this.depContextTotalTokens}t total`)
-    if (this.contextFilesCount > 0) lines.push(`  Context files    : ${this.contextFilesCount}, ~${this.contextFilesTokens}t (once)`)
-    if (this.providerGuidanceCount > 0) lines.push(`  Provider guidance: ${this.providerGuidanceCount}, ~${this.providerGuidanceTokens}t (once)`)
+    if (this.contextFilesCount > 0)
+      lines.push(`  Context files    : ${this.contextFilesCount}, ~${this.contextFilesTokens}t (once)`)
+    if (this.providerGuidanceCount > 0)
+      lines.push(`  Provider guidance: ${this.providerGuidanceCount}, ~${this.providerGuidanceTokens}t (once)`)
     if (this.totalTokensSaved > 0) {
-      lines.push(`  Token savings    : ~${this.totalTokensSaved}t (${Math.round(this.savingsRatio * 100)}% vs full reads)`)
+      lines.push(
+        `  Token savings    : ~${this.totalTokensSaved}t (${Math.round(this.savingsRatio * 100)}% vs full reads)`
+      )
     }
     lines.push(`  Unique files seen: ${this.injectedFiles.size}`)
     if (this.mentionCounts.size > 0) {
@@ -188,7 +201,8 @@ export class SessionStats {
 
   toRecord(): SessionRecord {
     const topFiles = [...this.mentionCounts.entries()]
-      .sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
       .map(([file, mentions]) => ({ file, mentions }))
     return {
       sessionId: this.sessionId,
@@ -227,7 +241,7 @@ export class SessionStats {
   async persist(projectRoot: string): Promise<void> {
     const dir = scopeDir(projectRoot)
     await mkdir(dir, { recursive: true })
-    const line = JSON.stringify(this.toRecord()) + '\n'
+    const line = `${JSON.stringify(this.toRecord())}\n`
     await appendFile(PathUtils.joinSafe(dir, 'stats.jsonl'), line, 'utf-8')
     await writeState(projectRoot, {
       lastSession: {

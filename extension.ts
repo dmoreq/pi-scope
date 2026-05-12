@@ -12,32 +12,32 @@
  */
 
 import type {
+  BeforeAgentStartEvent,
+  ContextEvent,
   ExtensionAPI,
   ExtensionContext as PiExtensionContext,
-  ContextEvent,
-  BeforeAgentStartEvent,
   ToolCallEvent,
   ToolCallEventResult,
 } from '@mariozechner/pi-coding-agent'
 import telemetry from 'pi-telemetry'
 import { produceDefaults } from './context/schema.js'
+import { type ExtensionContext, SessionManager } from './manager.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
 import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
-import { type ExtensionContext, SessionManager } from './manager.js'
 
 export type { ExtensionContext }
 
 // ── Flags ──────────────────────────────────────────────────────────────
 
 const FLAGS: Array<{ name: string; description: string }> = [
-  { name: 'slim.enabled',              description: 'Inject repo map and dependency skeletons into every LLM call' },
-  { name: 'slim.maxRepoMapTokens',     description: 'Token budget for the global repo map (injected into system prompt)' },
-  { name: 'slim.maxInjectionTokens',   description: 'Token budget for per-turn dependency skeleton injection' },
-  { name: 'slim.scanLastNMessages',    description: 'How many recent messages to scan for file path mentions' },
+  { name: 'slim.enabled', description: 'Inject repo map and dependency skeletons into every LLM call' },
+  { name: 'slim.maxRepoMapTokens', description: 'Token budget for the global repo map (injected into system prompt)' },
+  { name: 'slim.maxInjectionTokens', description: 'Token budget for per-turn dependency skeleton injection' },
+  { name: 'slim.scanLastNMessages', description: 'How many recent messages to scan for file path mentions' },
   { name: 'slim.contextFiles.enabled', description: 'Inject project-local context files into system prompt' },
   { name: 'slim.contextFiles.filenames', description: 'Comma-separated context file names to search for' },
   { name: 'slim.providerGuidance.enabled', description: 'Inject provider-specific guidance files' },
-  { name: 'slim.config',               description: 'Path to JSONC config file' },
+  { name: 'slim.config', description: 'Path to JSONC config file' },
 ]
 
 function registerFlags(pi: ExtensionAPI): void {
@@ -58,14 +58,14 @@ function registerFlags(pi: ExtensionAPI): void {
 /**
  * Patterns that indicate a query is codebase-related and pi-scope should activate.
  */
-const CODEBASE_PATTERNS = [
+const _CODEBASE_PATTERNS = [
   // File paths
   /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|md)/,
   /['"`]\.\.?\/[^'"`]+/,
   // Symbol names (camelCase, PascalCase, snake_case)
-  /\b[A-Z][a-z]+[A-Z]\w+\b/,        // PascalCase
-  /\b[a-z]+[A-Z]\w+[a-z]\b/,         // camelCase
-  /\b[a-z]+_[a-z]+\w*\b/,            // snake_case
+  /\b[A-Z][a-z]+[A-Z]\w+\b/, // PascalCase
+  /\b[a-z]+[A-Z]\w+[a-z]\b/, // camelCase
+  /\b[a-z]+_[a-z]+\w*\b/, // snake_case
   // Code keywords
   /\b(?:function|class|import|export|const|let|var|def|fn|struct|impl|trait|interface|type|enum|module|package)\b/,
   // File extensions
@@ -83,6 +83,7 @@ function isCodebaseRelevant(_prompt: string): boolean {
 
 // ── Extension entry ────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFn = (...args: any[]) => any
 
 export default function smartContextExtension(pi: ExtensionAPI): void {
@@ -100,21 +101,14 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   const manager = new SessionManager()
 
   pi.on('session_start', ((_event: unknown, ctx: PiExtensionContext) => {
-    void manager.start(
-      ctx.cwd,
-      (name: string) => pi.getFlag(name) as unknown,
-      ctx as unknown as ExtensionContext,
-    )
+    void manager.start(ctx.cwd, (name: string) => pi.getFlag(name) as unknown, ctx as unknown as ExtensionContext)
   }) as AnyFn)
 
-  pi.on('before_agent_start', (async (
-    event: BeforeAgentStartEvent,
-    ctx: PiExtensionContext,
-  ) => {
+  pi.on('before_agent_start', (async (event: BeforeAgentStartEvent, ctx: PiExtensionContext) => {
     if (!isCodebaseRelevant(event.prompt)) return undefined
     return manager.handleBeforeAgentStart(
       event as Parameters<SessionManager['handleBeforeAgentStart']>[0],
-      ctx as unknown as ExtensionContext,
+      ctx as unknown as ExtensionContext
     )
   }) as AnyFn)
 
@@ -122,16 +116,13 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     if (!manager.state) return undefined
     return manager.handleContext(
       event as unknown as Parameters<SessionManager['handleContext']>[0],
-      ctx as unknown as ExtensionContext,
+      ctx as unknown as ExtensionContext
     )
   }) as AnyFn)
 
   pi.on('tool_call', ((event: ToolCallEvent, ctx: PiExtensionContext): ToolCallEventResult | undefined => {
     if (!manager.state) return undefined
-    return manager.handleToolCall(
-      { toolName: event.toolName, input: event.input },
-      ctx as unknown as ExtensionContext,
-    )
+    return manager.handleToolCall({ toolName: event.toolName, input: event.input }, ctx as unknown as ExtensionContext)
   }) as AnyFn)
 
   pi.on('session_shutdown', (async (_event: unknown, ctx: PiExtensionContext) => {

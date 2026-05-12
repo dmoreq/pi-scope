@@ -24,31 +24,31 @@
  * ```
  */
 
-import type { ExtensionContext } from '../extension.js';
+import type { ExtensionContext } from '../extension.js'
 
 // ── Plugin Tool Call Result ────────────────────────────────────────────────
 
 export interface PluginToolCallResult {
   /** Whether the tool call is allowed to proceed. */
-  allowed: boolean;
+  allowed: boolean
   /** Human-readable reason for denial (shown to user). */
-  reason?: string;
+  reason?: string
 }
 
 // ── Plugin Interface ───────────────────────────────────────────────────────
 
 export interface Plugin {
   /** Unique plugin name (used for registration, logging, and dedup). */
-  readonly name: string;
+  readonly name: string
 
   /** Optional semantic version. */
-  readonly version?: string;
+  readonly version?: string
 
   /**
    * Called when a new session starts.
    * Use to initialize plugin state.
    */
-  onSessionStart?(ctx: ExtensionContext): Promise<void>;
+  onSessionStart?(ctx: ExtensionContext): Promise<void>
 
   /**
    * Called before the agent starts.
@@ -56,26 +56,26 @@ export interface Plugin {
    */
   onBeforeAgentStart?(
     event: { type: 'before_agent_start'; systemPrompt: string; prompt: string },
-    ctx: ExtensionContext,
-  ): Promise<{ systemPrompt: string } | undefined>;
+    ctx: ExtensionContext
+  ): Promise<{ systemPrompt: string } | undefined>
 
   /**
    * Called during context construction (per-turn).
    * Use to prune, augment, or transform context messages.
    */
-  onContext?(messages: Record<string, unknown>[]): Promise<void>;
+  onContext?(messages: Record<string, unknown>[]): Promise<void>
 
   /**
    * Called after each turn completes.
    * Use for post-turn processing, tracking, or metrics.
    */
-  onTurnEnd?(ctx: ExtensionContext): Promise<void>;
+  onTurnEnd?(ctx: ExtensionContext): Promise<void>
 
   /**
    * Called after agent output.
    * Use for post-agent processing.
    */
-  onAgentEnd?(event: Record<string, unknown>, ctx: ExtensionContext): Promise<void>;
+  onAgentEnd?(event: Record<string, unknown>, ctx: ExtensionContext): Promise<void>
 
   /**
    * Called for every tool invocation.
@@ -83,12 +83,12 @@ export interface Plugin {
    */
   onToolCall?(
     event: { toolName: string; input: Record<string, unknown> | undefined; toolCallId?: string },
-    ctx: ExtensionContext,
-  ): Promise<PluginToolCallResult | undefined>;
+    ctx: ExtensionContext
+  ): Promise<PluginToolCallResult | undefined>
 
   /**
    * Called when the session shuts down.
    * Use to persist plugin state, clean up resources.
    */
-  onSessionShutdown?(): Promise<void>;
+  onSessionShutdown?(): Promise<void>
 }

@@ -17,27 +17,27 @@ export interface RepoIndex {
 
 /** Token usage tracking for LLM context windows. */
 export interface TokenUsage {
-  total: number;
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  contextWindow: number;
+  total: number
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+  contextWindow: number
 }
 
 /** Session statistics for monitoring and reporting. */
 export interface SessionStats {
-  sessionId: string;
-  cwd: string;
-  startedAt: number;
-  messageCount: number;
-  turnCount: number;
-  toolCallCount: number;
-  bashCallCount: number;
-  prunedCount: number;
-  totalProcessed: number;
-  touchedFiles: string[];
-  tokenUsage: TokenUsage | null;
+  sessionId: string
+  cwd: string
+  startedAt: number
+  messageCount: number
+  turnCount: number
+  toolCallCount: number
+  bashCallCount: number
+  prunedCount: number
+  totalProcessed: number
+  touchedFiles: string[]
+  tokenUsage: TokenUsage | null
 }
 
 // ── Slim Config ────────────────────────────────────────────────────────────

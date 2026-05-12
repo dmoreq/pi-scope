@@ -14,15 +14,15 @@
  *   6. Cache results for fast reload
  */
 
-import type { RepoIndex } from '../shared/types.js'
-import type { GraphifyGraph, GraphifyAnalysis } from '../context/graph-types.js'
-import { loadGraphifyJson, type LoadResult } from '../context/graph-loader.js'
-import { saveGraphCache, loadGraphCache } from '../persistence/graph-cache.js'
-import { repoIndexToGraphifyGraph } from '../graph/bridge.js'
+import { type LoadResult, loadGraphifyJson } from '../context/graph-loader.js'
+import type { GraphifyAnalysis, GraphifyGraph } from '../context/graph-types.js'
 import { assembleGraphifyAnalysis } from '../graph/analyzers/compute-graphify-analysis.js'
 import { GraphAnalyzer } from '../graph/analyzers/graph-analyzer.js'
+import { repoIndexToGraphifyGraph } from '../graph/bridge.js'
 import { InMemoryAnalysisCache } from '../graph/cache/analysis-cache.js'
 import type { Graph as AnalysisGraph } from '../graph/interfaces/analyzer.interface.js'
+import { loadGraphCache, saveGraphCache } from '../persistence/graph-cache.js'
+import type { RepoIndex } from '../shared/types.js'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
 export interface GraphResult {
@@ -55,7 +55,7 @@ function graphifyStructureCacheKey(graph: GraphifyGraph): string {
   let hash = 0
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
+    hash = (hash << 5) - hash + char
     hash |= 0
   }
   return `graphify-${Math.abs(hash)}`
@@ -72,9 +72,15 @@ export class GraphService {
     this.graphAnalyzer = new GraphAnalyzer(new InMemoryAnalysisCache())
   }
 
-  get analysis(): GraphifyAnalysis | null { return this._analysis }
-  get graph(): GraphifyGraph | null { return this._graph }
-  get source(): 'external' | 'native' | null { return this._source }
+  get analysis(): GraphifyAnalysis | null {
+    return this._analysis
+  }
+  get graph(): GraphifyGraph | null {
+    return this._graph
+  }
+  get source(): 'external' | 'native' | null {
+    return this._source
+  }
 
   /**
    * Try loading from cache first, then fall back to full analysis.
@@ -118,11 +124,7 @@ export class GraphService {
    * Converts the index into a GraphifyGraph on the fly, runs all 5 algorithms,
    * and caches the result.
    */
-  async analyzeFromIndex(
-    index: RepoIndex,
-    projectRoot: string,
-    cacheDir: string,
-  ): Promise<GraphResult> {
+  async analyzeFromIndex(index: RepoIndex, projectRoot: string, cacheDir: string): Promise<GraphResult> {
     const fp = indexFingerprint(index)
 
     // Try cache with index-fingerprinted key
@@ -154,8 +156,8 @@ export class GraphService {
    */
   private async loadGraphJson(projectRoot: string): Promise<GraphifyGraph | null> {
     const paths = [
-      PathUtils.joinSafe(projectRoot, 'graph-out', 'graph.json'),     // Prefer new naming
-      PathUtils.joinSafe(projectRoot, 'graphify-out', 'graph.json'),  // Backward compatibility
+      PathUtils.joinSafe(projectRoot, 'graph-out', 'graph.json'), // Prefer new naming
+      PathUtils.joinSafe(projectRoot, 'graphify-out', 'graph.json'), // Backward compatibility
       PathUtils.joinSafe(projectRoot, 'graph.json'),
       'graph-out/graph.json',
       'graphify-out/graph.json',
@@ -165,7 +167,9 @@ export class GraphService {
 
     for (const path of paths) {
       const result: LoadResult = await loadGraphifyJson(path).catch(() => ({
-        success: false, error: '', warnings: [],
+        success: false,
+        error: '',
+        warnings: [],
       }))
       if (result.success && result.graph) {
         return result.graph

@@ -1,50 +1,31 @@
-/**
- * SessionManager — lightweight orchestrator for pi-scope.
- *
- * Delegates to single-responsibility services:
- *   - IndexService — index build/cache/load
- *   - GraphService — graph analysis (god nodes, communities, cycles)
- *   - TelemetryService — all pi-telemetry integration
- *   - PluginManager — plugins (ContextPruning)
- *   - ContextInjector — per-turn context building
- *
- * SRP: manager.ts only orchestrates. Logic lives in services.
- * OCP: Adding features means adding services, not editing manager.
- * DIP: Services are constructed here, not hard-coded.
- */
-
-import { relative } from 'node:path'
-import type { RepoIndex, SlimConfig } from './shared/types.js'
+import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
 import { ContextInjector } from './context/dep-context.js'
-import { RetrievalEngine } from './context/retrieval.js'
-import { InjectionPipeline } from './context/pipeline.js'
-import { SessionStats } from './metrics/tracker.js'
-import { storeExists, loadStore } from './indexer/index-store.js'
-import { readState } from './shared/runtime-state.js'
-import { extractText, extractInjectedFilePaths } from './shared/message.js'
-import { isBroadCodebaseQuery } from './shared/query-intent.js'
-import { estimateTokens } from './shared/token.js'
-import { loadContextFiles, formatContextSection, type ContextFile } from './context/context-files.js'
-import { loadProviderGuidance, formatProviderGuidanceSection, type ProviderGuidanceFile } from './context/guidance.js'
-import { loadConfig } from './context/loader.js'
-import { estimateFileSavings } from './metrics/cost-estimator.js'
-import { PluginManager } from './plugins/plugin-manager.js'
-import { ContextPruningPlugin } from './plugins/context-pruning.js'
-import { detectPathsInToolCall, detectPathsInOutput } from './shared/file-detector.js'
-import { scopeDir } from './shared/paths.js'
-import { info as nInfo, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
-import { IndexService } from './services/index-service.js'
-import { GraphService } from './services/graph-service.js'
-import { TelemetryService } from './services/telemetry-service.js'
+import type { GraphifyAnalysis } from './context/graph-types.js'
+import { type ProviderGuidanceFile, formatProviderGuidanceSection, loadProviderGuidance } from './context/guidance.js'
 import { ContextIntelligenceEngine } from './context/intelligence-engine.js'
+import { loadConfig } from './context/loader.js'
+import { InjectionPipeline } from './context/pipeline.js'
+import type { PipelineSource } from './context/pipeline.js'
+import { RetrievalEngine } from './context/retrieval.js'
+import { produceDefaults } from './context/schema.js'
 import { SmartDependencyContextGenerator } from './context/smart-dep-context.js'
 import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
-import { produceDefaults } from './context/schema.js'
-import { setLspGraphAnalysis } from './tools/lsp-navigation.js'
-import type { GraphifyAnalysis } from './context/graph-types.js'
-import type { ContextInsights } from './shared/intelligence-types.js'
-import type { PipelineSource } from './context/pipeline.js'
+import { estimateFileSavings } from './metrics/cost-estimator.js'
+import { SessionStats } from './metrics/tracker.js'
+import { ContextPruningPlugin } from './plugins/context-pruning.js'
+import { PluginManager } from './plugins/plugin-manager.js'
+import { GraphService } from './services/graph-service.js'
+import { IndexService } from './services/index-service.js'
+import { TelemetryService } from './services/telemetry-service.js'
 import type { AgentMessage } from './shared/agent-message.js'
+import { detectPathsInOutput, detectPathsInToolCall } from './shared/file-detector.js'
+import type { ContextInsights } from './shared/intelligence-types.js'
+import { extractInjectedFilePaths, extractText } from './shared/message.js'
+import { scopeDir } from './shared/paths.js'
+import { isBroadCodebaseQuery } from './shared/query-intent.js'
+import type { RepoIndex, SlimConfig } from './shared/types.js'
+import { setLspGraphAnalysis } from './tools/lsp-navigation.js'
+import { type StatusBarState, clearStatusBar, info as nInfo, updateStatusBar } from './ui/notifications.js'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -102,7 +83,7 @@ export interface SessionState {
 export function buildRepoMapSource(
   baseMap: string,
   insights: ContextInsights,
-  graph: GraphifyAnalysis | null,
+  graph: GraphifyAnalysis | null
 ): PipelineSource {
   return {
     name: 'repo-map',
@@ -110,8 +91,7 @@ export function buildRepoMapSource(
     produce(): string | null {
       if (!baseMap) return null
       if (graph) {
-        return new SmartRepositoryMapGenerator()
-          .generatePrioritizedRepoMap(baseMap, insights, graph)
+        return new SmartRepositoryMapGenerator().generatePrioritizedRepoMap(baseMap, insights, graph)
       }
       return baseMap
     },
@@ -154,7 +134,10 @@ export function formatGraphInsightsSection(a: GraphifyAnalysis): string {
       lines.push(`  - \`${s.source}\` → \`${s.target}\` (${s.reason})`)
     }
   }
-  return lines.filter(l => l !== undefined).join('\n').trimEnd()
+  return lines
+    .filter(l => l !== undefined)
+    .join('\n')
+    .trimEnd()
 }
 
 // ── Manager ────────────────────────────────────────────────────────────
@@ -245,21 +228,15 @@ export class SessionManager {
   }> {
     try {
       const graph = await this.resolveGraphAnalysisForIntelligence()
-      const insights = this.intelligenceEngine.analyzeConversationContext(
-        this.conversationMessages,
-        graph,
-      )
+      const insights = this.intelligenceEngine.analyzeConversationContext(this.conversationMessages, graph)
       return { insights, graph }
     } catch (error) {
       console.warn(
         'pi-scope: buildIntelligenceSnapshot primary path failed; retrying analysis without resolved graph:',
-        error,
+        error
       )
       const graph = null
-      const insights = this.intelligenceEngine.analyzeConversationContext(
-        this.conversationMessages,
-        null,
-      )
+      const insights = this.intelligenceEngine.analyzeConversationContext(this.conversationMessages, null)
       return { insights, graph }
     }
   }
@@ -269,7 +246,7 @@ export class SessionManager {
    * Always trim after replace — pi may send arbitrarily long payloads.
    */
   private syncConversationMessages(messages: AgentMessage[]): void {
-    this.conversationMessages = messages.map((m) => ({
+    this.conversationMessages = messages.map(m => ({
       ...m,
       content: extractText(m.content),
     }))
@@ -286,7 +263,6 @@ export class SessionManager {
   private async resolveGraphAnalysisForIntelligence(): Promise<GraphifyAnalysis | null> {
     return this.graphService.analysis
   }
-
 
   /**
    * Minimal session bootstrap for integration tests / graph-mocked intelligence.
@@ -326,11 +302,7 @@ export class SessionManager {
       await this.bootstrapMinimalIntelligenceSession()
       return
     }
-    if (
-      typeof projectRoot !== 'string'
-      || typeof getFlag !== 'function'
-      || ctx === undefined
-    ) {
+    if (typeof projectRoot !== 'string' || typeof getFlag !== 'function' || ctx === undefined) {
       throw new Error('session start requires (projectRoot, getFlag, ctx) when bootstrap mode is disabled')
     }
     this.telemetry.register()
@@ -368,7 +340,14 @@ export class SessionManager {
       this.telemetry.onCacheHit(idx.skeletons.size)
 
       const retrieval = new RetrievalEngine(idx)
-      this.state = this.initState({ index: idx, repoMap: this.indexService.repoMap!, injector, config, stats, projectRoot })
+      this.state = this.initState({
+        index: idx,
+        repoMap: this.indexService.repoMap!,
+        injector,
+        config,
+        stats,
+        projectRoot,
+      })
       this.state.retrieval = retrieval
 
       // Load graph from cache
@@ -468,8 +447,12 @@ export class SessionManager {
   }
 
   private initState(opts: {
-    index: RepoIndex; repoMap: string; injector: ContextInjector
-    config: SlimConfig; stats: SessionStats; projectRoot: string
+    index: RepoIndex
+    repoMap: string
+    injector: ContextInjector
+    config: SlimConfig
+    stats: SessionStats
+    projectRoot: string
     contextFiles?: ContextFile[]
   }): SessionState {
     return {
@@ -494,7 +477,7 @@ export class SessionManager {
 
   async handleBeforeAgentStart(
     event: BeforeAgentStartEvent,
-    ctx: ExtensionContext,
+    ctx: ExtensionContext
   ): Promise<{ systemPrompt: string } | undefined> {
     const s = this.state
     if (!s) return undefined
@@ -504,7 +487,8 @@ export class SessionManager {
       s.providerGuidanceInjected &&
       s.graphInsightsInjected &&
       s.intelligenceInjected
-    ) return undefined
+    )
+      return undefined
 
     const snapshot = await this.buildIntelligenceSnapshot()
     const graph = snapshot.graph ?? this.graphService.analysis ?? null
@@ -521,10 +505,14 @@ export class SessionManager {
       const modelId = ctx.model?.id as string | undefined
       if (provider) {
         pipeline.register({
-          name: 'provider-guidance', priority: 2,
+          name: 'provider-guidance',
+          priority: 2,
           produce: () => {
             const files = loadProviderGuidance(s.projectRoot, provider, modelId)
-            if (files.length > 0) { s.providerGuidanceFiles = files; return formatProviderGuidanceSection(files) }
+            if (files.length > 0) {
+              s.providerGuidanceFiles = files
+              return formatProviderGuidanceSection(files)
+            }
             return null
           },
         })
@@ -547,18 +535,17 @@ export class SessionManager {
           const guidance = this.intelligenceEngine.generateActionableGuidance(
             snapshot.insights,
             graph,
-            this.graphService.graph,
+            this.graphService.graph
           )
-          return guidance.trim()
-            ? `## Context intelligence\n\n${guidance}`
-            : null
+          return guidance.trim() ? `## Context intelligence\n\n${guidance}` : null
         },
       })
     }
 
     if (!s.contextFilesInjected && s.contextFiles.length > 0) {
       pipeline.register({
-        name: 'context-files', priority: 6,
+        name: 'context-files',
+        priority: 6,
         produce: () =>
           formatContextSection(s.contextFiles, {
             sectionTitle: s.config.contextFiles.sectionTitle,
@@ -601,14 +588,17 @@ export class SessionManager {
       'After search tools return results, pi-scope automatically injects AST skeletons for the matched files.\n'
 
     return {
-      systemPrompt: event.systemPrompt + '\n\n' + result.content + toolsBlock,
+      systemPrompt: `${event.systemPrompt}\n\n${result.content}${toolsBlock}`,
     }
   }
 
   // ── Tool Call ──────────────────────────────────────────────────────
 
-  handleToolCall(event: { toolName: string; input: Record<string, unknown> | undefined }, _ctx: ExtensionContext): { block?: boolean; reason?: string } | undefined {
-    this.pluginManager.runToolCall(event, _ctx).catch((error) => {
+  handleToolCall(
+    event: { toolName: string; input: Record<string, unknown> | undefined },
+    _ctx: ExtensionContext
+  ): { block?: boolean; reason?: string } | undefined {
+    this.pluginManager.runToolCall(event, _ctx).catch(error => {
       console.warn('pi-scope: context plugin/tool-call hook failed:', error)
     })
     return undefined
@@ -618,7 +608,7 @@ export class SessionManager {
 
   async handleContext(
     event: ContextEvent,
-    ctx: ExtensionContext = SessionManager.DEFAULT_EXTENSION_CONTEXT,
+    ctx: ExtensionContext = SessionManager.DEFAULT_EXTENSION_CONTEXT
   ): Promise<{ messages: AgentMessage[]; content: string } | undefined> {
     try {
       this.syncConversationMessages(event.messages ?? [])
@@ -643,28 +633,28 @@ export class SessionManager {
     const recentMessages = (event.messages ?? []).slice(-s.config.scanLastNMessages)
     const hasFilePattern = recentMessages.some(m => {
       const text = extractText(m.content)
-      return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) ||
-        /['"`]\.\.?\/[^'"`]+/.test(text)
+      return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) || /['"`]\.\.?\/[^'"`]+/.test(text)
     })
     const hasToolCall = recentMessages.some(m => (m as Record<string, unknown>).toolName)
     const hasToolResultWithFiles = recentMessages.some(m => {
       if ((m as Record<string, unknown>).role !== 'toolResult') return false
       const text = extractText(m.content)
-      return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) ||
-        /```\w*\n/.test(text)
+      return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) || /```\w*\n/.test(text)
     })
 
-    const hasSymbolMatch = !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && s.retrieval
-      ? (() => {
-          const lastText = extractText(recentMessages[recentMessages.length - 1]?.content ?? '')
-          const scored = s.retrieval!.retrieveTopK(lastText, 3)
-          return scored.length > 0 && scored[0].score >= 2
-        })()
-      : false
+    const hasSymbolMatch =
+      !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && s.retrieval
+        ? (() => {
+            const lastText = extractText(recentMessages[recentMessages.length - 1]?.content ?? '')
+            const scored = s.retrieval?.retrieveTopK(lastText, 3)
+            return scored.length > 0 && scored[0].score >= 2
+          })()
+        : false
 
-    const hasCodebaseQuery = !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch
-      ? isBroadCodebaseQuery(extractText(recentMessages[recentMessages.length - 1]?.content ?? ''))
-      : false
+    const hasCodebaseQuery =
+      !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch
+        ? isBroadCodebaseQuery(extractText(recentMessages[recentMessages.length - 1]?.content ?? ''))
+        : false
 
     const triggersDepContext =
       hasFilePattern || hasToolCall || hasToolResultWithFiles || hasSymbolMatch || hasCodebaseQuery
@@ -686,11 +676,9 @@ export class SessionManager {
           }
         }
         if ((msg as Record<string, unknown>).role === 'toolResult') {
-          for (const r of detectPathsInOutput(
-            tn ?? '',
-            (msg as Record<string, unknown>).content,
-            { projectRoot: s.projectRoot },
-          )) {
+          for (const r of detectPathsInOutput(tn ?? '', (msg as Record<string, unknown>).content, {
+            projectRoot: s.projectRoot,
+          })) {
             extraPaths.add(r.path)
           }
         }
@@ -702,7 +690,7 @@ export class SessionManager {
         extraPaths.size > 0 ? extraPaths : undefined,
         s.retrieval,
         s.config.dependencyDepth ?? 1,
-        graph,
+        graph
       )
     }
 
@@ -771,7 +759,7 @@ export class SessionManager {
     if (!s) return
     this.telemetry.onSessionShutdown()
     if (ctx.hasUI) clearStatusBar(ctx.ui.setStatus)
-    s.stats.persist(s.projectRoot).catch((error) => {
+    s.stats.persist(s.projectRoot).catch(error => {
       console.warn('pi-scope: session stats persistence failed:', error)
     })
     this.state = null

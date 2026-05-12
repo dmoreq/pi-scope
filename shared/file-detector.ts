@@ -29,10 +29,7 @@ export interface DetectorOptions {
 
 // ── Defaults ──────────────────────────────────────────────────────────────
 
-const DEFAULT_EXTENSIONS = [
-  '.ts', '.tsx', '.py', '.rs', '.js', '.jsx',
-  '.go', '.java', '.c', '.cpp', '.h', '.hpp',
-]
+const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.py', '.rs', '.js', '.jsx', '.go', '.java', '.c', '.cpp', '.h', '.hpp']
 
 // ── Path helpers ──────────────────────────────────────────────────────────
 
@@ -71,11 +68,11 @@ function cleanPath(raw: string): string {
  */
 function buildPathRegex(extensions: string[]): RegExp {
   const exts = extensions.map(e => e.slice(1)).join('|')
-  const before = "(?:^|[\\s'\"`(<\\[])"
-  const dir    = "(?:[./\\w@_-]+/)*"
-  const file   = "[\\w@_-]+\\.(?:"
-  const after  = "(?=[\\s'\"`>),;.\\]\\n]|$)"
-  return new RegExp(before + '(' + dir + file + exts + '))' + after, 'g')
+  const before = '(?:^|[\\s\'"`(<\\[])'
+  const dir = '(?:[./\\w@_-]+/)*'
+  const file = '[\\w@_-]+\\.(?:'
+  const after = '(?=[\\s\'"`>),;.\\]\\n]|$)'
+  return new RegExp(`${before}(${dir}${file}${exts}))${after}`, 'g')
 }
 
 /**
@@ -83,17 +80,14 @@ function buildPathRegex(extensions: string[]): RegExp {
  */
 function buildCitationRegex(extensions: string[]): RegExp {
   const exts = extensions.map(e => e.slice(1)).join('|')
-  const dir  = "(?:[./\\w@_-]+/)*"
-  const file = "[\\w@_-]+\\.(?:"
-  return new RegExp('(' + dir + file + exts + ')):(\\d+)(?:[\\s-]*(\\d+))?', 'g')
+  const dir = '(?:[./\\w@_-]+/)*'
+  const file = '[\\w@_-]+\\.(?:'
+  return new RegExp(`(${dir}${file}${exts})):(\\d+)(?:[\\s-]*(\\d+))?`, 'g')
 }
 
 // ── Text scanning ─────────────────────────────────────────────────────────
 
-export function detectPathsInText(
-  text: string,
-  options: DetectorOptions = {},
-): FileReference[] {
+export function detectPathsInText(text: string, options: DetectorOptions = {}): FileReference[] {
   if (!text) return []
 
   const extensions = options.extensions ?? DEFAULT_EXTENSIONS
@@ -106,15 +100,15 @@ export function detectPathsInText(
   const citeRe = buildCitationRegex(extensions)
   for (const match of text.matchAll(citeRe)) {
     const raw = cleanPath(match[1])
-    const startLine = parseInt(match[2], 10)
-    const endLine = match[3] ? parseInt(match[3], 10) : startLine
+    const startLine = Number.parseInt(match[2], 10)
+    const endLine = match[3] ? Number.parseInt(match[3], 10) : startLine
     if (!raw || raw.length < 3 || seen.has(raw)) continue
     seen.add(raw)
     if (validate && !pathExists(raw, projectRoot)) continue
     results.push({
       path: resolvePath(raw, projectRoot),
-      startLine: isFinite(startLine) && startLine > 0 ? startLine : undefined,
-      endLine: isFinite(endLine) && endLine >= startLine ? endLine : undefined,
+      startLine: Number.isFinite(startLine) && startLine > 0 ? startLine : undefined,
+      endLine: Number.isFinite(endLine) && endLine >= startLine ? endLine : undefined,
     })
   }
 
@@ -133,20 +127,14 @@ export function detectPathsInText(
 
 // ── Tool call scanning ────────────────────────────────────────────────────
 
-const FILE_TOOLS = new Set([
-  'read', 'write', 'edit', 'bash', 'grep',
-  'search', 'ripgrep', 'fd', 'fzf',
-])
+const FILE_TOOLS = new Set(['read', 'write', 'edit', 'bash', 'grep', 'search', 'ripgrep', 'fd', 'fzf'])
 
-const FILE_PATH_KEYS = new Set([
-  'path', 'filePath', 'file', 'target',
-  'destination', 'source', 'src', 'dst',
-])
+const FILE_PATH_KEYS = new Set(['path', 'filePath', 'file', 'target', 'destination', 'source', 'src', 'dst'])
 
 export function detectPathsInToolCall(
   toolName: string,
   input: Record<string, unknown> | undefined,
-  options: DetectorOptions = {},
+  options: DetectorOptions = {}
 ): FileReference[] {
   if (!input || !FILE_TOOLS.has(toolName)) return []
 
@@ -193,19 +181,19 @@ export function detectPathsInToolCall(
 export function detectPathsInOutput(
   _toolName: string,
   content: unknown,
-  options: DetectorOptions = {},
+  options: DetectorOptions = {}
 ): FileReference[] {
   if (!content) return []
 
-  const text = typeof content === 'string'
-    ? content
-    : Array.isArray(content)
+  const text =
+    typeof content === 'string'
       ? content
-        .filter((c): c is { type: string; text?: string } =>
-          typeof c === 'object' && c !== null)
-        .map(c => c.text ?? '')
-        .join('\n')
-      : ''
+      : Array.isArray(content)
+        ? content
+            .filter((c): c is { type: string; text?: string } => typeof c === 'object' && c !== null)
+            .map(c => c.text ?? '')
+            .join('\n')
+        : ''
 
   return text ? detectPathsInText(text, options) : []
 }
@@ -219,33 +207,29 @@ export function detectPathsInMessage(
     toolName?: string
     input?: Record<string, unknown>
   },
-  options: DetectorOptions = {},
+  options: DetectorOptions = {}
 ): FileReference[] {
   const results: FileReference[] = []
 
   if (message.role === 'user' || message.role === 'assistant') {
-    const text = typeof message.content === 'string'
-      ? message.content
-      : Array.isArray(message.content)
+    const text =
+      typeof message.content === 'string'
         ? message.content
-          .filter((c): c is { type: string; text?: string } =>
-            typeof c === 'object' && c !== null)
-          .map(c => c.text ?? '')
-          .join(' ')
-        : ''
+        : Array.isArray(message.content)
+          ? message.content
+              .filter((c): c is { type: string; text?: string } => typeof c === 'object' && c !== null)
+              .map(c => c.text ?? '')
+              .join(' ')
+          : ''
     if (text) results.push(...detectPathsInText(text, options))
   }
 
   if (message.toolName && message.input) {
-    results.push(...detectPathsInToolCall(
-      message.toolName, message.input, options,
-    ))
+    results.push(...detectPathsInToolCall(message.toolName, message.input, options))
   }
 
   if (message.role === 'toolResult' && message.content) {
-    results.push(...detectPathsInOutput(
-      message.toolName ?? '', message.content, options,
-    ))
+    results.push(...detectPathsInOutput(message.toolName ?? '', message.content, options))
   }
 
   return results

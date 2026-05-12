@@ -90,12 +90,16 @@ export function migrateToV2(oldIndex: any): StoredIndexV2 {
   const buildEnd = Date.now()
 
   // Calculate symbol count from symbolIndex
-  const symbolCount = Object.values(oldIndex.symbolIndex || {})
-    .reduce((sum: number, files: any) => sum + (Array.isArray(files) ? files.length : 0), 0)
+  const symbolCount = Object.values(oldIndex.symbolIndex || {}).reduce(
+    (sum: number, files: any) => sum + (Array.isArray(files) ? files.length : 0),
+    0
+  )
 
   // Calculate edge count from deps
-  const edgeCount = Object.values(oldIndex.deps || {})
-    .reduce((sum: number, targets: any) => sum + (Array.isArray(targets) ? targets.length : 0), 0)
+  const edgeCount = Object.values(oldIndex.deps || {}).reduce(
+    (sum: number, targets: any) => sum + (Array.isArray(targets) ? targets.length : 0),
+    0
+  )
 
   return {
     version: STORE_VERSION_V2,

@@ -37,10 +37,14 @@ export class TelemetryService {
         description: 'AST-powered context + pruning + LSP navigation for pi',
         tools: ['hashline_edit', 'lsp_go_to_definition', 'lsp_find_references', 'lsp_hover'],
         events: [
-          'session_start', 'session_shutdown',
-          'index_cache_hit', 'index_fresh_build',
-          'graph_loaded', 'graph_no_data',
-          'context_inject', 'pruning_run',
+          'session_start',
+          'session_shutdown',
+          'index_cache_hit',
+          'index_fresh_build',
+          'graph_loaded',
+          'graph_no_data',
+          'context_inject',
+          'pruning_run',
           'error',
         ],
       })

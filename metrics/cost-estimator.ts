@@ -26,7 +26,7 @@ export interface CostEstimate {
  */
 export function estimateFileSavings(
   filePath: string,
-  skeleton: string,
+  skeleton: string
 ): { skeletonTokens: number; fullTokens: number } {
   const skeletonTokens = estimateTokens(skeleton)
   let fullTokens = skeletonTokens
@@ -47,13 +47,11 @@ export function estimateFileSavings(
  */
 export function buildCostEstimate(
   fileEstimates: Array<{ skeletonTokens: number; fullTokens: number }>,
-  avoidedReads: number,
+  avoidedReads: number
 ): CostEstimate {
   const skeletonTokens = fileEstimates.reduce((s, e) => s + e.skeletonTokens, 0)
   const fullFileTokens = fileEstimates.reduce((s, e) => s + e.fullTokens, 0)
-  const savingsRatio = fullFileTokens > 0
-    ? 1 - (skeletonTokens / fullFileTokens)
-    : 0
+  const savingsRatio = fullFileTokens > 0 ? 1 - skeletonTokens / fullFileTokens : 0
 
   return { skeletonTokens, fullFileTokens, savingsRatio, avoidedReads }
 }

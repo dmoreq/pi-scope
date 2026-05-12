@@ -5,9 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { PathUtilsInterface } from '../interfaces/path-utils.interface.js'
 
 export class PathUtils implements PathUtilsInterface {
-  private static readonly SOURCE_EXTENSIONS = new Set([
-    '.ts', '.tsx', '.js', '.jsx', '.vue', '.svelte',
-  ])
+  private static readonly SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.vue', '.svelte'])
 
   private static readonly TEST_PATTERNS = [/\.test\./, /\.spec\./, /__tests__/]
 
@@ -24,7 +22,7 @@ export class PathUtils implements PathUtilsInterface {
   }
 
   static makeRelative(absolutePath: string, workspaceRoot: string): string {
-    return this.normalizePath(path.relative(workspaceRoot, absolutePath))
+    return PathUtils.normalizePath(path.relative(workspaceRoot, absolutePath))
   }
 
   static async exists(targetPath: string): Promise<boolean> {
@@ -54,7 +52,7 @@ export class PathUtils implements PathUtilsInterface {
   }
 
   static hasExtension(targetPath: string, extensions: string | string[]): boolean {
-    const ext = this.getExtension(targetPath)
+    const ext = PathUtils.getExtension(targetPath)
     const exts = Array.isArray(extensions) ? extensions : [extensions]
     return exts.includes(ext)
   }
@@ -74,7 +72,7 @@ export class PathUtils implements PathUtilsInterface {
     for (const filePath of paths) {
       const dir = path.dirname(filePath)
       if (dir !== '.') {
-        directories.add(this.normalizePath(dir))
+        directories.add(PathUtils.normalizePath(dir))
       }
     }
 
@@ -82,7 +80,7 @@ export class PathUtils implements PathUtilsInterface {
   }
 
   static joinSafe(...segments: string[]): string {
-    return this.normalizePath(path.join(...segments))
+    return PathUtils.normalizePath(path.join(...segments))
   }
 
   normalizePath = PathUtils.normalizePath
@@ -114,7 +112,7 @@ export function normalizeFilePath(filePath: string): string {
   }
 
   try {
-    const canonical = require('fs').realpathSync.native(filePath)
+    const canonical = require('node:fs').realpathSync.native(filePath)
     return canonical.replace(/\\\\/g, '/')
   } catch {
     try {
@@ -133,7 +131,7 @@ function resolveNonExisting(filePath: string): string {
 
   while (true) {
     if (PathUtils.existsSync(current)) {
-      const canonical = require('fs').realpathSync.native(current)
+      const canonical = require('node:fs').realpathSync.native(current)
       if (nonExistentParts.length === 0) {
         return canonical.replace(/\\\\/g, '/')
       }
