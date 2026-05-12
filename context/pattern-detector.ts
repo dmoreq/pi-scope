@@ -8,11 +8,7 @@
  */
 
 import type { AgentMessage } from '../shared/agent-message.js'
-import type {
-  EditingContext,
-  NavigationContext,
-  OptimizationSuggestion,
-} from '../shared/intelligence-types.js'
+import type { EditingContext, NavigationContext, OptimizationSuggestion } from '../shared/intelligence-types.js'
 
 /** Symbols shorter than this length are discarded as noise */
 const MIN_SYMBOL_LENGTH = 3
@@ -70,8 +66,7 @@ export class AgentPatternDetector {
   ] as const
 
   /** Common source extensions when paths appear verbatim in chat */
-  private static readonly FILE_PATH_REGEX =
-    /\b[\w./~-]+\.(?:ts|tsx|py|rs|js|jsx|mjs|cjs)\b/gi
+  private static readonly FILE_PATH_REGEX = /\b[\w./~-]+\.(?:ts|tsx|py|rs|js|jsx|mjs|cjs)\b/gi
 
   /**
    * Loose hashline-ish line-anchor tokens (e.g. `1tz`, `42ab`): one-or-more ASCII
@@ -82,33 +77,26 @@ export class AgentPatternDetector {
   private static readonly HASHLINE_ID_PATTERN = /\b\d+[a-z]{2}\b/
 
   /** Standard-definition phrasing (“where is X”, “find the X”). */
-  private static readonly NAV_DEFINITION_PHRASE = new RegExp(
-    String.raw`\b(where\s+is|find\s+the|definition\s+of|locate)\b`,
-  )
+  private static readonly NAV_DEFINITION_PHRASE = /\b(where\s+is|find\s+the|definition\s+of|locate)\b/
 
   /**
    * “find/where … <Symbol> is defined” without requiring “find the”—covers
    * queries like “find where User is defined …”.
    */
-  private static readonly NAV_DEFINITION_SYMBOL_IS_DEFINED = new RegExp(
-    String.raw`\b(?:find|where)\b[\s\S]{0,240}?\b([\w]+)\s+is\s+defined\b`,
-    'i',
-  )
+  private static readonly NAV_DEFINITION_SYMBOL_IS_DEFINED =
+    /\b(?:find|where)\b[\s\S]{0,240}?\b([\w]+)\s+is\s+defined\b/i
 
-  private static readonly NAV_REFERENCES = new RegExp(
-    String.raw`\b(references\s+to|usages\s+of|called\s+from)\b|\bwhere\b[^.?]{0,120}\bused\b`,
-  )
+  private static readonly NAV_REFERENCES =
+    /\b(references\s+to|usages\s+of|called\s+from)\b|\bwhere\b[^.?]{0,120}\bused\b/
 
   /** File-discovery questions (narrow; excludes vague “tell me…” phrasing). */
-  private static readonly NAV_FILE_LOCATION = new RegExp(
-    String.raw`\b(which\s+file|what\s+file\s+contains|file\s+contains|file\s+location)\b`,
-  )
+  private static readonly NAV_FILE_LOCATION =
+    /\b(which\s+file|what\s+file\s+contains|file\s+contains|file\s+location)\b/
 
   private static readonly NAV_SYMBOL_PATTERNS = [
     {
       name: 'navLeadIn',
-      regex:
-        /\b(?:where\s+is|find\s+the|definition\s+of|references\s+to|usages\s+of)\s+(?:the\s+)?([\w]+)\b/gi,
+      regex: /\b(?:where\s+is|find\s+the|definition\s+of|references\s+to|usages\s+of)\s+(?:the\s+)?([\w]+)\b/gi,
     },
     {
       name: 'theXClass',
@@ -116,8 +104,7 @@ export class AgentPatternDetector {
     },
     {
       name: 'namedType',
-      regex:
-        /\b([\w]+)\s+(?:class|interface|enum)(?:\s+defined|\s+(?:extends|implements))?\b/gi,
+      regex: /\b([\w]+)\s+(?:class|interface|enum)(?:\s+defined|\s+(?:extends|implements))?\b/gi,
     },
     {
       name: 'pascalCase',
@@ -134,10 +121,8 @@ export class AgentPatternDetector {
   ] as const
 
   /** Rough signal for prose that names StrReplace-like workflows */
-  private static readonly STRREPLACE_OR_FILE_EDIT_SIGNAL = new RegExp(
-    String.raw`strreplace|\b(?:str|string)\s+replace\b|edit\s+the\s+file\b`,
-    'i',
-  )
+  private static readonly STRREPLACE_OR_FILE_EDIT_SIGNAL =
+    /strreplace|\b(?:str|string)\s+replace\b|edit\s+the\s+file\b/i
 
   /**
    * When the transcript suggests the participant is navigating by question
@@ -157,11 +142,7 @@ export class AgentPatternDetector {
    * “critical/important”).
    */
   private static mentionsGraphGodNodeSignals(content: string): boolean {
-    return (
-      content.includes('god node') ||
-      content.includes('high-impact symbol') ||
-      content.includes('critical symbol')
-    )
+    return content.includes('god node') || content.includes('high-impact symbol') || content.includes('critical symbol')
   }
 
   /**
@@ -183,12 +164,10 @@ export class AgentPatternDetector {
    */
   detectEditingIntent(messages: AgentMessage[]): EditingContext {
     const recentMessages = messages.slice(-10)
-    const preserved = recentMessages.map((m) => String(m.content || '')).join(' ')
+    const preserved = recentMessages.map(m => String(m.content || '')).join(' ')
     const contentLower = preserved.toLowerCase()
 
-    const detected = AgentPatternDetector.EDITING_KEYWORDS.some((keyword) =>
-      contentLower.includes(keyword),
-    )
+    const detected = AgentPatternDetector.EDITING_KEYWORDS.some(keyword => contentLower.includes(keyword))
 
     if (!detected) {
       return {
@@ -202,9 +181,7 @@ export class AgentPatternDetector {
 
     const targetSymbols: string[] = []
     for (const { regex } of AgentPatternDetector.EDITING_SYMBOL_PATTERNS) {
-      const g = regex.global
-        ? regex
-        : new RegExp(regex.source, `${regex.flags}g`)
+      const g = regex.global ? regex : new RegExp(regex.source, `${regex.flags}g`)
       for (const match of preserved.matchAll(g)) {
         const symbol = match[1]
         if (symbol && symbol.length >= MIN_SYMBOL_LENGTH) targetSymbols.push(symbol)
@@ -218,8 +195,7 @@ export class AgentPatternDetector {
 
     const lowerForHash = contentLower
     const hasHashAnnotations =
-      lowerForHash.includes('hashline') ||
-      AgentPatternDetector.HASHLINE_ID_PATTERN.test(lowerForHash)
+      lowerForHash.includes('hashline') || AgentPatternDetector.HASHLINE_ID_PATTERN.test(lowerForHash)
 
     return {
       detected: true,
@@ -237,7 +213,7 @@ export class AgentPatternDetector {
    */
   detectNavigationRequests(messages: AgentMessage[]): NavigationContext {
     const recentMessages = messages.slice(-5)
-    const preserved = recentMessages.map((m) => String(m.content || '')).join(' ')
+    const preserved = recentMessages.map(m => String(m.content || '')).join(' ')
     const content = preserved.toLowerCase()
 
     let requestType: NavigationContext['requestType'] = 'none'
@@ -267,13 +243,10 @@ export class AgentPatternDetector {
 
     const requestedSymbols: string[] = []
     for (const { regex } of AgentPatternDetector.NAV_SYMBOL_PATTERNS) {
-      const g = regex.global
-        ? regex
-        : new RegExp(regex.source, `${regex.flags}g`)
+      const g = regex.global ? regex : new RegExp(regex.source, `${regex.flags}g`)
       for (const match of preserved.matchAll(g)) {
         const symbol = match[1]
-        if (symbol && symbol.length >= MIN_SYMBOL_LENGTH)
-          requestedSymbols.push(symbol)
+        if (symbol && symbol.length >= MIN_SYMBOL_LENGTH) requestedSymbols.push(symbol)
       }
     }
 
@@ -292,19 +265,13 @@ export class AgentPatternDetector {
     const recentMessages = messages.slice(-15)
     const suggestions: OptimizationSuggestion[] = []
 
-    const allContents = recentMessages.map((m) =>
-      String(m.content || '').toLowerCase(),
-    )
+    const allContents = recentMessages.map(m => String(m.content || '').toLowerCase())
 
-    const usesStrReplace = allContents.some((c) =>
-      AgentPatternDetector.STRREPLACE_OR_FILE_EDIT_SIGNAL.test(c),
-    )
+    const usesStrReplace = allContents.some(c => AgentPatternDetector.STRREPLACE_OR_FILE_EDIT_SIGNAL.test(c))
 
     if (usesStrReplace) {
       const hasHashContent = allContents.some(
-        (c) =>
-          c.includes('hashline') ||
-          AgentPatternDetector.HASHLINE_ID_PATTERN.test(c),
+        c => c.includes('hashline') || AgentPatternDetector.HASHLINE_ID_PATTERN.test(c)
       )
       suggestions.push({
         type: 'tool_usage',
@@ -320,28 +287,21 @@ export class AgentPatternDetector {
       })
     }
 
-    const asksForLocations = allContents.some((c) =>
-      AgentPatternDetector.mentionsManualFileLookup(c),
-    )
+    const asksForLocations = allContents.some(c => AgentPatternDetector.mentionsManualFileLookup(c))
 
     if (asksForLocations) {
       suggestions.push({
         type: 'tool_usage',
         pattern: 'manual_navigation',
-        recommendation:
-          'Use lsp_go_to_definition or lsp_find_references instead of asking for file locations',
+        recommendation: 'Use lsp_go_to_definition or lsp_find_references instead of asking for file locations',
         confidence: 0.8,
         context: 'LSP tools available for navigation',
         toolSuggestion: 'lsp_go_to_definition',
       })
     }
 
-    const mentionsGodNodes = allContents.some((c) =>
-      AgentPatternDetector.mentionsGraphGodNodeSignals(c),
-    )
-    const lacksImpactAnalysis = !allContents.some((c) =>
-      AgentPatternDetector.looksLikeImpactDiscussed(c),
-    )
+    const mentionsGodNodes = allContents.some(c => AgentPatternDetector.mentionsGraphGodNodeSignals(c))
+    const lacksImpactAnalysis = !allContents.some(c => AgentPatternDetector.looksLikeImpactDiscussed(c))
 
     if (mentionsGodNodes && lacksImpactAnalysis) {
       suggestions.push({

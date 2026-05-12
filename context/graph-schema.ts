@@ -25,38 +25,31 @@ export const GRAPHIFY_GRAPH_SCHEMA = {
             type: 'string',
             minLength: 1,
             pattern: '^[a-zA-Z0-9_:./-]+$',
-            description: 'Unique node identifier'
+            description: 'Unique node identifier',
           },
           type: {
             type: 'string',
-            enum: [
-              'function',
-              'class',
-              'module',
-              'concept',
-              'interface',
-              'variable'
-            ],
-            description: 'Type of node'
+            enum: ['function', 'class', 'module', 'concept', 'interface', 'variable'],
+            description: 'Type of node',
           },
           label: {
             type: 'string',
             minLength: 1,
-            description: 'Human-readable label'
+            description: 'Human-readable label',
           },
           description: {
             type: ['string', 'null'],
-            description: 'Optional description'
+            description: 'Optional description',
           },
           metadata: {
             type: ['object', 'null'],
-            description: 'Optional metadata'
-          }
+            description: 'Optional metadata',
+          },
         },
-        additionalProperties: false
+        additionalProperties: false,
       },
       minItems: 1,
-      description: 'All nodes in the graph'
+      description: 'All nodes in the graph',
     },
 
     edges: {
@@ -68,43 +61,36 @@ export const GRAPHIFY_GRAPH_SCHEMA = {
           source: {
             type: 'string',
             minLength: 1,
-            description: 'Source node ID'
+            description: 'Source node ID',
           },
           target: {
             type: 'string',
             minLength: 1,
-            description: 'Target node ID'
+            description: 'Target node ID',
           },
           type: {
             type: 'string',
-            enum: [
-              'imports',
-              'calls',
-              'extends',
-              'implements',
-              'uses',
-              'depends_on'
-            ],
-            description: 'Type of relationship'
+            enum: ['imports', 'calls', 'extends', 'implements', 'uses', 'depends_on'],
+            description: 'Type of relationship',
           },
           weight: {
             type: ['number', 'null'],
             minimum: 0,
             maximum: 1,
-            description: 'Relationship strength (0-1)'
+            description: 'Relationship strength (0-1)',
           },
           surprising: {
             type: ['boolean', 'null'],
-            description: 'Is this an unexpected connection?'
+            description: 'Is this an unexpected connection?',
           },
           metadata: {
             type: ['object', 'null'],
-            description: 'Optional metadata'
-          }
+            description: 'Optional metadata',
+          },
         },
-        additionalProperties: false
+        additionalProperties: false,
       },
-      description: 'All edges in the graph'
+      description: 'All edges in the graph',
     },
 
     communities: {
@@ -116,37 +102,37 @@ export const GRAPHIFY_GRAPH_SCHEMA = {
           id: {
             type: 'string',
             minLength: 1,
-            description: 'Community ID'
+            description: 'Community ID',
           },
           label: {
             type: 'string',
             minLength: 1,
-            description: 'Community label'
+            description: 'Community label',
           },
           nodes: {
             type: 'array',
             items: { type: 'string' },
             minItems: 1,
-            description: 'Node IDs in this community'
+            description: 'Node IDs in this community',
           },
           internal: {
             type: ['array', 'null'],
-            description: 'Internal edges'
+            description: 'Internal edges',
           },
           external: {
             type: ['array', 'null'],
-            description: 'External edges'
+            description: 'External edges',
           },
           density: {
             type: ['number', 'null'],
             minimum: 0,
             maximum: 1,
-            description: 'Community density'
-          }
+            description: 'Community density',
+          },
         },
-        additionalProperties: false
+        additionalProperties: false,
       },
-      description: 'Optional: pre-detected communities'
+      description: 'Optional: pre-detected communities',
     },
 
     confidence: {
@@ -155,30 +141,30 @@ export const GRAPHIFY_GRAPH_SCHEMA = {
         extracted: {
           type: ['number', 'null'],
           minimum: 0,
-          maximum: 100
+          maximum: 100,
         },
         inferred: {
           type: ['number', 'null'],
           minimum: 0,
-          maximum: 100
+          maximum: 100,
         },
         ambiguous: {
           type: ['number', 'null'],
           minimum: 0,
-          maximum: 100
-        }
+          maximum: 100,
+        },
       },
       additionalProperties: false,
-      description: 'Optional confidence scores'
+      description: 'Optional confidence scores',
     },
 
     metadata: {
       type: ['object', 'null'],
-      description: 'Optional graph metadata'
-    }
+      description: 'Optional graph metadata',
+    },
   },
 
-  additionalProperties: false
+  additionalProperties: false,
 }
 
 /**
@@ -195,7 +181,7 @@ export function validateGraphSchema(graph: unknown): ValidationResult {
     return {
       valid: false,
       errors: ['Graph must be a non-null object'],
-      warnings: []
+      warnings: [],
     }
   }
 
@@ -254,18 +240,9 @@ export function validateGraphSchema(graph: unknown): ValidationResult {
     nodeIds.add(n.id)
 
     // Validate type
-    const validTypes = [
-      'function',
-      'class',
-      'module',
-      'concept',
-      'interface',
-      'variable'
-    ]
+    const validTypes = ['function', 'class', 'module', 'concept', 'interface', 'variable']
     if (!validTypes.includes(String(n.type))) {
-      errors.push(
-        `Node "${n.id}": invalid type "${n.type}" (must be one of: ${validTypes.join(', ')})`
-      )
+      errors.push(`Node "${n.id}": invalid type "${n.type}" (must be one of: ${validTypes.join(', ')})`)
     }
 
     // Validate label
@@ -276,14 +253,7 @@ export function validateGraphSchema(graph: unknown): ValidationResult {
 
   // ── Edge validation ────────────────────────────────────────────────────
 
-  const validEdgeTypes = [
-    'imports',
-    'calls',
-    'extends',
-    'implements',
-    'uses',
-    'depends_on'
-  ]
+  const validEdgeTypes = ['imports', 'calls', 'extends', 'implements', 'uses', 'depends_on']
 
   for (let i = 0; i < edges.length; i++) {
     const edge = edges[i]
@@ -307,22 +277,16 @@ export function validateGraphSchema(graph: unknown): ValidationResult {
     }
 
     if (!nodeIds.has(e.source)) {
-      warnings.push(
-        `Edge ${i}: source node "${e.source}" not found in nodes`
-      )
+      warnings.push(`Edge ${i}: source node "${e.source}" not found in nodes`)
     }
 
     if (!nodeIds.has(e.target)) {
-      warnings.push(
-        `Edge ${i}: target node "${e.target}" not found in nodes`
-      )
+      warnings.push(`Edge ${i}: target node "${e.target}" not found in nodes`)
     }
 
     // Validate type
     if (!validEdgeTypes.includes(String(e.type))) {
-      errors.push(
-        `Edge ${i}: invalid type "${e.type}" (must be one of: ${validEdgeTypes.join(', ')})`
-      )
+      errors.push(`Edge ${i}: invalid type "${e.type}" (must be one of: ${validEdgeTypes.join(', ')})`)
     }
 
     // Validate weight if present
@@ -383,9 +347,7 @@ export function validateGraphSchema(graph: unknown): ValidationResult {
  * Validate that a graph object conforms to GraphifyGraph type.
  * Type guard function.
  */
-export function isValidGraphifyGraph(
-  graph: unknown
-): graph is GraphifyGraph {
+export function isValidGraphifyGraph(graph: unknown): graph is GraphifyGraph {
   const result = validateGraphSchema(graph)
   return result.valid
 }
@@ -398,12 +360,16 @@ export function formatValidationErrors(result: ValidationResult): string {
 
   if (result.errors.length > 0) {
     lines.push('ERRORS:')
-    result.errors.forEach((err) => lines.push(`  • ${err}`))
+    for (const err of result.errors) {
+      lines.push(`  • ${err}`)
+    }
   }
 
   if (result.warnings.length > 0) {
     lines.push('WARNINGS:')
-    result.warnings.forEach((warn) => lines.push(`  • ${warn}`))
+    for (const warn of result.warnings) {
+      lines.push(`  • ${warn}`)
+    }
   }
 
   return lines.length > 0 ? lines.join('\n') : 'Valid'

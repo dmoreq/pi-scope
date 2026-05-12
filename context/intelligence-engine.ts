@@ -5,9 +5,7 @@
  * actionable guidance for agents.
  */
 
-import { AgentPatternDetector } from './pattern-detector.js'
 import type { AgentMessage } from '../shared/agent-message.js'
-import type { GodNode, GraphifyAnalysis, GraphifyGraph } from './graph-types.js'
 import type {
   ContextInsights,
   ConversationContext,
@@ -15,6 +13,8 @@ import type {
   NavigationContext,
   OptimizationSuggestion,
 } from '../shared/intelligence-types.js'
+import type { GodNode, GraphifyAnalysis, GraphifyGraph } from './graph-types.js'
+import { AgentPatternDetector } from './pattern-detector.js'
 
 /**
  * Orchestrates pattern detection, graph correlation, and natural-language
@@ -32,25 +32,17 @@ export class ContextIntelligenceEngine {
    *   {@link detectAffectedGodNodes}. Omit or pass null when no graph is loaded;
    *   the field stays empty and callers may compute it later.
    */
-  analyzeConversationContext(
-    messages: AgentMessage[],
-    graphAnalysis?: GraphifyAnalysis | null,
-  ): ContextInsights {
+  analyzeConversationContext(messages: AgentMessage[], graphAnalysis?: GraphifyAnalysis | null): ContextInsights {
     let editingIntent = this.patternDetector.detectEditingIntent(messages)
-    const navigationRequests =
-      this.patternDetector.detectNavigationRequests(messages)
-    const suboptimalPatterns =
-      this.patternDetector.detectSuboptimalToolUsage(messages)
+    const navigationRequests = this.patternDetector.detectNavigationRequests(messages)
+    const suboptimalPatterns = this.patternDetector.detectSuboptimalToolUsage(messages)
 
     const conversationContext = this.analyzeConversationMeta(messages)
 
     if (graphAnalysis && editingIntent.detected) {
       editingIntent = {
         ...editingIntent,
-        affectedGodNodes: this.detectAffectedGodNodes(
-          editingIntent,
-          graphAnalysis,
-        ),
+        affectedGodNodes: this.detectAffectedGodNodes(editingIntent, graphAnalysis),
       }
     }
 
@@ -71,7 +63,7 @@ export class ContextIntelligenceEngine {
   generateActionableGuidance(
     insights: ContextInsights,
     graphAnalysis: GraphifyAnalysis | null,
-    graphData?: GraphifyGraph | null,
+    graphData?: GraphifyGraph | null
   ): string {
     if (!graphAnalysis) {
       return this.generateBasicGuidance(insights)
@@ -87,10 +79,7 @@ export class ContextIntelligenceEngine {
     }
 
     if (insights.editingIntent.detected) {
-      const affectedGodNodes = this.detectAffectedGodNodes(
-        insights.editingIntent,
-        graphAnalysis,
-      )
+      const affectedGodNodes = this.detectAffectedGodNodes(insights.editingIntent, graphAnalysis)
       if (affectedGodNodes.length > 0) {
         sections.push(this.generateRiskWarnings(affectedGodNodes, graphAnalysis, graphData ?? undefined))
       }
@@ -100,10 +89,7 @@ export class ContextIntelligenceEngine {
       sections.push(this.generateArchitecturalGuidance(graphAnalysis))
     }
 
-    const contextualSuggestions = this.generateContextualSuggestions(
-      insights,
-      graphAnalysis,
-    )
+    const contextualSuggestions = this.generateContextualSuggestions(insights, graphAnalysis)
     if (contextualSuggestions) {
       sections.push(contextualSuggestions)
     }
@@ -114,10 +100,7 @@ export class ContextIntelligenceEngine {
   /**
    * Detect which god nodes are affected by editing intent target symbols.
    */
-  detectAffectedGodNodes(
-    editingContext: EditingContext,
-    graphAnalysis: GraphifyAnalysis,
-  ): string[] {
+  detectAffectedGodNodes(editingContext: EditingContext, graphAnalysis: GraphifyAnalysis): string[] {
     if (!editingContext.detected) return []
 
     const affectedGodNodes: string[] = []
@@ -144,17 +127,12 @@ export class ContextIntelligenceEngine {
     const labelLower = godNode.label.toLowerCase()
     const nodeIdLower = godNode.nodeId.toLowerCase()
 
-    if (
-      symbolLower === labelLower ||
-      symbolLower === nodeIdLower
-    ) {
+    if (symbolLower === labelLower || symbolLower === nodeIdLower) {
       return true
     }
 
     if (symbol.length >= 4) {
-      return (
-        labelLower.includes(symbolLower) || nodeIdLower.includes(symbolLower)
-      )
+      return labelLower.includes(symbolLower) || nodeIdLower.includes(symbolLower)
     }
 
     return false
@@ -172,19 +150,13 @@ export class ContextIntelligenceEngine {
     ]
 
     if (insights.editingIntent.hasHashAnnotations) {
-      tips.push(
-        '- Hash annotations detected: Always use `hashline_edit` with dry_run: true first',
-      )
+      tips.push('- Hash annotations detected: Always use `hashline_edit` with dry_run: true first')
     }
 
     if (insights.navigationRequests.detected) {
-      const toolSuggestion = this.navigationToolSuggestion(
-        insights.navigationRequests.requestType,
-      )
+      const toolSuggestion = this.navigationToolSuggestion(insights.navigationRequests.requestType)
       const desc = this.navigationToolDescription(insights.navigationRequests.requestType)
-      tips.push(
-        `- Navigation request detected: Use \`${toolSuggestion}\` — ${desc}`,
-      )
+      tips.push(`- Navigation request detected: Use \`${toolSuggestion}\` — ${desc}`)
     }
 
     return `🎯 WORKFLOW OPTIMIZATION:\n${tips.join('\n')}`
@@ -196,10 +168,7 @@ export class ContextIntelligenceEngine {
       IMPORTANT: 1,
       NORMAL: 2,
     }
-    return [...nodes].sort(
-      (a, b) =>
-        order[a.criticality] - order[b.criticality] || b.inDegree - a.inDegree,
-    )
+    return [...nodes].sort((a, b) => order[a.criticality] - order[b.criticality] || b.inDegree - a.inDegree)
   }
 
   /**
@@ -212,7 +181,7 @@ export class ContextIntelligenceEngine {
   private computeDependencyFanout(
     godNode: GodNode,
     graphAnalysis: GraphifyAnalysis,
-    graphData?: GraphifyGraph,
+    graphData?: GraphifyGraph
   ): { affected: number; communities: number } {
     if (!graphData) {
       // Fallback to heuristic
@@ -231,7 +200,8 @@ export class ContextIntelligenceEngine {
     const queue = [nodeId]
 
     while (queue.length > 0) {
-      const current = queue.shift()!
+      const current = queue.shift()
+      if (!current) break
       for (const edge of graphData.edges) {
         const target = edge.target.toLowerCase()
         if (target === current && !visited.has(edge.source.toLowerCase())) {
@@ -270,28 +240,23 @@ export class ContextIntelligenceEngine {
   private generateRiskWarnings(
     affectedGodNodes: string[],
     graphAnalysis: GraphifyAnalysis,
-    graphData?: GraphifyGraph,
+    graphData?: GraphifyGraph
   ): string {
     const matched = affectedGodNodes
-      .map((nodeId) =>
+      .map(nodeId =>
         graphAnalysis.godNodes.find(
-          (gn) =>
+          gn =>
             gn.nodeId.toLowerCase().includes(nodeId.toLowerCase()) ||
-            gn.label.toLowerCase().includes(nodeId.toLowerCase()),
-        ),
+            gn.label.toLowerCase().includes(nodeId.toLowerCase())
+        )
       )
       .filter((gn): gn is GodNode => gn !== undefined)
 
     const warnings = this.sortGodNodesByRisk(matched)
       .slice(0, 5)
-      .map((godNode) => {
+      .map(godNode => {
         const { affected, communities } = this.computeDependencyFanout(godNode, graphAnalysis, graphData)
-        const icon =
-          godNode.criticality === 'CRITICAL'
-            ? '🔥'
-            : godNode.criticality === 'IMPORTANT'
-              ? '⚠️'
-              : '🔍'
+        const icon = godNode.criticality === 'CRITICAL' ? '🔥' : godNode.criticality === 'IMPORTANT' ? '⚠️' : '🔍'
         return `- ${icon} \`${godNode.label}\` (${affected} dependents, ${communities} communities)`
       })
 
@@ -301,14 +266,11 @@ export class ContextIntelligenceEngine {
   /**
    * Generate architectural guidance based on top communities in the graph.
    */
-  private generateArchitecturalGuidance(
-    graphAnalysis: GraphifyAnalysis,
-  ): string {
+  private generateArchitecturalGuidance(graphAnalysis: GraphifyAnalysis): string {
     const guidance: string[] = []
 
     for (const community of graphAnalysis.communities.slice(0, 5)) {
-      const cohesion =
-        community.metrics?.cohesion ?? community.internalDensity ?? 0
+      const cohesion = community.metrics?.cohesion ?? community.internalDensity ?? 0
       const safetyLevel =
         cohesion > 0.8
           ? 'safe to refactor'
@@ -316,9 +278,7 @@ export class ContextIntelligenceEngine {
             ? 'refactor with caution'
             : 'test thoroughly before changes'
 
-      guidance.push(
-        `- ${community.label} (${community.nodes.length} files): ${safetyLevel}`,
-      )
+      guidance.push(`- ${community.label} (${community.nodes.length} files): ${safetyLevel}`)
     }
 
     return `🏗️ ARCHITECTURAL GUIDANCE:\n${guidance.join('\n')}`
@@ -327,14 +287,8 @@ export class ContextIntelligenceEngine {
   /**
    * Generate contextual suggestions based on the current transcript signals.
    */
-  private generateContextualSuggestions(
-    insights: ContextInsights,
-    graphAnalysis: GraphifyAnalysis,
-  ): string | null {
-    if (
-      !insights.editingIntent.detected &&
-      !insights.navigationRequests.detected
-    ) {
+  private generateContextualSuggestions(insights: ContextInsights, graphAnalysis: GraphifyAnalysis): string | null {
+    if (!insights.editingIntent.detected && !insights.navigationRequests.detected) {
       return null
     }
 
@@ -345,23 +299,14 @@ export class ContextIntelligenceEngine {
       suggestions.push(`Based on editing intent for "${targetSymbols}":`)
 
       if (insights.editingIntent.hasHashAnnotations) {
-        suggestions.push(
-          '1. Use `hashline_edit` for efficient editing (avoids re-reading)',
-        )
+        suggestions.push('1. Use `hashline_edit` for efficient editing (avoids re-reading)')
       } else {
-        suggestions.push(
-          '1. Use `lsp_go_to_definition` to locate symbols first',
-        )
+        suggestions.push('1. Use `lsp_go_to_definition` to locate symbols first')
       }
 
-      suggestions.push(
-        '2. Check impact with `lsp_find_references` before major changes',
-      )
+      suggestions.push('2. Check impact with `lsp_find_references` before major changes')
 
-      const affectedGodNodes = this.detectAffectedGodNodes(
-        insights.editingIntent,
-        graphAnalysis,
-      )
+      const affectedGodNodes = this.detectAffectedGodNodes(insights.editingIntent, graphAnalysis)
       if (affectedGodNodes.length > 0) {
         suggestions.push('3. Consider impact analysis - god nodes detected')
       }
@@ -369,17 +314,13 @@ export class ContextIntelligenceEngine {
 
     if (insights.navigationRequests.detected) {
       const symbols = insights.navigationRequests.requestedSymbols.join(', ')
-      const tool = this.navigationToolSuggestion(
-        insights.navigationRequests.requestType,
-      )
+      const tool = this.navigationToolSuggestion(insights.navigationRequests.requestType)
 
       suggestions.push(`For navigation request "${symbols}":`)
       suggestions.push(`- Use \`${tool}\` instead of manual search`)
     }
 
-    return suggestions.length > 0
-      ? `💡 CURRENT CONTEXT SUGGESTIONS:\n${suggestions.join('\n')}`
-      : null
+    return suggestions.length > 0 ? `💡 CURRENT CONTEXT SUGGESTIONS:\n${suggestions.join('\n')}` : null
   }
 
   /**
@@ -398,9 +339,7 @@ export class ContextIntelligenceEngine {
     return sections.join('\n\n')
   }
 
-  private formatOptimizationSuggestions(
-    insights: ContextInsights,
-  ): string | null {
+  private formatOptimizationSuggestions(insights: ContextInsights): string | null {
     if (insights.suboptimalPatterns.length === 0) return null
     const suggestions = insights.suboptimalPatterns
       .map((pattern: OptimizationSuggestion) => `- ${pattern.recommendation}`)
@@ -408,9 +347,7 @@ export class ContextIntelligenceEngine {
     return `💡 OPTIMIZATION SUGGESTIONS:\n${suggestions}`
   }
 
-  private navigationToolDescription(
-    requestType: NavigationContext['requestType'],
-  ): string {
+  private navigationToolDescription(requestType: NavigationContext['requestType']): string {
     switch (requestType) {
       case 'references':
         return 'enumerate call sites and usages'
@@ -422,14 +359,10 @@ export class ContextIntelligenceEngine {
     }
   }
 
-  private navigationToolSuggestion(
-    requestType: NavigationContext['requestType'],
-  ): string {
+  private navigationToolSuggestion(requestType: NavigationContext['requestType']): string {
     switch (requestType) {
       case 'references':
         return 'lsp_find_references'
-      case 'definition':
-      case 'file_location':
       default:
         return 'lsp_go_to_definition'
     }
@@ -438,11 +371,9 @@ export class ContextIntelligenceEngine {
   /**
    * Summarize recency, codebase relevance, and lightweight entity mentions.
    */
-  private analyzeConversationMeta(
-    messages: AgentMessage[],
-  ): ConversationContext {
+  private analyzeConversationMeta(messages: AgentMessage[]): ConversationContext {
     const content = messages
-      .map((m) => String(m.content || ''))
+      .map(m => String(m.content || ''))
       .join(' ')
       .toLowerCase()
 
@@ -462,9 +393,7 @@ export class ContextIntelligenceEngine {
       'variable',
       'method',
     ]
-    const codebaseRelevant = codebaseKeywords.some((keyword) =>
-      content.includes(keyword),
-    )
+    const codebaseRelevant = codebaseKeywords.some(keyword => content.includes(keyword))
 
     const communityPatterns = [
       'auth',
@@ -480,9 +409,7 @@ export class ContextIntelligenceEngine {
       'backend',
       'service',
     ]
-    const mentionedCommunities = communityPatterns.filter((pattern) =>
-      content.includes(pattern),
-    )
+    const mentionedCommunities = communityPatterns.filter(pattern => content.includes(pattern))
 
     const filePattern = /(['"`]?)([./][\w./-]+\.(?:ts|tsx|py|rs|js|jsx))\1/g
     const mentionedFiles: string[] = []
@@ -501,15 +428,10 @@ export class ContextIntelligenceEngine {
   /**
    * Rough estimate of how many communities a god node may span from degree.
    */
-  private estimateAffectedCommunities(
-    godNode: GodNode,
-    graphAnalysis: GraphifyAnalysis,
-  ): number {
+  private estimateAffectedCommunities(godNode: GodNode, graphAnalysis: GraphifyAnalysis): number {
     const degree = godNode.inDegree + godNode.outDegree
-    if (degree > 30)
-      return Math.min(graphAnalysis.communities.length, 6)
-    if (degree > 15)
-      return Math.min(graphAnalysis.communities.length, 3)
+    if (degree > 30) return Math.min(graphAnalysis.communities.length, 6)
+    if (degree > 15) return Math.min(graphAnalysis.communities.length, 3)
     return 1
   }
 }

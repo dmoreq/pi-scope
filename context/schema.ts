@@ -23,21 +23,18 @@ const ProviderGuidanceSchema = z.object({
 
 // ── Root schema ───────────────────────────────────────────────────────────
 
-export const SlimConfigSchema = z.object({
-  enabled: z.boolean().default(true),
-  maxRepoMapTokens: z.number().int().positive().default(4000),
-  maxInjectionTokens: z.number().int().positive().default(8000),
-  scanLastNMessages: z.number().int().positive().default(10),
-  dependencyDepth: z.number().int().min(0).max(3).default(1),
-  exclude: z.array(z.string()).default([
-    '**/node_modules/**',
-    '**/.git/**',
-    '**/.pi-cache/**',
-    '**/dist/**',
-  ]),
-  contextFiles: ContextFilesSchema.default({}),
-  providerGuidance: ProviderGuidanceSchema.default({}),
-}).default({})
+export const SlimConfigSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    maxRepoMapTokens: z.number().int().positive().default(4000),
+    maxInjectionTokens: z.number().int().positive().default(8000),
+    scanLastNMessages: z.number().int().positive().default(10),
+    dependencyDepth: z.number().int().min(0).max(3).default(1),
+    exclude: z.array(z.string()).default(['**/node_modules/**', '**/.git/**', '**/.pi-cache/**', '**/dist/**']),
+    contextFiles: ContextFilesSchema.default({}),
+    providerGuidance: ProviderGuidanceSchema.default({}),
+  })
+  .default({})
 
 export type SlimConfigInput = z.input<typeof SlimConfigSchema>
 

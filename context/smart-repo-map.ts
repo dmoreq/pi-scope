@@ -4,8 +4,8 @@
  */
 
 import type { ContextInsights } from '../shared/intelligence-types.js'
-import type { GraphifyAnalysis, GodNode } from './graph-types.js'
 import { godNodeMatchesSymbol } from './god-node-match.js'
+import type { GodNode, GraphifyAnalysis } from './graph-types.js'
 
 export class SmartRepositoryMapGenerator {
   /**
@@ -14,7 +14,7 @@ export class SmartRepositoryMapGenerator {
   generatePrioritizedRepoMap(
     baseRepoMap: string,
     insights: ContextInsights,
-    graphAnalysis: GraphifyAnalysis | null,
+    graphAnalysis: GraphifyAnalysis | null
   ): string {
     if (!graphAnalysis || !baseRepoMap.trim()) {
       return baseRepoMap
@@ -25,8 +25,7 @@ export class SmartRepositoryMapGenerator {
     const communities = this.pickCommunities(insights, graphAnalysis)
     if (communities.length > 0) {
       const lines = communities.map(
-        (c) =>
-          `- **${c.label}** (\`${c.id}\`, ${c.nodes.length} nodes) — start here when working in this domain`,
+        c => `- **${c.label}** (\`${c.id}\`, ${c.nodes.length} nodes) — start here when working in this domain`
       )
       blocks.push(`📍 GRAPH-PRIORITIZED NAVIGATION\n${lines.join('\n')}`)
     }
@@ -34,8 +33,7 @@ export class SmartRepositoryMapGenerator {
     const gods = this.pickGodNodes(insights, graphAnalysis.godNodes)
     if (gods.length > 0) {
       const lines = gods.map(
-        (g) =>
-          `- \`${g.label}\` — ${g.criticality}, ${g.inDegree} inbound deps (community: ${g.community})`,
+        g => `- \`${g.label}\` — ${g.criticality}, ${g.inDegree} inbound deps (community: ${g.community})`
       )
       blocks.push(`🎯 FOCUS AREAS (graph impact)\n${lines.join('\n')}`)
     }
@@ -45,28 +43,26 @@ export class SmartRepositoryMapGenerator {
   }
 
   private pickCommunities(insights: ContextInsights, graph: GraphifyAnalysis) {
-    const mentionedLower = new Set(
-      insights.conversationContext.mentionedCommunities.map((m) => m.toLowerCase()),
-    )
+    const mentionedLower = new Set(insights.conversationContext.mentionedCommunities.map(m => m.toLowerCase()))
     const symbolsLower = new Set(
-      [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(
-        (s) => s.toLowerCase(),
-      ),
+      [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(s =>
+        s.toLowerCase()
+      )
     )
 
     const scored = graph.communities
-      .map((c) => {
+      .map(c => {
         let score = 0
         if (mentionedLower.has(c.id.toLowerCase())) score += 3
-        if (c.nodes.some((n) => symbolsLower.has(n.toLowerCase()))) score += 2
+        if (c.nodes.some(n => symbolsLower.has(n.toLowerCase()))) score += 2
         score += c.internalDensity
         return { c, score }
       })
-      .filter((x) => x.score > 0)
+      .filter(x => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
 
-    return scored.map((x) => x.c)
+    return scored.map(x => x.c)
   }
 
   private pickGodNodes(insights: ContextInsights, godNodes: GodNode[]): GodNode[] {
@@ -81,7 +77,7 @@ export class SmartRepositoryMapGenerator {
     }
 
     return godNodes
-      .filter((g) => symbols.some((sym) => godNodeMatchesSymbol(g, sym)))
+      .filter(g => symbols.some(sym => godNodeMatchesSymbol(g, sym)))
       .sort((a, b) => {
         const rank: Record<GodNode['criticality'], number> = {
           CRITICAL: 0,

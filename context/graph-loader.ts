@@ -5,15 +5,11 @@
  * Provides error handling and graceful fallback.
  */
 
-import fs from 'fs'
+import fs from 'node:fs'
 import { dirname } from 'node:path'
 import { PathUtils } from '../shared/utils/path-utils.js'
-import type { GraphifyGraph, ValidationResult } from './graph-types.js'
-import {
-  validateGraphSchema,
-  isValidGraphifyGraph,
-  formatValidationErrors
-} from './graph-schema.js'
+import { formatValidationErrors, isValidGraphifyGraph, validateGraphSchema } from './graph-schema.js'
+import type { GraphifyGraph } from './graph-types.js'
 
 /**
  * Result of attempting to load a graph file.
@@ -43,7 +39,7 @@ export async function loadGraphifyJson(filePath: string): Promise<LoadResult> {
       return {
         success: false,
         error: `Graph file not found: ${absolutePath}`,
-        warnings
+        warnings,
       }
     }
 
@@ -59,7 +55,7 @@ export async function loadGraphifyJson(filePath: string): Promise<LoadResult> {
       return {
         success: false,
         error: `Failed to parse JSON: ${e instanceof Error ? e.message : String(e)}`,
-        warnings
+        warnings,
       }
     }
 
@@ -75,7 +71,7 @@ export async function loadGraphifyJson(filePath: string): Promise<LoadResult> {
       return {
         success: false,
         error: `Invalid graph structure:\n${formatValidationErrors(validation)}`,
-        warnings
+        warnings,
       }
     }
 
@@ -85,20 +81,20 @@ export async function loadGraphifyJson(filePath: string): Promise<LoadResult> {
       return {
         success: false,
         error: 'Graph does not conform to GraphifyGraph interface',
-        warnings
+        warnings,
       }
     }
 
     return {
       success: true,
       graph,
-      warnings
+      warnings,
     }
   } catch (e) {
     return {
       success: false,
       error: `Error loading graph: ${e instanceof Error ? e.message : String(e)}`,
-      warnings
+      warnings,
     }
   }
 }
@@ -112,13 +108,13 @@ export async function loadGraphifyJson(filePath: string): Promise<LoadResult> {
 export async function loadGraphifyJsonFromDefaults(): Promise<LoadResult> {
   const defaultPaths = [
     'graph-out/graph.json',
-    'graphify-out/graph.json',     // Backward compatibility
+    'graphify-out/graph.json', // Backward compatibility
     './graph-out/graph.json',
     './graphify-out/graph.json',
-    '../graph-out/graph.json', 
+    '../graph-out/graph.json',
     '../graphify-out/graph.json',
     'graph.json',
-    './graph.json'
+    './graph.json',
   ]
 
   for (const filePath of defaultPaths) {
@@ -132,7 +128,7 @@ export async function loadGraphifyJsonFromDefaults(): Promise<LoadResult> {
   return {
     success: false,
     error: `Could not find graph.json in any default location: ${defaultPaths.join(', ')}`,
-    warnings: []
+    warnings: [],
   }
 }
 
@@ -153,7 +149,7 @@ export function loadGraphifyJsonSync(filePath: string): LoadResult {
       return {
         success: false,
         error: `Graph file not found: ${absolutePath}`,
-        warnings
+        warnings,
       }
     }
 
@@ -167,7 +163,7 @@ export function loadGraphifyJsonSync(filePath: string): LoadResult {
       return {
         success: false,
         error: `Failed to parse JSON: ${e instanceof Error ? e.message : String(e)}`,
-        warnings
+        warnings,
       }
     }
 
@@ -181,7 +177,7 @@ export function loadGraphifyJsonSync(filePath: string): LoadResult {
       return {
         success: false,
         error: `Invalid graph structure:\n${formatValidationErrors(validation)}`,
-        warnings
+        warnings,
       }
     }
 
@@ -189,20 +185,20 @@ export function loadGraphifyJsonSync(filePath: string): LoadResult {
       return {
         success: false,
         error: 'Graph does not conform to GraphifyGraph interface',
-        warnings
+        warnings,
       }
     }
 
     return {
       success: true,
       graph,
-      warnings
+      warnings,
     }
   } catch (e) {
     return {
       success: false,
       error: `Error loading graph: ${e instanceof Error ? e.message : String(e)}`,
-      warnings
+      warnings,
     }
   }
 }
@@ -213,10 +209,7 @@ export function loadGraphifyJsonSync(filePath: string): LoadResult {
  * @param graph The graph to write
  * @param filePath Where to write it
  */
-export async function saveGraphifyJson(
-  graph: GraphifyGraph,
-  filePath: string
-): Promise<boolean> {
+export async function saveGraphifyJson(graph: GraphifyGraph, filePath: string): Promise<boolean> {
   try {
     const absolutePath = PathUtils.ensureAbsolute(filePath, process.cwd())
 
@@ -275,6 +268,6 @@ export function getGraphStats(graph: GraphifyGraph): {
     nodeTypes,
     edgeTypes,
     avgDegree,
-    density
+    density,
   }
 }

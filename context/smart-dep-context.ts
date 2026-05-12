@@ -4,8 +4,8 @@
  */
 
 import type { ContextInsights } from '../shared/intelligence-types.js'
-import type { GodNode, GraphifyAnalysis } from './graph-types.js'
 import { godNodeMatchesSymbol } from './god-node-match.js'
+import type { GodNode, GraphifyAnalysis } from './graph-types.js'
 
 export class SmartDependencyContextGenerator {
   /**
@@ -16,32 +16,23 @@ export class SmartDependencyContextGenerator {
    * few god nodes (by criticality, then inbound degree) are still surfaced so the
    * graph stays actionable in read-only turns.
    */
-  generateEnhancedDependencyContext(
-    insights: ContextInsights,
-    graphAnalysis: GraphifyAnalysis | null,
-  ): string {
+  generateEnhancedDependencyContext(insights: ContextInsights, graphAnalysis: GraphifyAnalysis | null): string {
     const sections: string[] = []
 
-    const highPri = graphAnalysis
-      ? this.collectHighPrioritySymbols(insights, graphAnalysis)
-      : []
+    const highPri = graphAnalysis ? this.collectHighPrioritySymbols(insights, graphAnalysis) : []
     if (highPri.length > 0) {
-      const lines = highPri.map((g) => `- ${g.label} (${g.criticality})`)
+      const lines = highPri.map(g => `- ${g.label} (${g.criticality})`)
       sections.push(`🎯 HIGH-PRIORITY SYMBOLS\n${lines.join('\n')}`)
     }
 
     if (insights.editingIntent.detected && insights.editingIntent.hasHashAnnotations) {
-      sections.push(
-        'Use `hashline_edit` for hash-annotated regions; dry-run first when unsure of blast radius.',
-      )
+      sections.push('Use `hashline_edit` for hash-annotated regions; dry-run first when unsure of blast radius.')
     }
 
     const toolBlock = this.buildToolRecommendations(insights)
     if (toolBlock) sections.push(toolBlock)
 
-    const arch = graphAnalysis
-      ? this.buildCommunityContext(insights, graphAnalysis)
-      : null
+    const arch = graphAnalysis ? this.buildCommunityContext(insights, graphAnalysis) : null
     if (arch) sections.push(arch)
 
     for (const p of insights.suboptimalPatterns) {
@@ -59,19 +50,14 @@ export class SmartDependencyContextGenerator {
       IMPORTANT: 1,
       NORMAL: 2,
     }
-    return [...nodes].sort(
-      (a, b) => order[a.criticality] - order[b.criticality] || b.inDegree - a.inDegree,
-    )
+    return [...nodes].sort((a, b) => order[a.criticality] - order[b.criticality] || b.inDegree - a.inDegree)
   }
 
   /**
    * Resolve high-priority god nodes: conversation-relevant matches first; otherwise
    * the top three by graph impact so navigation/read turns still get prioritization.
    */
-  private collectHighPrioritySymbols(
-    insights: ContextInsights,
-    graphAnalysis: GraphifyAnalysis,
-  ): GodNode[] {
+  private collectHighPrioritySymbols(insights: ContextInsights, graphAnalysis: GraphifyAnalysis): GodNode[] {
     const relevantSymbols = [
       ...insights.editingIntent.targetSymbols,
       ...insights.navigationRequests.requestedSymbols,
@@ -79,9 +65,7 @@ export class SmartDependencyContextGenerator {
     ]
 
     if (relevantSymbols.length > 0) {
-      const matches = graphAnalysis.godNodes.filter((gn) =>
-        relevantSymbols.some((sym) => godNodeMatchesSymbol(gn, sym)),
-      )
+      const matches = graphAnalysis.godNodes.filter(gn => relevantSymbols.some(sym => godNodeMatchesSymbol(gn, sym)))
       return this.sortGodNodesByPriority(matches)
     }
 
@@ -95,23 +79,20 @@ export class SmartDependencyContextGenerator {
   /** Lowercase symbols from edit/nav intent for community linkage. */
   private buildRelevantSymbolsLower(insights: ContextInsights): Set<string> {
     return new Set(
-      [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(
-        (s) => s.toLowerCase(),
-      ),
+      [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(s =>
+        s.toLowerCase()
+      )
     )
   }
 
   private buildMentionedCommunitiesLower(insights: ContextInsights): Set<string> {
-    return new Set(insights.conversationContext.mentionedCommunities.map((m) => m.toLowerCase()))
+    return new Set(insights.conversationContext.mentionedCommunities.map(m => m.toLowerCase()))
   }
 
   private buildToolRecommendations(insights: ContextInsights): string | null {
     const lines: string[] = []
 
-    if (
-      insights.editingIntent.detected &&
-      insights.editingIntent.hasHashAnnotations
-    ) {
+    if (insights.editingIntent.detected && insights.editingIntent.hasHashAnnotations) {
       lines.push('- Use `hashline_edit` for hash-verified edits on annotated regions')
     }
 
@@ -126,38 +107,30 @@ export class SmartDependencyContextGenerator {
       }
     }
 
-    if (
-      insights.editingIntent.detected &&
-      insights.editingIntent.affectedGodNodes.length > 0
-    ) {
-      lines.push(
-        '- God-node overlap: run `lsp_find_references` before editing to gauge dependency fan-out',
-      )
+    if (insights.editingIntent.detected && insights.editingIntent.affectedGodNodes.length > 0) {
+      lines.push('- God-node overlap: run `lsp_find_references` before editing to gauge dependency fan-out')
     }
 
     if (lines.length === 0) return null
     return `🔧 RECOMMENDED TOOLS\n${lines.join('\n')}`
   }
 
-  private buildCommunityContext(
-    insights: ContextInsights,
-    graph: GraphifyAnalysis,
-  ): string | null {
+  private buildCommunityContext(insights: ContextInsights, graph: GraphifyAnalysis): string | null {
     const mentionedLower = this.buildMentionedCommunitiesLower(insights)
     const symbolsLower = this.buildRelevantSymbolsLower(insights)
 
     const relevant = graph.communities.filter(
-      (c) =>
+      c =>
         mentionedLower.has(c.id.toLowerCase()) ||
-        c.nodes.some((n) => symbolsLower.has(n.toLowerCase())) ||
-        [...mentionedLower].some((m) => c.label.toLowerCase().includes(m)),
+        c.nodes.some(n => symbolsLower.has(n.toLowerCase())) ||
+        [...mentionedLower].some(m => c.label.toLowerCase().includes(m))
     )
 
     if (relevant.length === 0) return null
 
     const lines = relevant.map(
-      (c) =>
-        `- **${c.label}** (\`${c.id}\`): ${c.nodes.length} symbols — cohesion ${(c.metrics?.cohesion ?? c.internalDensity).toFixed(2)}`,
+      c =>
+        `- **${c.label}** (\`${c.id}\`): ${c.nodes.length} symbols — cohesion ${(c.metrics?.cohesion ?? c.internalDensity).toFixed(2)}`
     )
     return `🏗️ ARCHITECTURAL CONTEXT\n${lines.join('\n')}`
   }

@@ -15,7 +15,7 @@
  */
 
 import { readFileSync, statSync } from 'node:fs'
-import { relative as relativePath, resolve, dirname } from 'node:path'
+import { dirname, relative as relativePath, resolve } from 'node:path'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ function loadFile(filePath: string): ContextFile | null {
  */
 export function loadContextFiles(
   cwd: string,
-  options: Pick<ResolvedContextFileOptions, 'filenames'> = DEFAULT_CONTEXT_FILE_OPTIONS,
+  options: Pick<ResolvedContextFileOptions, 'filenames'> = DEFAULT_CONTEXT_FILE_OPTIONS
 ): ContextFile[] {
   const filenames = options.filenames ?? DEFAULT_CONTEXT_FILE_OPTIONS.filenames
   const result: ContextFile[] = []
@@ -101,14 +101,12 @@ export function loadContextFiles(
  */
 export function formatContextSection(
   files: ContextFile[],
-  options: Pick<ResolvedContextFileOptions, 'sectionTitle'> = DEFAULT_CONTEXT_FILE_OPTIONS,
+  options: Pick<ResolvedContextFileOptions, 'sectionTitle'> = DEFAULT_CONTEXT_FILE_OPTIONS
 ): string {
   if (files.length === 0) return ''
 
   const sectionTitle = options.sectionTitle ?? DEFAULT_CONTEXT_FILE_OPTIONS.sectionTitle
-  const body = files
-    .map((file) => `## ${file.path}\n\n${file.content}`)
-    .join('\n\n')
+  const body = files.map(file => `## ${file.path}\n\n${file.content}`).join('\n\n')
 
   return `\n\n# ${sectionTitle}\n\nAdditional project instructions and guidelines:\n\n${body}\n`
 }
@@ -133,14 +131,12 @@ export function formatDisplayPath(filePath: string, cwd: string): string {
 export function buildStartupNotification(
   files: ContextFile[],
   cwd: string,
-  options: Pick<ResolvedContextFileOptions, 'sectionTitle'> = DEFAULT_CONTEXT_FILE_OPTIONS,
+  options: Pick<ResolvedContextFileOptions, 'sectionTitle'> = DEFAULT_CONTEXT_FILE_OPTIONS
 ): string {
   if (files.length === 0) return ''
 
   const sectionTitle = options.sectionTitle ?? DEFAULT_CONTEXT_FILE_OPTIONS.sectionTitle
-  const paths = files
-    .map((f) => `  ${formatDisplayPath(f.path, cwd)}`)
-    .join('\n')
+  const paths = files.map(f => `  ${formatDisplayPath(f.path, cwd)}`).join('\n')
 
   return `[context-files] ${files.length} file(s) loaded for "${sectionTitle}":\n${paths}`
 }

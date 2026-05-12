@@ -29,7 +29,14 @@ export class ContextInjector {
     this.scanLastN = scanLastN
   }
 
-  buildInjection(index: RepoIndex, messages: Message[], extraPaths?: Set<string>, retrieval?: RetrievalEngine, transitiveDepth: number = 1, graphAnalysis?: GraphifyAnalysis | null): string {
+  buildInjection(
+    index: RepoIndex,
+    messages: Message[],
+    extraPaths?: Set<string>,
+    retrieval?: RetrievalEngine,
+    transitiveDepth = 1,
+    graphAnalysis?: GraphifyAnalysis | null
+  ): string {
     const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval, graphAnalysis)
 
     // Broad codebase overview: inject top files by centrality when the query
@@ -117,7 +124,7 @@ export class ContextInjector {
     messages: Message[],
     extraPaths?: Set<string>,
     retrieval?: RetrievalEngine,
-    graphAnalysis?: GraphifyAnalysis | null,
+    graphAnalysis?: GraphifyAnalysis | null
   ): Set<string> {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()
@@ -139,19 +146,26 @@ export class ContextInjector {
     if (retrieval && index.symbolIndex?.size) {
       const query = recent.map(m => extractText(m.content)).join(' ')
       let scored = retrieval.retrieveTopK(query, 20)
-      
+
       // Graph-aware boost: promote files that match god nodes
       if (graphAnalysis?.godNodes?.length) {
         const godNodeNames = new Set(graphAnalysis.godNodes.map(g => g.nodeId.toLowerCase()))
-        scored = scored.map(f => {
-          const stem = f.file.split('/').pop()?.replace(/\.[^.]+$/, '').toLowerCase() ?? ''
-          if (godNodeNames.has(stem)) {
-            return { ...f, score: f.score + Math.max(f.score, 1) }
-          }
-          return f
-        }).sort((a, b) => b.score - a.score)
+        scored = scored
+          .map(f => {
+            const stem =
+              f.file
+                .split('/')
+                .pop()
+                ?.replace(/\.[^.]+$/, '')
+                .toLowerCase() ?? ''
+            if (godNodeNames.has(stem)) {
+              return { ...f, score: f.score + Math.max(f.score, 1) }
+            }
+            return f
+          })
+          .sort((a, b) => b.score - a.score)
       }
-      
+
       this.lastExplanation = scored
 
       const inFocus = new Set<string>()
@@ -181,19 +195,25 @@ export class ContextInjector {
 
 /** Entry-point file basenames that are important for understanding a codebase. */
 const ENTRY_POINT_NAMES = new Set([
-  'extension.ts', 'extension.js',
-  'manager.ts', 'manager.js',
-  'index.ts', 'index.js',
-  'main.ts', 'main.js',
-  'app.ts', 'app.js',
-  'server.ts', 'server.js',
+  'extension.ts',
+  'extension.js',
+  'manager.ts',
+  'manager.js',
+  'index.ts',
+  'index.js',
+  'main.ts',
+  'main.js',
+  'app.ts',
+  'app.js',
+  'server.ts',
+  'server.js',
 ])
 
 /**
  * Get the top-N most important files for understanding the codebase.
  * Uses reverse-dependency centrality (most depended-on) and entry-point detection.
  */
-function getBroadOverviewFiles(index: RepoIndex, k: number = 5): Set<string> {
+function getBroadOverviewFiles(index: RepoIndex, k = 5): Set<string> {
   const files = new Set<string>()
 
   // 1. Entry points
@@ -209,9 +229,7 @@ function getBroadOverviewFiles(index: RepoIndex, k: number = 5): Set<string> {
   for (const [path, rdeps] of index.reverseDeps) {
     byDepCount.set(path, rdeps.size)
   }
-  const top = [...byDepCount.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, k)
+  const top = [...byDepCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, k)
   for (const [path] of top) files.add(path)
 
   return files
@@ -230,7 +248,7 @@ function buildModuleStructureListing(index: RepoIndex, projectRoot: string): str
     const dir = parts[0] // top-level directory
     const baseName = parts[parts.length - 1]?.replace(/\.[^.]+$/, '') ?? ''
     if (!dirs.has(dir)) dirs.set(dir, new Set())
-    dirs.get(dir)!.add(baseName)
+    dirs.get(dir)?.add(baseName)
   }
 
   if (dirs.size === 0) return ''

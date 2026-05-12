@@ -1,6 +1,6 @@
-import { relative, dirname } from 'node:path'
-import type { RepoIndex } from '../shared/types.js'
 import { statSync } from 'node:fs'
+import { dirname, relative } from 'node:path'
+import type { RepoIndex } from '../shared/types.js'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
 function extractNames(skeleton: string): string {
@@ -8,8 +8,9 @@ function extractNames(skeleton: string): string {
     .split('\n')
     .map(line => {
       const m =
-        line.match(/(?:export\s+)?(?:class|function|interface|type|enum|struct|trait|impl|pub fn|def|pub struct|pub enum)\s+(\w+)/) ??
-        line.match(/^(?:class|def)\s+(\w+)/)
+        line.match(
+          /(?:export\s+)?(?:class|function|interface|type|enum|struct|trait|impl|pub fn|def|pub struct|pub enum)\s+(\w+)/
+        ) ?? line.match(/^(?:class|def)\s+(\w+)/)
       return m ? m[1] : null
     })
     .filter(Boolean)
@@ -30,12 +31,12 @@ export class RepoMapGenerator {
 
     for (const [absPath, skeleton] of index.skeletons) {
       const rel = relative(this.projectRoot, absPath)
-      const dir = dirname(rel) === '.' ? '' : dirname(rel) + '/'
+      const dir = dirname(rel) === '.' ? '' : `${dirname(rel)}/`
       const fileName = rel.slice(dir.length)
       const names = extractNames(skeleton)
 
       if (!byDir.has(dir)) byDir.set(dir, [])
-      byDir.get(dir)!.push({ name: fileName, names })
+      byDir.get(dir)?.push({ name: fileName, names })
     }
 
     const lines: string[] = []
@@ -44,18 +45,22 @@ export class RepoMapGenerator {
     const sortedDirs = [...byDir.keys()].sort()
     for (const dir of sortedDirs) {
       const headerLine = dir ? dir : '(root)'
-      const fileLines = byDir.get(dir)!
+      const fileLines = byDir.get(dir)
+      if (!fileLines) continue
       // Sort files by modification time (most recent first)
       fileLines.sort((a, b) => {
         const fpA = PathUtils.joinSafe(this.projectRoot, dir, a.name)
         const fpB = PathUtils.joinSafe(this.projectRoot, dir, b.name)
-        try { return (statSync(fpB)?.mtimeMs ?? 0) - (statSync(fpA)?.mtimeMs ?? 0) }
-        catch { return 0 }
+        try {
+          return (statSync(fpB)?.mtimeMs ?? 0) - (statSync(fpA)?.mtimeMs ?? 0)
+        } catch {
+          return 0
+        }
       })
 
-      lines.push('  ' + headerLine)
+      lines.push(`  ${headerLine}`)
       for (const { name, names } of fileLines) {
-        const entry = `    ${name}${names ? '  ' + names : ''}`
+        const entry = `    ${name}${names ? `  ${names}` : ''}`
         lines.push(entry)
       }
 

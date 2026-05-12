@@ -15,8 +15,8 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { resolve, dirname, relative as relativePath } from 'node:path'
 import { homedir } from 'node:os'
+import { dirname, relative as relativePath, resolve } from 'node:path'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -79,11 +79,7 @@ function globMatch(pattern: string, value: string): boolean {
 
 // ── Candidate file resolution ─────────────────────────────────────────────
 
-function getCandidateFiles(
-  modelId: string | undefined,
-  provider: string,
-  config: GuidanceConfig,
-): string[] {
+function getCandidateFiles(modelId: string | undefined, provider: string, config: GuidanceConfig): string[] {
   // Model-specific patterns take priority
   if (modelId && config.models) {
     for (const [pattern, files] of Object.entries(config.models)) {
@@ -165,11 +161,7 @@ function getDirectories(cwd: string, agentDir: string): string[] {
  * @param modelId  Model ID (for glob-matching config overrides)
  * @returns Array of loaded files (path + content)
  */
-export function loadProviderGuidance(
-  cwd: string,
-  provider: string,
-  modelId?: string,
-): ProviderGuidanceFile[] {
+export function loadProviderGuidance(cwd: string, provider: string, modelId?: string): ProviderGuidanceFile[] {
   const agentDir = PathUtils.joinSafe(homedir(), '.pi', 'agent')
   const config = loadGuidanceConfig(agentDir)
   const candidates = getCandidateFiles(modelId, provider, config)
@@ -201,9 +193,7 @@ export function loadProviderGuidance(
 export function formatProviderGuidanceSection(files: ProviderGuidanceFile[]): string {
   if (files.length === 0) return ''
 
-  const body = files
-    .map((file) => `## ${file.path}\n\n${file.content}`)
-    .join('\n\n')
+  const body = files.map(file => `## ${file.path}\n\n${file.content}`).join('\n\n')
 
   return `\n\n# Provider-Specific Context\n\n${body}\n`
 }
@@ -215,7 +205,7 @@ export function buildGuidanceNotification(files: ProviderGuidanceFile[], cwd: st
   if (files.length === 0) return ''
 
   const paths = files
-    .map((f) => {
+    .map(f => {
       const rel = relativePath(cwd, f.path)
       return `  ${rel || f.path}`
     })

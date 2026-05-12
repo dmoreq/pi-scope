@@ -29,22 +29,26 @@ export class RetrievalEngine {
     const tokens = new Set<string>()
     // Split on whitespace and common delimiters, then extract identifiers
     const words = query.split(/[\s.,;:(){}[\]"'`/\\<>|+=*&^%$#@!?~-]+/)
-    
+
     for (const word of words) {
       if (word.length > 1) {
         tokens.add(word.toLowerCase())
-        
+
         // Extract camelCase components (e.g., "getUserData" → ["get", "user", "data"])
         // Look for capital letters to split on
         const camelParts = word.split(/(?=[A-Z])/).filter(s => s.length > 1)
-        camelParts.forEach(part => tokens.add(part.toLowerCase()))
-        
+        for (const part of camelParts) {
+          tokens.add(part.toLowerCase())
+        }
+
         // Also try to split on common word boundaries
         const underscoreParts = word.split('_').filter(s => s.length > 1)
-        underscoreParts.forEach(part => tokens.add(part.toLowerCase()))
+        for (const part of underscoreParts) {
+          tokens.add(part.toLowerCase())
+        }
       }
     }
-    
+
     return tokens
   }
 
@@ -55,12 +59,12 @@ export class RetrievalEngine {
   private scoreFile(query: string, file: string, activeDeps: Set<string>, queryTokens?: Set<string>): ScoredFile {
     const signals: string[] = []
     let score = 0
-    
+
     const tokens = queryTokens || this.extractQueryTokens(query)
 
     // Symbol match: find symbols this file exports that match query tokens
     const matchedSymbols = new Set<string>()
-    
+
     for (const token of tokens) {
       // Exact symbol matches
       const exportingFiles = this.index.symbolIndex.get(token)
@@ -70,28 +74,33 @@ export class RetrievalEngine {
         matchedSymbols.add(token)
       }
     }
-    
+
     // Partial symbol matches (more expensive, so only if we haven't found exact matches)
     if (matchedSymbols.size === 0) {
       for (const [symbol, files] of this.index.symbolIndex) {
         if (!files.includes(file)) continue
         const symbolLower = symbol.toLowerCase()
-        
+
         for (const token of tokens) {
-          if (symbolLower.includes(token) && token.length > 2) { // Avoid short token noise
-            score += 2  // Lower score for partial matches
+          if (symbolLower.includes(token) && token.length > 2) {
+            // Avoid short token noise
+            score += 2 // Lower score for partial matches
             signals.push(`partial-symbol:${symbol}`)
             matchedSymbols.add(symbol)
             break
           }
         }
-        
+
         if (matchedSymbols.size > 0) break // Only need one partial match per file
       }
     }
 
     // Filename match
-    const name = file.split('/').pop()?.replace(/\.[^.]+$/, '') ?? ''
+    const name =
+      file
+        .split('/')
+        .pop()
+        ?.replace(/\.[^.]+$/, '') ?? ''
     if (name.length > 1) {
       for (const token of tokens) {
         if (name.toLowerCase().includes(token)) {
@@ -120,7 +129,7 @@ export class RetrievalEngine {
    * @param activeDeps - Set of files currently in focus (for proximity scoring)
    * @returns Ranked file paths, highest score first
    */
-  retrieveTopK(query: string, k: number = 20, activeDeps: Set<string> = new Set()): ScoredFile[] {
+  retrieveTopK(query: string, k = 20, activeDeps: Set<string> = new Set()): ScoredFile[] {
     const candidates = new Map<string, ScoredFile>()
     const queryTokens = this.extractQueryTokens(query)
 

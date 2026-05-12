@@ -9,11 +9,11 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { PathUtils } from '../shared/utils/path-utils.js'
 import { homedir } from 'node:os'
-import { parse, printParseErrorCode, type ParseError } from 'jsonc-parser'
-import { SlimConfigSchema, type SlimConfig } from './schema.js'
+import { resolve } from 'node:path'
+import { type ParseError, parse, printParseErrorCode } from 'jsonc-parser'
+import { PathUtils } from '../shared/utils/path-utils.js'
+import { type SlimConfig, SlimConfigSchema } from './schema.js'
 
 // ── JSONC parsing ─────────────────────────────────────────────────────────
 
@@ -34,7 +34,10 @@ function parseJsonc(filePath: string, content: string): unknown {
   })
 
   if (errors.length > 0) {
-    const err = errors[0]!
+    const err = errors[0]
+    if (!err) {
+      return { parsed: false, errors: ['Unknown parsing error'], warnings: [] }
+    }
     const location = getLineAndColumn(content, err.offset)
     const code = printParseErrorCode(err.error)
     throw new Error(`Invalid JSONC in ${filePath}:${location.line}:${location.column}: ${code}`)
@@ -60,7 +63,7 @@ function deepMerge<T extends Record<string, unknown>>(defaults: T, overrides: Pa
     if (isPlainObject(defaultVal) && isPlainObject(overrideVal)) {
       result[key] = deepMerge(
         defaultVal as Record<string, unknown>,
-        overrideVal as Record<string, unknown>,
+        overrideVal as Record<string, unknown>
       ) as T[keyof T]
     } else {
       result[key] = overrideVal as T[keyof T]
@@ -87,10 +90,7 @@ const PROJECT_CONFIG_REL = '.pi/scope.jsonc'
  *   3. Global ~/.pi/agent/scope.jsonc
  *   4. Hardcoded defaults from schema
  */
-export function loadConfig(
-  projectRoot: string,
-  flags?: Record<string, unknown>,
-): SlimConfig {
+export function loadConfig(projectRoot: string, flags?: Record<string, unknown>): SlimConfig {
   // Layer 1: Defaults
   let merged: Record<string, unknown> = SlimConfigSchema.parse({}) as Record<string, unknown>
 
