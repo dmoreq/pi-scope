@@ -1,82 +1,67 @@
+#!/usr/bin/env node
+import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 /**
- * pi-scope build script — simple ESM transpiler.
- * Strips TypeScript type annotations and outputs .js files to dist/.
- * No external dependencies needed.
+ * pi-scope build script — transpile TS to JS using esbuild.
+ * Generates .js files in dist/ with proper module resolution.
  */
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs'
-import { join, dirname, relative } from 'node:path'
+import { buildSync } from 'esbuild'
 
-const SRC = process.cwd()
-const OUT = join(SRC, 'dist')
+const entryPoints = []
 
-const TS_EXTS = new Set(['.ts', '.tsx'])
-const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'tests', '__tests__', '.pi', 'skills', 'scripts'])
-
-/** Simple TS→JS transpilation: strips type annotations and unused imports. */
-function transpile(src) {
-  let out = src
-  
-  // Convert import paths: .ts → .js
-  out = out.replace(/(from\s+['"])\.(\/.+?)\.ts(['"])/g, '$1.$2.js$3')
-  
-  out = out
-    // Remove type annotations (simplified)
-    .replace(/:\s*(?:string|number|boolean|void|any|unknown|never|null|undefined)\b/g, '')
-    // Remove type imports
-    .replace(/import\s+type\s+\{[^}]*\}\s+from\s+['"][^'"]+['"]\s*;?\n?/g, '\n')
-    .replace(/import\s+\{([^}]*)\}\s+from\s+['"][^'"]+['"]\s*;?\n?/g, (match, names) => {
-      // Keep non-type imports, strip `type` prefix
-      const kept = names.split(',').filter(n => !n.trim().startsWith('type ')).join(',')
-      return kept.trim() ? match.replace(names, kept) : ''
-    })
-    // Remove `export type`
-    .replace(/export\s+type\s+/g, 'export ')
-    // Remove `as Type` casts
-    .replace(/\s+as\s+(?:Record|string|number|boolean|any|unknown|never|null|undefined|Map|Set|Array|Promise)\b(?:<[^>]*>)?/g, '')
-    .replace(/\s+as\s+\w+/g, '')
-    // Strip interface/type declarations (keeping export)
-    .replace(/^export\s+interface\s+\w+\s*\{[\s\S]*?\n\}/gm, '')
-    .replace(/^interface\s+\w+\s*\{[\s\S]*?\n\}/gm, '')
-    .replace(/^export\s+type\s+\w+\s*=.*;/gm, '')
-    // Remove : Type annotations in params and return types
-    .replace(/(\)\s*):\s*\w+(?:<[^>]*>)?\s*(\{|=>)/g, '$1 $2')
-    // Remove generics from function calls/definitions
-    .replace(/<[A-Z]\w*(?:\s+extends\s+\w+)?>/g, '')
-  
-  return out
-}
-
-function walk(dir, files = []) {
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    if (statSync(full).isDirectory()) {
-      walk(full, files)
-    } else if (TS_EXTS.has(entry.slice(entry.lastIndexOf('.')))) {
-      files.push(full)
+function findTS(dir) {
+  try {
+    for (const entry of readdirSync(dir)) {
+      if (entry.startsWith('.')) continue
+      if (['node_modules', 'dist', 'tests', 'skills', 'scripts'].includes(entry)) continue
+      const full = join(dir, entry)
+      const stat = statSync(full)
+      if (stat.isDirectory()) {
+        findTS(full)
+      } else if (entry.endsWith('.ts') && !entry.endsWith('.d.ts')) {
+        entryPoints.push(full)
+      }
     }
+  } catch (_err) {
+    // Ignore unreadable dirs
   }
-  return files
 }
 
-const tsFiles = walk(SRC)
-let count = 0
+findTS('.')
 
-for (const srcPath of tsFiles) {
-  const rel = relative(SRC, srcPath)
-  const outPath = join(OUT, rel.replace(/\.tsx?$/, '.js'))
-  
-  const src = readFileSync(srcPath, 'utf8')
-  const js = transpile(src)
-  
-  mkdirSync(dirname(outPath), { recursive: true })
-  writeFileSync(outPath, js)
-  count++
+if (entryPoints.length === 0) {
+  console.error('No TypeScript files found')
+  process.exit(1)
 }
 
-// Generate .d.ts for query-intent (new module)
-writeFileSync(join(OUT, 'shared/query-intent.d.ts'),
-  '/** Returns true if the query is a broad codebase-introspection question. */\n' +
-  'export declare function isBroadCodebaseQuery(text: string): boolean;\n')
+console.log(`Building ${entryPoints.length} TypeScript files...`)
 
-console.log(`Built ${count} files to dist/`)
+try {
+  buildSync({
+    entryPoints,
+    outdir: 'dist',
+    format: 'esm',
+    platform: 'node',
+    target: 'ES2022',
+    keepNames: true,
+    sourcemap: false,
+    minify: false,
+  })
+
+  console.log(`✓ Built ${entryPoints.length} files to dist/`)
+} catch (err) {
+  console.error('✗ Build failed:', err.message || err)
+  process.exit(1)
+}
+
+// Generate .d.ts stub for query-intent
+try {
+  mkdirSync(join('dist', 'shared'), { recursive: true })
+  writeFileSync(
+    join('dist', 'shared', 'query-intent.d.ts'),
+    '/** Returns true if the query is a broad codebase-introspection question. */\n' +
+      'export declare function isBroadCodebaseQuery(text: string): boolean;\n'
+  )
+} catch (_err) {
+  // Ignore if unable to write
+}

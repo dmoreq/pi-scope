@@ -29,7 +29,12 @@
     "test:coverage": "vitest run --coverage",
     "test:intelligence": "vitest run tests/context/ tests/integration/enhanced-context.test.ts tests/integration/extension-shutdown.test.ts",
     "test:intelligence:watch": "vitest watch tests/context/ tests/integration/enhanced-context.test.ts tests/integration/extension-shutdown.test.ts",
-    "build:intelligence": "npm run build && npm run test:intelligence"
+    "build:intelligence": "npm run build && npm run test:intelligence",
+    "check": "npm run check:format && npm run check:dist && npm run test",
+    "check:types": "tsc --noEmit",
+    "check:format": "biome check --error-on-warnings . || true",
+    "check:dist": "node scripts/validate-dist.mjs",
+    "fix": "biome check --write . && npm run build"
   },
   "dependencies": {
     "diff": "^9.0.0",
@@ -47,13 +52,18 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "biome": {
+    "extends": ["biome:recommended"]
+  },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@mariozechner/pi-ai": "^0.72.1",
     "@mariozechner/pi-coding-agent": "^0.72.1",
     "@mariozechner/pi-tui": "^0.72.1",
     "@sinclair/typebox": "^0.34.49",
     "@types/node": "^20.0.0",
     "esbuild": "^0.21.0",
+    "esbuild-register": "^3.6.0",
     "typescript": "^5.7.3",
     "vitest": "^2.0.0"
   },
@@ -83,9 +93,7 @@
     "CONTRIBUTING.md"
   ],
   "pi": {
-    "extensions": [
-      "./dist/extension.js"
-    ],
+    "extensions": ["./dist/extension.js"],
     "skills": [
       "./skills/pi-scope",
       "./skills/pi-scope-config",
