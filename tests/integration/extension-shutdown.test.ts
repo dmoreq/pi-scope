@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionManager } from '../../manager.js'
 
 vi.mock('../../tools/hashline-editor.js', () => ({ registerHashlineTool: vi.fn() }))
@@ -33,11 +33,9 @@ describe('extension.ts lifecycle', () => {
     const { default: smartContextExtension } = await import('../../extension.js')
     smartContextExtension(pi)
 
-    const fn = handlers.get('session_shutdown') as (
-      (_e: unknown, _ctx: unknown) => Promise<void>
-    )
+    const fn = handlers.get('session_shutdown') as (_e: unknown, _ctx: unknown) => Promise<void>
     await expect(fn).toBeDefined()
-    await fn!(null, {
+    await fn?.(null, {
       cwd: '/tmp',
       ui: { notify: vi.fn(), setStatus: vi.fn() },
       hasUI: false,
@@ -47,7 +45,7 @@ describe('extension.ts lifecycle', () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('SessionManager shutdown failed'),
-      expect.any(Error),
+      expect.any(Error)
     )
   })
 })

@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  info,
-  warn,
-  error,
-  success,
-  buildStatusText,
-  updateStatusBar,
-  clearStatusBar,
   type StatusBarState,
+  buildStatusText,
+  clearStatusBar,
+  error,
+  info,
+  success,
+  updateStatusBar,
+  warn,
 } from '../../ui/notifications.js'
 
 describe('message formatting', () => {

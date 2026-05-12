@@ -2,7 +2,7 @@
  * Tests for generic GraphAnalyzer (cached analysis on abstract Graph shape).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GraphAnalyzer } from '../../../graph/analyzers/graph-analyzer.js'
 import type { AnalysisCache } from '../../../graph/cache/analysis-cache.js'
 
@@ -104,9 +104,7 @@ describe('GraphAnalyzer', () => {
         { id: 'a', type: 'function' },
         { id: 'b', type: 'function' },
       ],
-      edges: [
-        { from: 'a', to: 'b', type: 'calls' },
-      ],
+      edges: [{ from: 'a', to: 'b', type: 'calls' }],
     }
 
     vi.mocked(mockCache.get).mockReturnValue(null)
@@ -159,12 +157,18 @@ describe('GraphAnalyzer', () => {
 
   it('should generate different cache keys for different edge structures', async () => {
     const graph1 = {
-      nodes: [{ id: 'a', type: 'function' }, { id: 'b', type: 'function' }],
+      nodes: [
+        { id: 'a', type: 'function' },
+        { id: 'b', type: 'function' },
+      ],
       edges: [{ from: 'a', to: 'b', type: 'calls' }],
     }
 
     const graph2 = {
-      nodes: [{ id: 'a', type: 'function' }, { id: 'b', type: 'function' }],
+      nodes: [
+        { id: 'a', type: 'function' },
+        { id: 'b', type: 'function' },
+      ],
       edges: [{ from: 'b', to: 'a', type: 'calls' }],
     }
 
@@ -174,8 +178,8 @@ describe('GraphAnalyzer', () => {
     await analyzer.analyze(graph2)
 
     expect(mockCache.set).toHaveBeenCalledTimes(2)
-    const firstKey = vi.mocked(mockCache.set).mock.calls[0]![0]
-    const secondKey = vi.mocked(mockCache.set).mock.calls[1]![0]
+    const firstKey = vi.mocked(mockCache.set).mock.calls[0]?.[0]
+    const secondKey = vi.mocked(mockCache.set).mock.calls[1]?.[0]
     expect(firstKey).not.toBe(secondKey)
   })
 
@@ -206,9 +210,7 @@ describe('GraphAnalyzer', () => {
         { id: 'connected', type: 'function' },
         { id: 'isolated', type: 'function' },
       ],
-      edges: [
-        { from: 'connected', to: 'connected', type: 'calls' },
-      ],
+      edges: [{ from: 'connected', to: 'connected', type: 'calls' }],
     }
 
     vi.mocked(mockCache.get).mockReturnValue(null)
@@ -216,7 +218,7 @@ describe('GraphAnalyzer', () => {
     const result = await analyzer.analyze(graphWithIsolated)
 
     expect(result.godNodes).toHaveLength(1)
-    expect(result.godNodes[0]!.id).toBe('connected')
-    expect(result.godNodes[0]!.connectivity).toBeGreaterThan(0)
+    expect(result.godNodes[0]?.id).toBe('connected')
+    expect(result.godNodes[0]?.connectivity).toBeGreaterThan(0)
   })
 })

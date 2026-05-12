@@ -4,12 +4,8 @@
  * Validates that graph.json files conform to the expected schema.
  */
 
-import { describe, it, expect } from 'vitest'
-import {
-  validateGraphSchema,
-  isValidGraphifyGraph,
-  formatValidationErrors
-} from '../../context/graph-schema'
+import { describe, expect, it } from 'vitest'
+import { formatValidationErrors, isValidGraphifyGraph, validateGraphSchema } from '../../context/graph-schema'
 import type { GraphifyGraph } from '../../context/graph-types'
 
 describe('GraphifySchema', () => {
@@ -18,10 +14,8 @@ describe('GraphifySchema', () => {
   describe('validateGraphSchema - Valid Graphs', () => {
     it('accepts minimal valid graph', () => {
       const graph = {
-        nodes: [
-          { id: 'a', type: 'function' as const, label: 'Node A' }
-        ],
-        edges: []
+        nodes: [{ id: 'a', type: 'function' as const, label: 'Node A' }],
+        edges: [],
       }
 
       const result = validateGraphSchema(graph)
@@ -35,11 +29,11 @@ describe('GraphifySchema', () => {
         nodes: [
           { id: 'auth', type: 'module', label: 'Auth Module' },
           { id: 'db', type: 'module', label: 'Database Module' },
-          { id: 'api', type: 'module', label: 'API Module' }
+          { id: 'api', type: 'module', label: 'API Module' },
         ],
         edges: [
           { source: 'auth', target: 'db', type: 'calls' },
-          { source: 'api', target: 'auth', type: 'imports' }
+          { source: 'api', target: 'auth', type: 'imports' },
         ],
         communities: [
           {
@@ -47,9 +41,9 @@ describe('GraphifySchema', () => {
             label: 'Auth Community',
             nodes: ['auth'],
             internal: [],
-            external: []
-          }
-        ]
+            external: [],
+          },
+        ],
       }
 
       const result = validateGraphSchema(graph)
@@ -66,8 +60,8 @@ describe('GraphifySchema', () => {
             type: 'function',
             label: 'Symbol 1',
             description: 'A function',
-            metadata: { file: 'test.ts' }
-          }
+            metadata: { file: 'test.ts' },
+          },
         ],
         edges: [
           {
@@ -76,10 +70,10 @@ describe('GraphifySchema', () => {
             type: 'calls',
             weight: 0.8,
             surprising: true,
-            metadata: { lineNumber: 42 }
-          }
+            metadata: { lineNumber: 42 },
+          },
         ],
-        metadata: { version: '1.0', createdAt: Date.now() }
+        metadata: { version: '1.0', createdAt: Date.now() },
       }
 
       const result = validateGraphSchema(graph)
@@ -88,19 +82,12 @@ describe('GraphifySchema', () => {
     })
 
     it('accepts all valid node types', () => {
-      const types = [
-        'function',
-        'class',
-        'module',
-        'concept',
-        'interface',
-        'variable'
-      ]
+      const types = ['function', 'class', 'module', 'concept', 'interface', 'variable']
 
       for (const nodeType of types) {
         const graph = {
           nodes: [{ id: 'test', type: nodeType as any, label: 'Test' }],
-          edges: []
+          edges: [],
         }
 
         const result = validateGraphSchema(graph)
@@ -109,22 +96,15 @@ describe('GraphifySchema', () => {
     })
 
     it('accepts all valid edge types', () => {
-      const edgeTypes = [
-        'imports',
-        'calls',
-        'extends',
-        'implements',
-        'uses',
-        'depends_on'
-      ]
+      const edgeTypes = ['imports', 'calls', 'extends', 'implements', 'uses', 'depends_on']
 
       for (const edgeType of edgeTypes) {
         const graph = {
           nodes: [
             { id: 'a', type: 'function' as const, label: 'A' },
-            { id: 'b', type: 'function' as const, label: 'B' }
+            { id: 'b', type: 'function' as const, label: 'B' },
           ],
-          edges: [{ source: 'a', target: 'b', type: edgeType as any }]
+          edges: [{ source: 'a', target: 'b', type: edgeType as any }],
         }
 
         const result = validateGraphSchema(graph)
@@ -154,17 +134,17 @@ describe('GraphifySchema', () => {
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('nodes'))).toBe(true)
+      expect(result.errors.some(e => e.includes('nodes'))).toBe(true)
     })
 
     it('rejects missing edges field', () => {
       const graph = {
-        nodes: [{ id: 'a', type: 'function' as const, label: 'A' }]
+        nodes: [{ id: 'a', type: 'function' as const, label: 'A' }],
       }
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('edges'))).toBe(true)
+      expect(result.errors.some(e => e.includes('edges'))).toBe(true)
     })
 
     it('rejects non-array nodes', () => {
@@ -177,7 +157,7 @@ describe('GraphifySchema', () => {
     it('rejects non-array edges', () => {
       const graph = {
         nodes: [{ id: 'a', type: 'function' as const, label: 'A' }],
-        edges: 'not an array'
+        edges: 'not an array',
       }
       const result = validateGraphSchema(graph)
 
@@ -189,26 +169,24 @@ describe('GraphifySchema', () => {
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('at least one node'))).toBe(
-        true
-      )
+      expect(result.errors.some(e => e.includes('at least one node'))).toBe(true)
     })
 
     it('rejects node missing id', () => {
       const graph = {
         nodes: [{ type: 'function' as const, label: 'No ID' }],
-        edges: []
+        edges: [],
       }
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('id'))).toBe(true)
+      expect(result.errors.some(e => e.includes('id'))).toBe(true)
     })
 
     it('rejects node with empty id', () => {
       const graph = {
         nodes: [{ id: '', type: 'function' as const, label: 'Empty ID' }],
-        edges: []
+        edges: [],
       }
       const result = validateGraphSchema(graph)
 
@@ -218,45 +196,43 @@ describe('GraphifySchema', () => {
     it('rejects node with invalid id format', () => {
       const graph = {
         nodes: [{ id: '@@invalid@@', type: 'function' as const, label: 'Bad ID' }],
-        edges: []
+        edges: [],
       }
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('invalid ID format'))).toBe(
-        true
-      )
+      expect(result.errors.some(e => e.includes('invalid ID format'))).toBe(true)
     })
 
     it('rejects node with duplicate id', () => {
       const graph = {
         nodes: [
           { id: 'a', type: 'function' as const, label: 'A' },
-          { id: 'a', type: 'function' as const, label: 'A2' }
+          { id: 'a', type: 'function' as const, label: 'A2' },
         ],
-        edges: []
+        edges: [],
       }
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('duplicate'))).toBe(true)
+      expect(result.errors.some(e => e.includes('duplicate'))).toBe(true)
     })
 
     it('rejects node with invalid type', () => {
       const graph = {
         nodes: [{ id: 'a', type: 'invalid_type' as any, label: 'A' }],
-        edges: []
+        edges: [],
       }
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('invalid type'))).toBe(true)
+      expect(result.errors.some(e => e.includes('invalid type'))).toBe(true)
     })
 
     it('rejects node missing label', () => {
       const graph = {
         nodes: [{ id: 'a', type: 'function' as const }],
-        edges: []
+        edges: [],
       }
       const result = validateGraphSchema(graph)
 
@@ -267,9 +243,9 @@ describe('GraphifySchema', () => {
       const graph = {
         nodes: [
           { id: 'a', type: 'function' as const, label: 'A' },
-          { id: 'b', type: 'function' as const, label: 'B' }
+          { id: 'b', type: 'function' as const, label: 'B' },
         ],
-        edges: [{ target: 'b', type: 'calls' as const }]
+        edges: [{ target: 'b', type: 'calls' as const }],
       }
       const result = validateGraphSchema(graph)
 
@@ -280,9 +256,9 @@ describe('GraphifySchema', () => {
       const graph = {
         nodes: [
           { id: 'a', type: 'function' as const, label: 'A' },
-          { id: 'b', type: 'function' as const, label: 'B' }
+          { id: 'b', type: 'function' as const, label: 'B' },
         ],
-        edges: [{ source: 'a', type: 'calls' as const }]
+        edges: [{ source: 'a', type: 'calls' as const }],
       }
       const result = validateGraphSchema(graph)
 
@@ -293,9 +269,9 @@ describe('GraphifySchema', () => {
       const graph = {
         nodes: [
           { id: 'a', type: 'function' as const, label: 'A' },
-          { id: 'b', type: 'function' as const, label: 'B' }
+          { id: 'b', type: 'function' as const, label: 'B' },
         ],
-        edges: [{ source: 'a', target: 'b' }]
+        edges: [{ source: 'a', target: 'b' }],
       }
       const result = validateGraphSchema(graph)
 
@@ -306,9 +282,9 @@ describe('GraphifySchema', () => {
       const graph = {
         nodes: [
           { id: 'a', type: 'function' as const, label: 'A' },
-          { id: 'b', type: 'function' as const, label: 'B' }
+          { id: 'b', type: 'function' as const, label: 'B' },
         ],
-        edges: [{ source: 'a', target: 'b', type: 'invalid' as any }]
+        edges: [{ source: 'a', target: 'b', type: 'invalid' as any }],
       }
       const result = validateGraphSchema(graph)
 
@@ -319,32 +295,30 @@ describe('GraphifySchema', () => {
       const graph = {
         nodes: [
           { id: 'a', type: 'function' as const, label: 'A' },
-          { id: 'b', type: 'function' as const, label: 'B' }
+          { id: 'b', type: 'function' as const, label: 'B' },
         ],
-        edges: [
-          { source: 'a', target: 'b', type: 'calls' as const, weight: 1.5 }
-        ]
+        edges: [{ source: 'a', target: 'b', type: 'calls' as const, weight: 1.5 }],
       }
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.includes('weight'))).toBe(true)
+      expect(result.errors.some(e => e.includes('weight'))).toBe(true)
     })
 
     it('rejects non-boolean surprising', () => {
       const graph = {
         nodes: [
           { id: 'a', type: 'function' as const, label: 'A' },
-          { id: 'b', type: 'function' as const, label: 'B' }
+          { id: 'b', type: 'function' as const, label: 'B' },
         ],
         edges: [
           {
             source: 'a',
             target: 'b',
             type: 'calls' as const,
-            surprising: 'yes' as any
-          }
-        ]
+            surprising: 'yes' as any,
+          },
+        ],
       }
       const result = validateGraphSchema(graph)
 
@@ -358,7 +332,7 @@ describe('GraphifySchema', () => {
     it('warns about missing node reference in edge', () => {
       const graph = {
         nodes: [{ id: 'a', type: 'function' as const, label: 'A' }],
-        edges: [{ source: 'a', target: 'missing', type: 'calls' as const }]
+        edges: [{ source: 'a', target: 'missing', type: 'calls' as const }],
       }
       const result = validateGraphSchema(graph)
 
@@ -375,14 +349,14 @@ describe('GraphifySchema', () => {
           {
             id: 'comm-1',
             label: 'Test Community',
-            nodes: ['a', 'missing']
-          }
-        ]
+            nodes: ['a', 'missing'],
+          },
+        ],
       }
       const result = validateGraphSchema(graph)
 
       expect(result.valid).toBe(true)
-      expect(result.warnings.some((w) => w.includes('missing'))).toBe(true)
+      expect(result.warnings.some(w => w.includes('missing'))).toBe(true)
     })
   })
 
@@ -392,7 +366,7 @@ describe('GraphifySchema', () => {
     it('returns true for valid graph', () => {
       const graph: unknown = {
         nodes: [{ id: 'a', type: 'function' as const, label: 'A' }],
-        edges: []
+        edges: [],
       }
 
       expect(isValidGraphifyGraph(graph)).toBe(true)
@@ -412,7 +386,7 @@ describe('GraphifySchema', () => {
       const result = {
         valid: false,
         errors: ['Error 1', 'Error 2'],
-        warnings: ['Warning 1']
+        warnings: ['Warning 1'],
       }
 
       const formatted = formatValidationErrors(result)
@@ -428,7 +402,7 @@ describe('GraphifySchema', () => {
       const result = {
         valid: true,
         errors: [],
-        warnings: []
+        warnings: [],
       }
 
       const formatted = formatValidationErrors(result)

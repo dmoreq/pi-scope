@@ -1,7 +1,7 @@
 // tests/context/smart-dep-context.test.ts
-import { describe, it, expect } from 'vitest'
-import { SmartDependencyContextGenerator } from '../../context/smart-dep-context.js'
+import { describe, expect, it } from 'vitest'
 import type { GraphifyAnalysis } from '../../context/graph-types.js'
+import { SmartDependencyContextGenerator } from '../../context/smart-dep-context.js'
 import type { ContextInsights } from '../../shared/intelligence-types.js'
 
 describe('SmartDependencyContextGenerator', () => {
@@ -353,8 +353,7 @@ describe('SmartDependencyContextGenerator', () => {
         },
       }
 
-      const context =
-        generator.generateEnhancedDependencyContext(definitionInsights, mockGraphAnalysis)
+      const context = generator.generateEnhancedDependencyContext(definitionInsights, mockGraphAnalysis)
       expect(context).toContain('lsp_go_to_definition')
 
       const fileLocationInsights: ContextInsights = {
@@ -366,10 +365,7 @@ describe('SmartDependencyContextGenerator', () => {
         },
       }
 
-      const fileContext = generator.generateEnhancedDependencyContext(
-        fileLocationInsights,
-        mockGraphAnalysis,
-      )
+      const fileContext = generator.generateEnhancedDependencyContext(fileLocationInsights, mockGraphAnalysis)
       expect(fileContext).toContain('lsp_go_to_definition')
     })
 
@@ -435,9 +431,7 @@ describe('SmartDependencyContextGenerator', () => {
       const context = generator.generateEnhancedDependencyContext(insights, multiGodMockAnalysis)
 
       const lines = context.split('\n')
-      const symbolLines = lines.filter(
-        (line) => line.includes('(CRITICAL)') || line.includes('(NORMAL)'),
-      )
+      const symbolLines = lines.filter(line => line.includes('(CRITICAL)') || line.includes('(NORMAL)'))
 
       expect(symbolLines[0]).toContain('Client')
       expect(symbolLines[1]).toContain('HighPriority')

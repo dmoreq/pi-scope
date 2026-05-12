@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type {
   ContextInsights,
   ConversationContext,
@@ -287,7 +287,7 @@ describe('Intelligence Types', () => {
         toolUsageImprovements: 0,
       }
 
-      expect(Object.values(fresh).every((v) => v === 0)).toBe(true)
+      expect(Object.values(fresh).every(v => v === 0)).toBe(true)
     })
   })
 })

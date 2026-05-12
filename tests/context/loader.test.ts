@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { loadConfig } from '../../context/loader.js'
 import { SlimConfigSchema } from '../../context/schema.js'
 
@@ -35,7 +35,7 @@ describe('loadConfig', () => {
   it('reads project-local .pi/scope.jsonc', async () => {
     await writeProjectConfig(
       '.pi/scope.jsonc',
-      JSON.stringify({ maxRepoMapTokens: 6000, contextFiles: { enabled: false } }),
+      JSON.stringify({ maxRepoMapTokens: 6000, contextFiles: { enabled: false } })
     )
     const config = loadConfig(tmpDir)
     expect(config.maxRepoMapTokens).toBe(6000)
@@ -48,7 +48,7 @@ describe('loadConfig', () => {
   it('handles JSONC with comments and trailing commas', async () => {
     await writeProjectConfig(
       '.pi/scope.jsonc',
-      '{\n  // My config\n  "maxRepoMapTokens": 3000,\n  "exclude": ["**/vendor/**",],\n}',
+      '{\n  // My config\n  "maxRepoMapTokens": 3000,\n  "exclude": ["**/vendor/**",],\n}'
     )
     const config = loadConfig(tmpDir)
     expect(config.maxRepoMapTokens).toBe(3000)
@@ -58,7 +58,7 @@ describe('loadConfig', () => {
   it('applies CLI flag overrides on top of project config', async () => {
     await writeProjectConfig(
       '.pi/scope.jsonc',
-      JSON.stringify({ maxRepoMapTokens: 5000, contextFiles: { enabled: false } }),
+      JSON.stringify({ maxRepoMapTokens: 5000, contextFiles: { enabled: false } })
     )
     const config = loadConfig(tmpDir, {
       'slim.enabled': false,
@@ -72,10 +72,7 @@ describe('loadConfig', () => {
   })
 
   it('validates config and throws on invalid values', async () => {
-    await writeProjectConfig(
-      '.pi/scope.jsonc',
-      JSON.stringify({ maxRepoMapTokens: -1 }),
-    )
+    await writeProjectConfig('.pi/scope.jsonc', JSON.stringify({ maxRepoMapTokens: -1 }))
     expect(() => loadConfig(tmpDir)).toThrow()
   })
 
@@ -107,8 +104,6 @@ describe('SlimConfigSchema', () => {
   })
 
   it('rejects negative integers', () => {
-    expect(() =>
-      SlimConfigSchema.parse({ maxInjectionTokens: -100 }),
-    ).toThrow()
+    expect(() => SlimConfigSchema.parse({ maxInjectionTokens: -100 })).toThrow()
   })
 })

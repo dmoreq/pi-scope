@@ -1,5 +1,5 @@
 // tests/integration/enhanced-context.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionManager } from '../../manager.js'
 import type { ContextEvent } from '../../types.js'
 
@@ -11,28 +11,57 @@ describe('Enhanced Context Intelligence Integration', () => {
     mockGraphService = {
       analysis: {
         godNodes: [
-          { nodeId: 'Client', label: 'Client', inDegree: 26, outDegree: 5,
-            betweenness: 0, pageRank: 0.15, community: 'core', criticality: 'CRITICAL' }
+          {
+            nodeId: 'Client',
+            label: 'Client',
+            inDegree: 26,
+            outDegree: 5,
+            betweenness: 0,
+            pageRank: 0.15,
+            community: 'core',
+            criticality: 'CRITICAL',
+          },
         ],
         communities: [
-          { id: 'auth', label: 'Authentication', nodes: ['authenticate', 'User'],
-            size: 5, density: 0.8, cohesion: 0.9, internalDensity: 0.9, externalDensity: 0.1,
-            interfaceNodes: [], bottlenecks: [], metrics: { cohesion: 0.9 } }
+          {
+            id: 'auth',
+            label: 'Authentication',
+            nodes: ['authenticate', 'User'],
+            size: 5,
+            density: 0.8,
+            cohesion: 0.9,
+            internalDensity: 0.9,
+            externalDensity: 0.1,
+            interfaceNodes: [],
+            bottlenecks: [],
+            metrics: { cohesion: 0.9 },
+          },
         ],
-        surprises: [], bottlenecks: [], anomalies: [],
+        surprises: [],
+        bottlenecks: [],
+        anomalies: [],
         wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
-        metrics: { totalNodes: 100, totalEdges: 200, godNodeCount: 1, communityCount: 1,
-          averageDegree: 4, maxDegree: 26, graphDensity: 0.02, avgClusteringCoeff: 0.3,
-          cycleCount: 2, bottleneckCount: 1 },
+        metrics: {
+          totalNodes: 100,
+          totalEdges: 200,
+          godNodeCount: 1,
+          communityCount: 1,
+          averageDegree: 4,
+          maxDegree: 26,
+          graphDensity: 0.02,
+          avgClusteringCoeff: 0.3,
+          cycleCount: 2,
+          bottleneckCount: 1,
+        },
         computedAt: Date.now(),
-        version: '1.0.0'
+        version: '1.0.0',
       },
       loadGraphifyAnalysis: vi.fn().mockResolvedValue(null),
-      updateGraph: vi.fn().mockResolvedValue(undefined)
+      updateGraph: vi.fn().mockResolvedValue(undefined),
     }
 
     manager = new SessionManager()
-    manager['graphService'] = mockGraphService
+    manager.graphService = mockGraphService
     await manager.start()
   })
 
@@ -40,10 +69,10 @@ describe('Enhanced Context Intelligence Integration', () => {
     const event: ContextEvent = {
       messages: [
         { role: 'user', content: 'edit the Client class constructor' },
-        { role: 'assistant', content: 'I need to modify the Client class' }
+        { role: 'assistant', content: 'I need to modify the Client class' },
       ],
       files: [],
-      symbols: []
+      symbols: [],
     }
 
     const response = await manager.handleContext(event)
@@ -56,11 +85,9 @@ describe('Enhanced Context Intelligence Integration', () => {
 
   it('should integrate pattern detection with dependency context', async () => {
     const event: ContextEvent = {
-      messages: [
-        { role: 'user', content: 'where is the authenticate function defined?' }
-      ],
+      messages: [{ role: 'user', content: 'where is the authenticate function defined?' }],
       files: [],
-      symbols: []
+      symbols: [],
     }
 
     const response = await manager.handleContext(event)
@@ -73,7 +100,7 @@ describe('Enhanced Context Intelligence Integration', () => {
     const event: ContextEvent = {
       messages: [],
       files: [],
-      symbols: []
+      symbols: [],
     }
 
     const response = await manager.handleContext(event)
@@ -92,23 +119,46 @@ describe('Enhanced Context Intelligence Integration - Extended', () => {
       analysis: {
         godNodes: [
           {
-            nodeId: 'Client', label: 'Client', inDegree: 26, outDegree: 5,
-            betweenness: 0, pageRank: 0.15, community: 'core', criticality: 'CRITICAL',
+            nodeId: 'Client',
+            label: 'Client',
+            inDegree: 26,
+            outDegree: 5,
+            betweenness: 0,
+            pageRank: 0.15,
+            community: 'core',
+            criticality: 'CRITICAL',
           },
         ],
         communities: [
           {
-            id: 'auth', label: 'Authentication', nodes: ['authenticate', 'User'],
-            size: 5, density: 0.8, cohesion: 0.9, internalDensity: 0.9, externalDensity: 0.1,
-            interfaceNodes: [], bottlenecks: [], metrics: { cohesion: 0.9 },
+            id: 'auth',
+            label: 'Authentication',
+            nodes: ['authenticate', 'User'],
+            size: 5,
+            density: 0.8,
+            cohesion: 0.9,
+            internalDensity: 0.9,
+            externalDensity: 0.1,
+            interfaceNodes: [],
+            bottlenecks: [],
+            metrics: { cohesion: 0.9 },
           },
         ],
-        surprises: [], bottlenecks: [], anomalies: [],
+        surprises: [],
+        bottlenecks: [],
+        anomalies: [],
         wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
         metrics: {
-          totalNodes: 100, totalEdges: 200, godNodeCount: 1, communityCount: 1,
-          averageDegree: 4, maxDegree: 26, graphDensity: 0.02, avgClusteringCoeff: 0.3,
-          cycleCount: 2, bottleneckCount: 1,
+          totalNodes: 100,
+          totalEdges: 200,
+          godNodeCount: 1,
+          communityCount: 1,
+          averageDegree: 4,
+          maxDegree: 26,
+          graphDensity: 0.02,
+          avgClusteringCoeff: 0.3,
+          cycleCount: 2,
+          bottleneckCount: 1,
         },
         computedAt: Date.now(),
         version: '1.0.0',
@@ -118,7 +168,7 @@ describe('Enhanced Context Intelligence Integration - Extended', () => {
     }
 
     manager = new SessionManager()
-    manager['graphService'] = mockGraphService
+    manager.graphService = mockGraphService
     await manager.start()
   })
 
@@ -168,7 +218,7 @@ describe('Enhanced Context Intelligence Integration - Extended', () => {
   })
 
   it('should analyze the conversation exactly once per before_agent_start', async () => {
-    const analyzeSpy = vi.spyOn(manager['intelligenceEngine'], 'analyzeConversationContext')
+    const analyzeSpy = vi.spyOn(manager.intelligenceEngine, 'analyzeConversationContext')
 
     const s = manager.state!
     s.repoMap = '<repo-map>\nstub\n</repo-map>'
@@ -184,7 +234,7 @@ describe('Enhanced Context Intelligence Integration - Extended', () => {
         hasUI: false,
         getSystemPrompt: () => '',
         sessionManager: { getSessionId: () => 'once' },
-      },
+      }
     )
 
     expect(analyzeSpy).toHaveBeenCalledTimes(1)

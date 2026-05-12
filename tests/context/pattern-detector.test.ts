@@ -1,5 +1,5 @@
 // tests/context/pattern-detector.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { AgentPatternDetector } from '../../context/pattern-detector.js'
 import type { AgentMessage } from '../../shared/agent-message.js'
 
@@ -10,7 +10,7 @@ describe('AgentPatternDetector', () => {
     it('should detect editing intent from messages', () => {
       const messages: AgentMessage[] = [
         { role: 'user', content: 'edit the authenticate function' },
-        { role: 'assistant', content: 'I need to modify the authentication logic' }
+        { role: 'assistant', content: 'I need to modify the authentication logic' },
       ]
 
       const context = detector.detectEditingIntent(messages)
@@ -20,9 +20,7 @@ describe('AgentPatternDetector', () => {
     })
 
     it('should detect file paths and hash annotations', () => {
-      const messages: AgentMessage[] = [
-        { role: 'user', content: 'edit src/auth.ts using hashline 1tz' }
-      ]
+      const messages: AgentMessage[] = [{ role: 'user', content: 'edit src/auth.ts using hashline 1tz' }]
       const context = detector.detectEditingIntent(messages)
       expect(context.targetFiles).toContain('src/auth.ts')
       expect(context.hasHashAnnotations).toBe(true)
@@ -32,8 +30,8 @@ describe('AgentPatternDetector', () => {
       const messages: AgentMessage[] = [
         {
           role: 'user',
-          content: 'modify user_settings, ClientHandler, and getUserProfile'
-        }
+          content: 'modify user_settings, ClientHandler, and getUserProfile',
+        },
       ]
       const context = detector.detectEditingIntent(messages)
       expect(context.targetSymbols).toContain('user_settings')
@@ -46,7 +44,7 @@ describe('AgentPatternDetector', () => {
     it('should detect navigation requests', () => {
       const messages: AgentMessage[] = [
         { role: 'user', content: 'where is the Client class defined?' },
-        { role: 'assistant', content: 'Let me find the Client class for you' }
+        { role: 'assistant', content: 'Let me find the Client class for you' },
       ]
 
       const context = detector.detectNavigationRequests(messages)
@@ -57,18 +55,14 @@ describe('AgentPatternDetector', () => {
     })
 
     it('should detect references requests', () => {
-      const messages: AgentMessage[] = [
-        { role: 'user', content: 'show me references to the User interface' }
-      ]
+      const messages: AgentMessage[] = [{ role: 'user', content: 'show me references to the User interface' }]
       const context = detector.detectNavigationRequests(messages)
       expect(context.requestType).toBe('references')
       expect(context.requestedSymbols).toContain('User')
     })
 
     it('should detect file location requests', () => {
-      const messages: AgentMessage[] = [
-        { role: 'user', content: 'which file contains the auth logic?' }
-      ]
+      const messages: AgentMessage[] = [{ role: 'user', content: 'which file contains the auth logic?' }]
       const context = detector.detectNavigationRequests(messages)
       expect(context.requestType).toBe('file_location')
     })
@@ -78,7 +72,7 @@ describe('AgentPatternDetector', () => {
     it('should detect suboptimal tool usage patterns', () => {
       const messages: AgentMessage[] = [
         { role: 'assistant', content: 'I need to read the file first' },
-        { role: 'assistant', content: 'Using StrReplace to edit the function' }
+        { role: 'assistant', content: 'Using StrReplace to edit the function' },
       ]
 
       const issues = detector.detectSuboptimalToolUsage(messages)
@@ -92,8 +86,8 @@ describe('AgentPatternDetector', () => {
       const messages: AgentMessage[] = [
         {
           role: 'assistant',
-          content: 'Where is the Client class located?'
-        }
+          content: 'Where is the Client class located?',
+        },
       ]
       const issues = detector.detectSuboptimalToolUsage(messages)
       expect(issues).toHaveLength(1)
@@ -104,7 +98,7 @@ describe('AgentPatternDetector', () => {
     it('should detect missing impact analysis', () => {
       const messages: AgentMessage[] = [
         { role: 'assistant', content: 'I will modify this god node' },
-        { role: 'assistant', content: 'Making the change now' }
+        { role: 'assistant', content: 'Making the change now' },
       ]
       const issues = detector.detectSuboptimalToolUsage(messages)
       expect(issues).toHaveLength(1)
@@ -114,9 +108,7 @@ describe('AgentPatternDetector', () => {
 
   describe('edge cases and negative tests', () => {
     it('should return false for non-editing content', () => {
-      const messages: AgentMessage[] = [
-        { role: 'user', content: 'what is the weather today?' }
-      ]
+      const messages: AgentMessage[] = [{ role: 'user', content: 'what is the weather today?' }]
       const context = detector.detectEditingIntent(messages)
       expect(context.detected).toBe(false)
     })
@@ -131,7 +123,7 @@ describe('AgentPatternDetector', () => {
     it('should detect multiple optimization suggestions', () => {
       const messages: AgentMessage[] = [
         { role: 'assistant', content: 'I will use StrReplace to edit' },
-        { role: 'assistant', content: 'Where is the config file located?' }
+        { role: 'assistant', content: 'Where is the config file located?' },
       ]
       const issues = detector.detectSuboptimalToolUsage(messages)
       expect(issues.length).toBeGreaterThan(1)
@@ -141,31 +133,24 @@ describe('AgentPatternDetector', () => {
       const messages: AgentMessage[] = [
         {
           role: 'user',
-          content: 'find where User is defined and show references'
-        }
+          content: 'find where User is defined and show references',
+        },
       ]
       const context = detector.detectNavigationRequests(messages)
       expect(context.requestType).toBe('definition')
     })
 
     it('should not treat vague tell-me phrasing as manual file lookup', () => {
-      const messages: AgentMessage[] = [
-        { role: 'assistant', content: 'Can you tell me a story about the repo?' }
-      ]
+      const messages: AgentMessage[] = [{ role: 'assistant', content: 'Can you tell me a story about the repo?' }]
       const issues = detector.detectSuboptimalToolUsage(messages)
       expect(issues).toHaveLength(0)
     })
 
-    it.each(['critical symbol', 'high-impact symbol'])(
-      'should flag `%s` without impact analysis',
-      (phrase) => {
-        const messages: AgentMessage[] = [
-          { role: 'assistant', content: `Refactoring this ${phrase} next` }
-        ]
-        const issues = detector.detectSuboptimalToolUsage(messages)
-        expect(issues).toHaveLength(1)
-        expect(issues[0].pattern).toBe('missing_impact_analysis')
-      }
-    )
+    it.each(['critical symbol', 'high-impact symbol'])('should flag `%s` without impact analysis', phrase => {
+      const messages: AgentMessage[] = [{ role: 'assistant', content: `Refactoring this ${phrase} next` }]
+      const issues = detector.detectSuboptimalToolUsage(messages)
+      expect(issues).toHaveLength(1)
+      expect(issues[0].pattern).toBe('missing_impact_analysis')
+    })
   })
 })

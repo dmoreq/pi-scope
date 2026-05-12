@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PathUtils } from '../../../shared/utils/path-utils.js'
 
 vi.mock('node:fs', () => ({

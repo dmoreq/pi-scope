@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { GraphifyAnalysis, GodNode } from '../context/graph-types.js'
+import type { GodNode, GraphifyAnalysis } from '../context/graph-types.js'
 import { ContextIntelligenceEngine } from '../context/intelligence-engine.js'
 import type { ExtensionContext } from '../manager.js'
 import { SessionManager, buildRepoMapSource, formatGraphInsightsSection } from '../manager.js'
@@ -34,10 +34,9 @@ describe('SessionManager Intelligence Integration', () => {
   })
 
   it('should initialize intelligence engine on creation', () => {
-    expect(
-      (manager as unknown as { intelligenceEngine: ContextIntelligenceEngine })
-        .intelligenceEngine,
-    ).toBeInstanceOf(ContextIntelligenceEngine)
+    expect((manager as unknown as { intelligenceEngine: ContextIntelligenceEngine }).intelligenceEngine).toBeInstanceOf(
+      ContextIntelligenceEngine
+    )
   })
 
   it('should analyze conversation context with messages', async () => {
@@ -113,7 +112,6 @@ describe('SessionManager Intelligence Integration - Error Handling', () => {
   })
 
   it('should handle graph resolution failures gracefully', async () => {
-
     const messages = [{ role: 'user', content: 'edit function' }]
     manager.addMessages(messages)
 
@@ -145,9 +143,7 @@ describe('SessionManager Intelligence Integration - Error Handling', () => {
 
     manager.addMessages(messages)
 
-    expect(
-      (manager as unknown as { conversationMessages: unknown[] }).conversationMessages.length,
-    ).toBe(100)
+    expect((manager as unknown as { conversationMessages: unknown[] }).conversationMessages.length).toBe(100)
   })
 
   it('analyzeCurrentContext falls back when primary analysis throws', async () => {
@@ -187,9 +183,16 @@ function makeAnalysis(overrides?: Partial<GraphifyAnalysis>): GraphifyAnalysis {
     anomalies: [],
     wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
     metrics: {
-      totalNodes: 5, totalEdges: 8, godNodeCount: 1, communityCount: 2,
-      averageDegree: 3, maxDegree: 5, graphDensity: 0.4, avgClusteringCoeff: 0.3,
-      cycleCount: 1, bottleneckCount: 0,
+      totalNodes: 5,
+      totalEdges: 8,
+      godNodeCount: 1,
+      communityCount: 2,
+      averageDegree: 3,
+      maxDegree: 5,
+      graphDensity: 0.4,
+      avgClusteringCoeff: 0.3,
+      cycleCount: 1,
+      bottleneckCount: 0,
     },
     computedAt: Date.now(),
     version: '1',
@@ -198,7 +201,13 @@ function makeAnalysis(overrides?: Partial<GraphifyAnalysis>): GraphifyAnalysis {
 }
 
 const mockInsights: ContextInsights = {
-  editingIntent: { detected: false, targetSymbols: [], targetFiles: [], hasHashAnnotations: false, affectedGodNodes: [] },
+  editingIntent: {
+    detected: false,
+    targetSymbols: [],
+    targetFiles: [],
+    hasHashAnnotations: false,
+    affectedGodNodes: [],
+  },
   navigationRequests: { detected: false, requestedSymbols: [], requestType: 'none' as const },
   suboptimalPatterns: [],
   conversationContext: { recentMessages: 0, codebaseRelevant: false, mentionedCommunities: [], mentionedFiles: [] },
@@ -246,8 +255,14 @@ describe('formatGraphInsightsSection', () => {
 
   it('includes god node labels when present', () => {
     const godNode: GodNode = {
-      nodeId: 'svc', label: 'MyService', criticality: 'CRITICAL',
-      inDegree: 12, outDegree: 3, betweenness: 0.7, pageRank: 0.9, community: 'core',
+      nodeId: 'svc',
+      label: 'MyService',
+      criticality: 'CRITICAL',
+      inDegree: 12,
+      outDegree: 3,
+      betweenness: 0.7,
+      pageRank: 0.9,
+      community: 'core',
     }
     const result = formatGraphInsightsSection(makeAnalysis({ godNodes: [godNode] }))
     expect(result).toContain('MyService')

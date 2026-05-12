@@ -1,12 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { buildCostEstimate } from '../../metrics/cost-estimator.js'
 
 describe('buildCostEstimate', () => {
   it('computes correct savings ratio', () => {
-    const result = buildCostEstimate([
-      { skeletonTokens: 10, fullTokens: 100 },
-      { skeletonTokens: 20, fullTokens: 200 },
-    ], 2)
+    const result = buildCostEstimate(
+      [
+        { skeletonTokens: 10, fullTokens: 100 },
+        { skeletonTokens: 20, fullTokens: 200 },
+      ],
+      2
+    )
     expect(result.skeletonTokens).toBe(30)
     expect(result.fullFileTokens).toBe(300)
     expect(result.savingsRatio).toBeCloseTo(0.9, 2) // 90% saved
@@ -14,9 +17,7 @@ describe('buildCostEstimate', () => {
   })
 
   it('returns 0 savings when skeleton equals full', () => {
-    const result = buildCostEstimate([
-      { skeletonTokens: 50, fullTokens: 50 },
-    ], 0)
+    const result = buildCostEstimate([{ skeletonTokens: 50, fullTokens: 50 }], 0)
     expect(result.savingsRatio).toBe(0)
   })
 

@@ -2,15 +2,15 @@
  * Tests for Surprising Connection Detection
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
+  categorizeSurprises,
+  computeSurpriseStats,
   detectSurprisingConnections,
   filterHighImpactSurprises,
-  categorizeSurprises,
   getSurpriseNodes,
+  getSurpriseRecommendation,
   getTopSurprises,
-  computeSurpriseStats,
-  getSurpriseRecommendation
 } from '../../algorithms/surprising-connections'
 import type { GraphifyGraph, SurprisingConnection } from '../../context/graph-types'
 
@@ -24,18 +24,16 @@ describe('SurprisingConnections', () => {
           { id: 'auth:module', type: 'module', label: 'Auth' },
           { id: 'auth:func', type: 'function', label: 'AuthFunc' },
           { id: 'db:module', type: 'module', label: 'DB' },
-          { id: 'db:func', type: 'function', label: 'DBFunc' }
+          { id: 'db:func', type: 'function', label: 'DBFunc' },
         ],
-        edges: [
-          { source: 'auth:module', target: 'db:module', type: 'calls' }
-        ]
+        edges: [{ source: 'auth:module', target: 'db:module', type: 'calls' }],
       }
 
       const communities = new Map([
         ['auth:module', 'auth-community'],
         ['auth:func', 'auth-community'],
         ['db:module', 'db-community'],
-        ['db:func', 'db-community']
+        ['db:func', 'db-community'],
       ])
 
       const surprises = detectSurprisingConnections(graph, communities)
@@ -49,14 +47,14 @@ describe('SurprisingConnections', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
-        edges: [{ source: 'a', target: 'b', type: 'calls' }]
+        edges: [{ source: 'a', target: 'b', type: 'calls' }],
       }
 
       const communities = new Map([
         ['a', 'module-a'],
-        ['b', 'module-a']
+        ['b', 'module-a'],
       ])
 
       const surprises = detectSurprisingConnections(graph, communities)
@@ -72,11 +70,9 @@ describe('SurprisingConnections', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'src/auth.ts', type: 'module', label: 'Auth' },
-          { id: 'src/legacy/login.ts', type: 'module', label: 'Legacy Login' }
+          { id: 'src/legacy/login.ts', type: 'module', label: 'Legacy Login' },
         ],
-        edges: [
-          { source: 'src/auth.ts', target: 'src/legacy/login.ts', type: 'imports' }
-        ]
+        edges: [{ source: 'src/auth.ts', target: 'src/legacy/login.ts', type: 'imports' }],
       }
 
       const surprises = detectSurprisingConnections(graph)
@@ -90,9 +86,9 @@ describe('SurprisingConnections', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'legacy/v1', type: 'module', label: 'Legacy V1' },
-          { id: 'legacy/v2', type: 'module', label: 'Legacy V2' }
+          { id: 'legacy/v2', type: 'module', label: 'Legacy V2' },
         ],
-        edges: [{ source: 'legacy/v1', target: 'legacy/v2', type: 'imports' }]
+        edges: [{ source: 'legacy/v1', target: 'legacy/v2', type: 'imports' }],
       }
 
       const surprises = detectSurprisingConnections(graph)
@@ -108,20 +104,20 @@ describe('SurprisingConnections', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'a', type: 'calls' }
-        ]
+          { source: 'b', target: 'a', type: 'calls' },
+        ],
       }
 
       const cycles = new Set(['a→b', 'b→a'])
 
       const surprises = detectSurprisingConnections(graph, undefined, cycles)
 
-      expect(surprises.filter((s) => s.reason === 'circular')).toHaveLength(2)
-      expect(surprises[0].confidence).toBe(1.0)  // Highest confidence
+      expect(surprises.filter(s => s.reason === 'circular')).toHaveLength(2)
+      expect(surprises[0].confidence).toBe(1.0) // Highest confidence
     })
   })
 
@@ -134,14 +130,14 @@ describe('SurprisingConnections', () => {
           source: 'a',
           target: 'b',
           reason: 'circular',
-          confidence: 1.0
+          confidence: 1.0,
         },
         {
           source: 'c',
           target: 'd',
           reason: 'unexpected',
-          confidence: 0.4
-        }
+          confidence: 0.4,
+        },
       ]
 
       const filtered = filterHighImpactSurprises(surprises, 0.7)
@@ -156,14 +152,14 @@ describe('SurprisingConnections', () => {
           source: 'a',
           target: 'b',
           reason: 'unexpected',
-          confidence: 0.9
+          confidence: 0.9,
         },
         {
           source: 'c',
           target: 'd',
           reason: 'circular',
-          confidence: 0.7
-        }
+          confidence: 0.7,
+        },
       ]
 
       const filtered = filterHighImpactSurprises(surprises, 0.7)
@@ -181,7 +177,7 @@ describe('SurprisingConnections', () => {
       const surprises: SurprisingConnection[] = [
         { source: 'a', target: 'b', reason: 'circular', confidence: 1.0 },
         { source: 'c', target: 'd', reason: 'legacy', confidence: 0.9 },
-        { source: 'e', target: 'f', reason: 'unexpected', confidence: 0.5 }
+        { source: 'e', target: 'f', reason: 'unexpected', confidence: 0.5 },
       ]
 
       const categories = categorizeSurprises(surprises)
@@ -200,7 +196,7 @@ describe('SurprisingConnections', () => {
       const surprises: SurprisingConnection[] = [
         { source: 'a', target: 'b', reason: 'circular', confidence: 1.0 },
         { source: 'b', target: 'c', reason: 'circular', confidence: 1.0 },
-        { source: 'c', target: 'a', reason: 'circular', confidence: 1.0 }
+        { source: 'c', target: 'a', reason: 'circular', confidence: 1.0 },
       ]
 
       const nodes = getSurpriseNodes(surprises)
@@ -214,7 +210,7 @@ describe('SurprisingConnections', () => {
     it('handles duplicates', () => {
       const surprises: SurprisingConnection[] = [
         { source: 'a', target: 'b', reason: 'circular', confidence: 1.0 },
-        { source: 'a', target: 'c', reason: 'circular', confidence: 1.0 }
+        { source: 'a', target: 'c', reason: 'circular', confidence: 1.0 },
       ]
 
       const nodes = getSurpriseNodes(surprises)
@@ -230,7 +226,7 @@ describe('SurprisingConnections', () => {
       const surprises: SurprisingConnection[] = [
         { source: 'a', target: 'b', reason: 'circular', confidence: 0.5 },
         { source: 'c', target: 'd', reason: 'legacy', confidence: 0.9 },
-        { source: 'e', target: 'f', reason: 'circular', confidence: 0.7 }
+        { source: 'e', target: 'f', reason: 'circular', confidence: 0.7 },
       ]
 
       const top2 = getTopSurprises(surprises, 2)
@@ -245,7 +241,7 @@ describe('SurprisingConnections', () => {
         source: `a${i}`,
         target: `b${i}`,
         reason: 'circular' as const,
-        confidence: Math.random()
+        confidence: Math.random(),
       }))
 
       const top5 = getTopSurprises(surprises, 5)
@@ -261,7 +257,7 @@ describe('SurprisingConnections', () => {
       const surprises: SurprisingConnection[] = [
         { source: 'a', target: 'b', reason: 'circular', confidence: 1.0 },
         { source: 'c', target: 'd', reason: 'legacy', confidence: 0.8 },
-        { source: 'e', target: 'f', reason: 'circular', confidence: 0.6 }
+        { source: 'e', target: 'f', reason: 'circular', confidence: 0.6 },
       ]
 
       const stats = computeSurpriseStats(surprises)
@@ -291,7 +287,7 @@ describe('SurprisingConnections', () => {
         source: 'a',
         target: 'b',
         reason: 'circular',
-        confidence: 1.0
+        confidence: 1.0,
       }
 
       const rec = getSurpriseRecommendation(surprise)
@@ -306,7 +302,7 @@ describe('SurprisingConnections', () => {
         source: 'modern',
         target: 'legacy',
         reason: 'legacy',
-        confidence: 0.9
+        confidence: 0.9,
       }
 
       const rec = getSurpriseRecommendation(surprise)
@@ -320,7 +316,7 @@ describe('SurprisingConnections', () => {
         source: 'auth',
         target: 'db',
         reason: 'cross-community',
-        confidence: 0.7
+        confidence: 0.7,
       }
 
       const rec = getSurpriseRecommendation(surprise)
@@ -338,24 +334,24 @@ describe('SurprisingConnections', () => {
         nodes: [
           { id: 'auth', type: 'module', label: 'Auth' },
           { id: 'db', type: 'module', label: 'DB' },
-          { id: 'legacy/old', type: 'module', label: 'Legacy' }
+          { id: 'legacy/old', type: 'module', label: 'Legacy' },
         ],
         edges: [
           { source: 'auth', target: 'db', type: 'calls' },
-          { source: 'auth', target: 'legacy/old', type: 'imports' }
-        ]
+          { source: 'auth', target: 'legacy/old', type: 'imports' },
+        ],
       }
 
       const communities = new Map([
         ['auth', 'auth-comm'],
         ['db', 'db-comm'],
-        ['legacy/old', 'legacy-comm']
+        ['legacy/old', 'legacy-comm'],
       ])
 
       const surprises = detectSurprisingConnections(graph, communities)
 
       // Should detect cross-community (first edge) and/or legacy (second edge with legacy target)
-      const reasons = surprises.map((s) => s.reason)
+      const reasons = surprises.map(s => s.reason)
       expect(reasons.length).toBeGreaterThan(0)
       // Check if we detected cross-community relationship
       expect(reasons).toContain('cross-community')

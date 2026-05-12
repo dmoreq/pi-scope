@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
 import { ContextInjector } from '../../context/dep-context.js'
 import { RetrievalEngine } from '../../context/retrieval.js'
 import type { RepoIndex } from '../../shared/types.js'
@@ -23,9 +23,7 @@ function makeIndex(overrides: Partial<RepoIndex> = {}): RepoIndex {
       [BAR, new Set()],
       [BAZ, new Set()],
     ]),
-    reverseDeps: new Map([
-      [BAR, new Set([FOO])],
-    ]),
+    reverseDeps: new Map([[BAR, new Set([FOO])]]),
     symbolIndex: new Map([
       ['foo', [FOO]],
       ['bar', [BAR]],

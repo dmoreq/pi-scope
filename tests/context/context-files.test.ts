@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
-  loadContextFiles,
+  buildStartupNotification,
   formatContextSection,
   formatDisplayPath,
-  buildStartupNotification,
+  loadContextFiles,
 } from '../../context/context-files.js'
 
 let tmpDir: string
@@ -67,10 +67,9 @@ describe('loadContextFiles', () => {
 
 describe('formatContextSection', () => {
   it('formats a single file into a section', () => {
-    const result = formatContextSection(
-      [{ path: '/project/AGENTS.local.md', content: 'Use tabs.' }],
-      { sectionTitle: 'Extra Context Files' },
-    )
+    const result = formatContextSection([{ path: '/project/AGENTS.local.md', content: 'Use tabs.' }], {
+      sectionTitle: 'Extra Context Files',
+    })
     expect(result).toContain('# Extra Context Files')
     expect(result).toContain('## /project/AGENTS.local.md')
     expect(result).toContain('Use tabs.')
@@ -107,10 +106,7 @@ describe('formatDisplayPath', () => {
 
 describe('buildStartupNotification', () => {
   it('builds notification message with file paths', () => {
-    const result = buildStartupNotification(
-      [{ path: '/project/AGENTS.local.md', content: 'rules' }],
-      '/project',
-    )
+    const result = buildStartupNotification([{ path: '/project/AGENTS.local.md', content: 'rules' }], '/project')
     expect(result).toContain('1 file(s)')
     expect(result).toContain('AGENTS.local.md')
   })

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('pi-telemetry', () => ({
   getTelemetry: vi.fn(() => ({
@@ -8,12 +8,12 @@ vi.mock('pi-telemetry', () => ({
   })),
   default: vi.fn(),
 }))
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { SessionManager } from '../../manager.js'
-import type { ExtensionContext, BeforeAgentStartEvent, ContextEvent } from '../../manager.js'
+import { join } from 'node:path'
 import { produceDefaults } from '../../context/schema.js'
+import { SessionManager } from '../../manager.js'
+import type { BeforeAgentStartEvent, ContextEvent, ExtensionContext } from '../../manager.js'
 
 const DEFAULT_CONFIG = produceDefaults()
 
@@ -44,14 +44,14 @@ beforeEach(async () => {
   tmpDir = await mkdtemp(join(tmpdir(), 'pi-integration-test-'))
   mockContext = {
     cwd: tmpDir,
-    ui: { 
+    ui: {
       notify: () => {},
-      setStatus: () => {}
+      setStatus: () => {},
     },
     hasUI: true,
     getSystemPrompt: () => '',
     sessionManager: { getSessionId: () => 'test-session' },
-    model: { provider: 'anthropic', id: 'claude-3-sonnet' }
+    model: { provider: 'anthropic', id: 'claude-3-sonnet' },
   }
 })
 
@@ -68,7 +68,9 @@ async function writeFixture(rel: string, content: string): Promise<void> {
 describe('SessionManager Integration', () => {
   it('handles complete session lifecycle with context injection', async () => {
     // Setup: Create test files
-    await writeFixture('src/auth.ts', `
+    await writeFixture(
+      'src/auth.ts',
+      `
 export function authenticate(token: string): boolean {
   return token.length > 0
 }
@@ -76,20 +78,27 @@ export function authenticate(token: string): boolean {
 export class User {
   constructor(public name: string) {}
 }
-`)
-    
-    await writeFixture('src/server.ts', `
+`
+    )
+
+    await writeFixture(
+      'src/server.ts',
+      `
 import { authenticate, User } from './auth'
 
 export function startServer(port: number) {
   console.log(\`Starting server on port \${port}\`)
 }
-`)
+`
+    )
 
-    await writeFixture('package.json', JSON.stringify({
-      name: 'test-project',
-      type: 'module'
-    }))
+    await writeFixture(
+      'package.json',
+      JSON.stringify({
+        name: 'test-project',
+        type: 'module',
+      })
+    )
 
     const manager = new SessionManager()
 
@@ -106,7 +115,7 @@ export function startServer(port: number) {
     const beforeAgentEvent: BeforeAgentStartEvent = {
       type: 'before_agent_start',
       systemPrompt: 'You are a coding assistant.',
-      prompt: 'Hello'
+      prompt: 'Hello',
     }
 
     const systemResult = await manager.handleBeforeAgentStart(beforeAgentEvent, mockContext)
@@ -121,31 +130,25 @@ export function startServer(port: number) {
       type: 'context',
       messages: [
         { role: 'user', content: 'I need to modify the authenticate function in auth.ts' },
-        { role: 'assistant', content: 'I can help you modify the authenticate function.' }
-      ]
+        { role: 'assistant', content: 'I can help you modify the authenticate function.' },
+      ],
     }
 
     const contextResult = await manager.handleContext(contextEvent, mockContext)
     expect(contextResult).toBeDefined()
-    
+
     // Should find and inject relevant context
-    const hasAuthContext = contextEvent.messages.some(msg => 
-      typeof msg.content === 'string' && msg.content.includes('<dep-context>')
+    const _hasAuthContext = contextEvent.messages.some(
+      msg => typeof msg.content === 'string' && msg.content.includes('<dep-context>')
     )
     // Note: The actual injection might modify the original messages
-    
+
     // 4. Tool call (should trigger read awareness)
-    const toolCallResult = manager.handleToolCall(
-      { toolName: 'read', input: { path: 'src/auth.ts' } },
-      mockContext
-    )
+    const toolCallResult = manager.handleToolCall({ toolName: 'read', input: { path: 'src/auth.ts' } }, mockContext)
     // Should allow the read
     expect(toolCallResult).toBeUndefined() // undefined means allowed
 
-    const editCallResult = manager.handleToolCall(
-      { toolName: 'edit', input: { path: 'src/auth.ts' } },
-      mockContext
-    )
+    const editCallResult = manager.handleToolCall({ toolName: 'edit', input: { path: 'src/auth.ts' } }, mockContext)
     // Should allow edit after read
     expect(editCallResult).toBeUndefined()
 
@@ -162,28 +165,31 @@ export function startServer(port: number) {
 
   it('handles plugin errors gracefully', async () => {
     await writeFixture('src/test.ts', 'export const test = 1')
-    
+
     const manager = new SessionManager()
-    
+
     // Start session
     await manager.start(tmpDir, configFlag, mockContext)
-    
+
     // Test malformed tool call
     const result = manager.handleToolCall(
       { toolName: 'read', input: null }, // Invalid input
       mockContext
     )
-    
+
     // Should not crash
     expect(result).toBeUndefined()
   })
 
   it('preserves symbol index across store/load cycles', async () => {
     // Create files with exports
-    await writeFixture('src/utils.ts', `
+    await writeFixture(
+      'src/utils.ts',
+      `
 export function helper() { return 'test' }
 export function otherHelper() { return 42 }
-`)
+`
+    )
 
     const manager1 = new SessionManager()
     await manager1.start(tmpDir, configFlag, mockContext)
@@ -209,10 +215,10 @@ export function otherHelper() { return 42 }
 
   it('handles context pruning correctly', async () => {
     await writeFixture('src/test.ts', 'export const test = 1')
-    
+
     const manager = new SessionManager()
     await manager.start(tmpDir, configFlag, mockContext)
-    
+
     // Create messages with duplicates that should be pruned
     const contextEvent: ContextEvent = {
       type: 'context',
@@ -222,12 +228,12 @@ export function otherHelper() { return 42 }
         { role: 'user', content: 'Hello' }, // Duplicate
         { role: 'assistant', content: 'Hi there!' }, // Duplicate
         { role: 'user', content: 'How are you?' }, // Different
-      ]
+      ],
     }
 
-    const originalLength = contextEvent.messages.length
+    const _originalLength = contextEvent.messages.length
     await manager.handleContext(contextEvent, mockContext)
-    
+
     // Messages should be pruned (though the exact pruning logic depends on the plugin)
     // At minimum, the call should succeed without error
     expect(contextEvent.messages).toBeDefined()

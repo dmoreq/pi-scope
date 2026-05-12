@@ -2,19 +2,11 @@
  * Tests for LSP Hover Enhancement with Graph Metrics
  */
 
-import { describe, it, expect } from 'vitest'
-import {
-  enhanceHoverWithGraphMetrics,
-  formatHoverAsMarkdown,
-  getNodeRoleSummary
-} from '../../context/graph-lsp-hover'
+import { describe, expect, it } from 'vitest'
+import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown, getNodeRoleSummary } from '../../context/graph-lsp-hover'
 import type { GraphifyAnalysis } from '../../context/graph-types'
 
-const createMockAnalysis = (
-  godNodes: any[] = [],
-  communities: any[] = [],
-  surprises: any[] = []
-): GraphifyAnalysis => {
+const createMockAnalysis = (godNodes: any[] = [], communities: any[] = [], surprises: any[] = []): GraphifyAnalysis => {
   return {
     graph: {
       nodes: [
@@ -22,49 +14,55 @@ const createMockAnalysis = (
         { id: 'validateToken', type: 'function', label: 'ValidateToken' },
         { id: 'getUserProfile', type: 'function', label: 'GetUserProfile' },
         { id: 'database', type: 'module', label: 'Database' },
-        { id: 'cache', type: 'module', label: 'Cache' }
+        { id: 'cache', type: 'module', label: 'Cache' },
       ],
       edges: [
         { source: 'authenticate', target: 'validateToken', type: 'calls' },
         { source: 'authenticate', target: 'getUserProfile', type: 'calls' },
         { source: 'validateToken', target: 'database', type: 'calls' },
         { source: 'getUserProfile', target: 'cache', type: 'calls' },
-        { source: 'cache', target: 'database', type: 'calls' }
-      ]
+        { source: 'cache', target: 'database', type: 'calls' },
+      ],
     },
-    godNodes: godNodes.length > 0 ? godNodes : [
-      {
-        nodeId: 'authenticate',
-        label: 'Authenticate',
-        inDegree: 2,
-        outDegree: 5,
-        betweenness: 0.8,
-        pageRank: 0.75,
-        community: 'auth',
-        criticality: 'CRITICAL'
-      }
-    ],
-    communities: communities.length > 0 ? communities : [
-      {
-        id: 'auth-comm',
-        label: 'Authentication',
-        nodes: ['authenticate', 'validateToken'],
-        internalDensity: 0.8,
-        externalDensity: 0.2,
-        interfaceNodes: ['authenticate'],
-        bottlenecks: ['authenticate']
-      },
-      {
-        id: 'data-comm',
-        label: 'Data Access',
-        nodes: ['database', 'cache'],
-        internalDensity: 0.6,
-        externalDensity: 0.4,
-        interfaceNodes: ['cache'],
-        bottlenecks: ['database']
-      }
-    ],
-    surprises: surprises
+    godNodes:
+      godNodes.length > 0
+        ? godNodes
+        : [
+            {
+              nodeId: 'authenticate',
+              label: 'Authenticate',
+              inDegree: 2,
+              outDegree: 5,
+              betweenness: 0.8,
+              pageRank: 0.75,
+              community: 'auth',
+              criticality: 'CRITICAL',
+            },
+          ],
+    communities:
+      communities.length > 0
+        ? communities
+        : [
+            {
+              id: 'auth-comm',
+              label: 'Authentication',
+              nodes: ['authenticate', 'validateToken'],
+              internalDensity: 0.8,
+              externalDensity: 0.2,
+              interfaceNodes: ['authenticate'],
+              bottlenecks: ['authenticate'],
+            },
+            {
+              id: 'data-comm',
+              label: 'Data Access',
+              nodes: ['database', 'cache'],
+              internalDensity: 0.6,
+              externalDensity: 0.4,
+              interfaceNodes: ['cache'],
+              bottlenecks: ['database'],
+            },
+          ],
+    surprises: surprises,
   }
 }
 
@@ -84,7 +82,7 @@ describe('GraphifyLSPHover', () => {
       expect(hover.baseInfo).toBe('function authenticate(token: string): boolean')
       expect(hover.godNodeInfo).toBeDefined()
       // godNodeInfo is GodNode & { recommendation } — isGodNode is not present; presence itself suffices
-      expect(hover.godNodeInfo!.criticality).toBe('CRITICAL')
+      expect(hover.godNodeInfo?.criticality).toBe('CRITICAL')
       expect(hover.graphMetrics).toBeDefined()
       expect(hover.graphMetrics?.centrality).toBe('critical')
     })
@@ -103,11 +101,7 @@ describe('GraphifyLSPHover', () => {
     })
 
     it('handles missing graph analysis gracefully', () => {
-      const hover = enhanceHoverWithGraphMetrics(
-        'unknownSymbol',
-        'function unknownSymbol(): void',
-        null
-      )
+      const hover = enhanceHoverWithGraphMetrics('unknownSymbol', 'function unknownSymbol(): void', null)
 
       expect(hover.symbol).toBe('unknownSymbol')
       expect(hover.baseInfo).toBe('function unknownSymbol(): void')
@@ -130,33 +124,21 @@ describe('GraphifyLSPHover', () => {
 
     it('identifies interface nodes', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       expect(hover.communityInfo?.isInterfaceNode).toBe(true)
     })
 
     it('identifies bottleneck nodes', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       expect(hover.communityInfo?.isBottleneck).toBe(true)
     })
 
     it('includes impact analysis', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       expect(hover.impactAnalysis).toBeDefined()
       expect(hover.impactAnalysis?.dependentCount).toBeGreaterThan(0)
@@ -170,15 +152,11 @@ describe('GraphifyLSPHover', () => {
           target: 'legacyAuth',
           type: 'legacy' as const,
           confidence: 0.8,
-          recommendation: 'Consider removing legacy code'
-        }
+          recommendation: 'Consider removing legacy code',
+        },
       ]
       const analysis = createMockAnalysis([], [], surprises)
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       expect(hover.surpriseInfo).toBeDefined()
       expect(hover.surpriseInfo?.hasUnexpectedConnections).toBe(true)
@@ -193,7 +171,7 @@ describe('GraphifyLSPHover', () => {
       const hover = {
         symbol: 'test',
         range: { start: 0, end: 4 },
-        baseInfo: 'function test(): void'
+        baseInfo: 'function test(): void',
       }
 
       const markdown = formatHoverAsMarkdown(hover)
@@ -204,11 +182,7 @@ describe('GraphifyLSPHover', () => {
 
     it('includes god node section', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       const markdown = formatHoverAsMarkdown(hover)
 
@@ -219,11 +193,7 @@ describe('GraphifyLSPHover', () => {
 
     it('includes community section', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       const markdown = formatHoverAsMarkdown(hover)
 
@@ -233,11 +203,7 @@ describe('GraphifyLSPHover', () => {
 
     it('includes impact analysis section', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       const markdown = formatHoverAsMarkdown(hover)
 
@@ -248,11 +214,7 @@ describe('GraphifyLSPHover', () => {
 
     it('formats graph metrics section', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       const markdown = formatHoverAsMarkdown(hover)
 
@@ -267,15 +229,11 @@ describe('GraphifyLSPHover', () => {
           target: 'legacyAuth',
           type: 'legacy' as const,
           confidence: 0.8,
-          recommendation: 'Consider refactoring'
-        }
+          recommendation: 'Consider refactoring',
+        },
       ]
       const analysis = createMockAnalysis([], [], surprises)
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       const markdown = formatHoverAsMarkdown(hover)
 
@@ -285,18 +243,14 @@ describe('GraphifyLSPHover', () => {
 
     it('produces valid markdown', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'function authenticate(): boolean',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('authenticate', 'function authenticate(): boolean', analysis)
 
       const markdown = formatHoverAsMarkdown(hover)
 
       // Should have sections
-      expect(markdown).toMatch(/##/g)  // Headers
-      expect(markdown).toContain('```')  // Code blocks
-      expect(markdown).toContain('**')  // Bold text
+      expect(markdown).toMatch(/##/g) // Headers
+      expect(markdown).toContain('```') // Code blocks
+      expect(markdown).toContain('**') // Bold text
     })
   })
 
@@ -317,8 +271,8 @@ describe('GraphifyLSPHover', () => {
       const summary = getNodeRoleSummary('authenticate', analysis)
 
       expect(summary.metrics).toContain('🌟 God Node (CRITICAL)')
-      expect(summary.metrics.some((m) => m.includes('In-degree'))).toBe(true)
-      expect(summary.metrics.some((m) => m.includes('PageRank'))).toBe(true)
+      expect(summary.metrics.some(m => m.includes('In-degree'))).toBe(true)
+      expect(summary.metrics.some(m => m.includes('PageRank'))).toBe(true)
     })
 
     it('includes community information', () => {
@@ -326,21 +280,21 @@ describe('GraphifyLSPHover', () => {
       const summary = getNodeRoleSummary('authenticate', analysis)
 
       expect(summary.summary).toContain('Authentication')
-      expect(summary.metrics.some((m) => m.includes('Community'))).toBe(true)
+      expect(summary.metrics.some(m => m.includes('Community'))).toBe(true)
     })
 
     it('identifies interface nodes', () => {
       const analysis = createMockAnalysis()
       const summary = getNodeRoleSummary('authenticate', analysis)
 
-      expect(summary.metrics.some((m) => m.includes('Interface'))).toBe(true)
+      expect(summary.metrics.some(m => m.includes('Interface'))).toBe(true)
     })
 
     it('identifies bottleneck nodes', () => {
       const analysis = createMockAnalysis()
       const summary = getNodeRoleSummary('authenticate', analysis)
 
-      expect(summary.metrics.some((m) => m.includes('Bottleneck'))).toBe(true)
+      expect(summary.metrics.some(m => m.includes('Bottleneck'))).toBe(true)
     })
 
     it('reports surprising connections count', () => {
@@ -350,37 +304,35 @@ describe('GraphifyLSPHover', () => {
           target: 'legacy1',
           type: 'legacy' as const,
           confidence: 0.8,
-          recommendation: ''
+          recommendation: '',
         },
         {
           source: 'authenticate',
           target: 'legacy2',
           type: 'legacy' as const,
           confidence: 0.8,
-          recommendation: ''
-        }
+          recommendation: '',
+        },
       ]
       const analysis = createMockAnalysis([], [], surprises)
       const summary = getNodeRoleSummary('authenticate', analysis)
 
-      expect(summary.metrics.some((m) => m.includes('2 unexpected connections'))).toBe(true)
+      expect(summary.metrics.some(m => m.includes('2 unexpected connections'))).toBe(true)
     })
 
     it('handles non-critical nodes', () => {
-      const analysis = createMockAnalysis(
-        [
-          {
-            nodeId: 'regularNode',
-            label: 'Regular',
-            inDegree: 1,
-            outDegree: 0,
-            betweenness: 0.1,
-            pageRank: 0.1,
-            community: 'data',
-            criticality: 'LOW'
-          }
-        ]
-      )
+      const analysis = createMockAnalysis([
+        {
+          nodeId: 'regularNode',
+          label: 'Regular',
+          inDegree: 1,
+          outDegree: 0,
+          betweenness: 0.1,
+          pageRank: 0.1,
+          community: 'data',
+          criticality: 'LOW',
+        },
+      ])
       const summary = getNodeRoleSummary('regularNode', analysis)
 
       expect(summary.isCritical).not.toBe(true)
@@ -399,7 +351,7 @@ describe('GraphifyLSPHover', () => {
       const summary = getNodeRoleSummary('authenticate', analysis)
 
       expect(summary.summary).toBeTruthy()
-      expect(summary.summary).toContain('•')  // Separator
+      expect(summary.summary).toContain('•') // Separator
       expect(summary.summary.length).toBeGreaterThan(10)
     })
 
@@ -412,10 +364,10 @@ describe('GraphifyLSPHover', () => {
           analysis as GraphifyAnalysis
         )
         expect(result.godNodeInfo).toBeDefined()
-        expect(result.godNodeInfo!.inDegree).toBe(2)
-        expect(result.godNodeInfo!.pageRank).toBe(0.75)
-        expect(result.godNodeInfo!.community).toBe('auth')
-        expect(result.godNodeInfo!.recommendation).toContain('critical hub')
+        expect(result.godNodeInfo?.inDegree).toBe(2)
+        expect(result.godNodeInfo?.pageRank).toBe(0.75)
+        expect(result.godNodeInfo?.community).toBe('auth')
+        expect(result.godNodeInfo?.recommendation).toContain('critical hub')
       })
     })
   })
@@ -425,18 +377,10 @@ describe('GraphifyLSPHover', () => {
   describe('Edge cases and integration', () => {
     it('handles symbol name normalization', () => {
       const analysis = createMockAnalysis()
-      
+
       // Different variations should normalize to same node
-      const hover1 = enhanceHoverWithGraphMetrics(
-        'authenticate',
-        'fn',
-        analysis
-      )
-      const hover2 = enhanceHoverWithGraphMetrics(
-        'Authenticate',
-        'fn',
-        analysis
-      )
+      const hover1 = enhanceHoverWithGraphMetrics('authenticate', 'fn', analysis)
+      const hover2 = enhanceHoverWithGraphMetrics('Authenticate', 'fn', analysis)
 
       expect(hover1.godNodeInfo).toBeDefined()
       expect(hover2.godNodeInfo).toBeDefined()
@@ -444,11 +388,7 @@ describe('GraphifyLSPHover', () => {
 
     it('handles unknown symbols', () => {
       const analysis = createMockAnalysis()
-      const hover = enhanceHoverWithGraphMetrics(
-        'unknownFunction',
-        'function unknownFunction(): void',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('unknownFunction', 'function unknownFunction(): void', analysis)
 
       expect(hover.baseInfo).toBe('function unknownFunction(): void')
       expect(hover.graphMetrics?.centrality).toBe('unknown')
@@ -456,11 +396,7 @@ describe('GraphifyLSPHover', () => {
 
     it('handles communities without matching node', () => {
       const analysis = createMockAnalysis([], [])
-      const hover = enhanceHoverWithGraphMetrics(
-        'unknownNode',
-        'fn',
-        analysis
-      )
+      const hover = enhanceHoverWithGraphMetrics('unknownNode', 'fn', analysis)
 
       expect(hover.communityInfo).toBeUndefined()
     })
@@ -475,8 +411,8 @@ describe('GraphifyLSPHover', () => {
           betweenness: 0,
           pageRank: 0.01,
           community: 'data',
-          criticality: 'LOW'
-        }
+          criticality: 'LOW',
+        },
       ]
       const analysis = createMockAnalysis(godNodes)
       const hover = enhanceHoverWithGraphMetrics('isolated', 'fn', analysis)

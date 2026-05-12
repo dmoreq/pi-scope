@@ -1,7 +1,7 @@
 // tests/context/smart-repo-map.test.ts
-import { describe, it, expect } from 'vitest'
-import { SmartRepositoryMapGenerator } from '../../context/smart-repo-map.js'
+import { describe, expect, it } from 'vitest'
 import type { GraphifyAnalysis } from '../../context/graph-types.js'
+import { SmartRepositoryMapGenerator } from '../../context/smart-repo-map.js'
 import type { ContextInsights } from '../../shared/intelligence-types.js'
 
 describe('SmartRepositoryMapGenerator', () => {

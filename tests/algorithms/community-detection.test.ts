@@ -2,11 +2,11 @@
  * Tests for Community Detection (Louvain Algorithm)
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  detectCommunitiesLouvain,
   computeGlobalModularity,
-  getCommunityStats
+  detectCommunitiesLouvain,
+  getCommunityStats,
 } from '../../algorithms/community-detection'
 import type { GraphifyGraph } from '../../context/graph-types'
 
@@ -22,7 +22,7 @@ describe('CommunityDetection', () => {
           { id: 'a3', type: 'function', label: 'A3' },
           { id: 'b1', type: 'function', label: 'B1' },
           { id: 'b2', type: 'function', label: 'B2' },
-          { id: 'b3', type: 'function', label: 'B3' }
+          { id: 'b3', type: 'function', label: 'B3' },
         ],
         edges: [
           // Community A (dense internal)
@@ -34,8 +34,8 @@ describe('CommunityDetection', () => {
           { source: 'b2', target: 'b3', type: 'calls' },
           { source: 'b3', target: 'b1', type: 'calls' },
           // Few cross-community edges
-          { source: 'a3', target: 'b1', type: 'calls' }
-        ]
+          { source: 'a3', target: 'b1', type: 'calls' },
+        ],
       }
 
       const communities = detectCommunitiesLouvain(graph)
@@ -44,14 +44,14 @@ describe('CommunityDetection', () => {
       expect(communities.length).toBeGreaterThan(0)
 
       // Each community should have 3 nodes
-      communities.forEach((c) => {
+      communities.forEach(c => {
         expect(c.nodes.length).toBe(3)
       })
 
       // Communities should be well-separated
-      const densities = communities.map((c) => c.internalDensity)
-      densities.forEach((d) => {
-        expect(d).toBeGreaterThan(0.2)  // Dense internally
+      const densities = communities.map(c => c.internalDensity)
+      densities.forEach(d => {
+        expect(d).toBeGreaterThan(0.2) // Dense internally
       })
     })
 
@@ -60,12 +60,12 @@ describe('CommunityDetection', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'c', type: 'calls' }
-        ]
+          { source: 'b', target: 'c', type: 'calls' },
+        ],
       }
 
       const communities = detectCommunitiesLouvain(graph)
@@ -75,7 +75,7 @@ describe('CommunityDetection', () => {
       expect(communities.length).toBeLessThanOrEqual(3)
 
       // All nodes should be covered
-      const allNodes = new Set(communities.flatMap((c) => c.nodes))
+      const allNodes = new Set(communities.flatMap(c => c.nodes))
       expect(allNodes.size).toBe(3)
     })
 
@@ -85,12 +85,12 @@ describe('CommunityDetection', () => {
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
           { id: 'c', type: 'function', label: 'C' },
-          { id: 'd', type: 'function', label: 'D' }
+          { id: 'd', type: 'function', label: 'D' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'c', target: 'd', type: 'calls' }
-        ]
+          { source: 'c', target: 'd', type: 'calls' },
+        ],
       }
 
       const communities = detectCommunitiesLouvain(graph)
@@ -99,14 +99,14 @@ describe('CommunityDetection', () => {
       expect(communities.length).toBeGreaterThanOrEqual(1)
 
       // All nodes covered
-      const allNodes = new Set(communities.flatMap((c) => c.nodes))
+      const allNodes = new Set(communities.flatMap(c => c.nodes))
       expect(allNodes.size).toBe(4)
     })
 
     it('handles empty graph', () => {
       const graph: GraphifyGraph = {
         nodes: [],
-        edges: []
+        edges: [],
       }
 
       const communities = detectCommunitiesLouvain(graph)
@@ -117,13 +117,13 @@ describe('CommunityDetection', () => {
     it('handles single node', () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
-        edges: []
+        edges: [],
       }
 
       const communities = detectCommunitiesLouvain(graph)
 
       expect(communities.length).toBeGreaterThanOrEqual(1)
-      const allNodes = communities.flatMap((c) => c.nodes)
+      const allNodes = communities.flatMap(c => c.nodes)
       expect(allNodes).toContain('a')
     })
 
@@ -133,7 +133,7 @@ describe('CommunityDetection', () => {
           { id: 'a1', type: 'function', label: 'A1' },
           { id: 'a2', type: 'function', label: 'A2' },
           { id: 'b1', type: 'function', label: 'B1' },
-          { id: 'b2', type: 'function', label: 'B2' }
+          { id: 'b2', type: 'function', label: 'B2' },
         ],
         edges: [
           // Internal A
@@ -141,17 +141,17 @@ describe('CommunityDetection', () => {
           // Internal B
           { source: 'b1', target: 'b2', type: 'calls' },
           // Cross-community (interface nodes)
-          { source: 'a2', target: 'b1', type: 'calls' }
-        ]
+          { source: 'a2', target: 'b1', type: 'calls' },
+        ],
       }
 
       const communities = detectCommunitiesLouvain(graph)
 
       // Communities should be detected
       expect(communities.length).toBeGreaterThan(0)
-      
+
       // All nodes should be covered
-      const allNodes = new Set(communities.flatMap((c) => c.nodes))
+      const allNodes = new Set(communities.flatMap(c => c.nodes))
       expect(allNodes.size).toBe(4)
     })
 
@@ -160,13 +160,13 @@ describe('CommunityDetection', () => {
         nodes: Array.from({ length: 10 }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
-          label: `Node ${i}`
+          label: `Node ${i}`,
         })),
         edges: Array.from({ length: 15 }, (_, i) => ({
           source: `node${i % 10}`,
           target: `node${(i + 1) % 10}`,
-          type: 'calls' as const
-        }))
+          type: 'calls' as const,
+        })),
       }
 
       // Should complete quickly with low iteration count
@@ -185,12 +185,12 @@ describe('CommunityDetection', () => {
           { id: 'a1', type: 'function', label: 'A1' },
           { id: 'a2', type: 'function', label: 'A2' },
           { id: 'b1', type: 'function', label: 'B1' },
-          { id: 'b2', type: 'function', label: 'B2' }
+          { id: 'b2', type: 'function', label: 'B2' },
         ],
         edges: [
           { source: 'a1', target: 'a2', type: 'calls' },
-          { source: 'b1', target: 'b2', type: 'calls' }
-        ]
+          { source: 'b1', target: 'b2', type: 'calls' },
+        ],
       }
 
       const wellSeparated = [
@@ -201,7 +201,7 @@ describe('CommunityDetection', () => {
           internalDensity: 0.5,
           externalDensity: 0.0,
           interfaceNodes: [],
-          bottlenecks: []
+          bottlenecks: [],
         },
         {
           id: 'comm-2',
@@ -210,8 +210,8 @@ describe('CommunityDetection', () => {
           internalDensity: 0.5,
           externalDensity: 0.0,
           interfaceNodes: [],
-          bottlenecks: []
-        }
+          bottlenecks: [],
+        },
       ]
 
       const modularity = computeGlobalModularity(wellSeparated, graph)
@@ -223,7 +223,7 @@ describe('CommunityDetection', () => {
     it('handles empty communities array', () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
-        edges: []
+        edges: [],
       }
 
       const modularity = computeGlobalModularity([], graph)
@@ -244,7 +244,7 @@ describe('CommunityDetection', () => {
           internalDensity: 0.8,
           externalDensity: 0.2,
           interfaceNodes: [],
-          bottlenecks: []
+          bottlenecks: [],
         },
         {
           id: 'c2',
@@ -253,8 +253,8 @@ describe('CommunityDetection', () => {
           internalDensity: 0.5,
           externalDensity: 0.1,
           interfaceNodes: [],
-          bottlenecks: []
-        }
+          bottlenecks: [],
+        },
       ]
 
       const stats = getCommunityStats(communities)
@@ -277,8 +277,8 @@ describe('CommunityDetection', () => {
           internalDensity: 0.7,
           externalDensity: 0.0,
           interfaceNodes: [],
-          bottlenecks: []
-        }
+          bottlenecks: [],
+        },
       ]
 
       const stats = getCommunityStats(communities)
@@ -314,7 +314,7 @@ describe('CommunityDetection', () => {
           // Community 3
           { id: 'api1', type: 'module', label: 'API1' },
           { id: 'api2', type: 'module', label: 'API2' },
-          { id: 'api3', type: 'module', label: 'API3' }
+          { id: 'api3', type: 'module', label: 'API3' },
         ],
         edges: [
           // Auth community
@@ -328,8 +328,8 @@ describe('CommunityDetection', () => {
           { source: 'api2', target: 'api3', type: 'calls' },
           // Cross-community
           { source: 'auth3', target: 'db1', type: 'calls' },
-          { source: 'db2', target: 'api1', type: 'calls' }
-        ]
+          { source: 'db2', target: 'api1', type: 'calls' },
+        ],
       }
 
       const communities = detectCommunitiesLouvain(graph)
@@ -347,7 +347,7 @@ describe('CommunityDetection', () => {
       expect(stats.avgSize).toBeGreaterThan(1)
 
       // All nodes should be assigned
-      const allNodes = new Set(communities.flatMap((c) => c.nodes))
+      const allNodes = new Set(communities.flatMap(c => c.nodes))
       expect(allNodes.size).toBe(8)
     })
   })
@@ -361,13 +361,13 @@ describe('CommunityDetection', () => {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
-          label: `Node ${i}`
+          label: `Node ${i}`,
         })),
         edges: Array.from({ length: nodeCount * 1.5 }, (_, i) => ({
           source: `node${i % nodeCount}`,
           target: `node${(i + Math.floor(Math.random() * 10) + 1) % nodeCount}`,
-          type: 'calls' as const
-        }))
+          type: 'calls' as const,
+        })),
       }
 
       const start = performance.now()
@@ -375,7 +375,7 @@ describe('CommunityDetection', () => {
       const elapsed = performance.now() - start
 
       expect(communities.length).toBeGreaterThan(0)
-      expect(elapsed).toBeLessThan(1000)  // Should complete in <1 second
+      expect(elapsed).toBeLessThan(1000) // Should complete in <1 second
     })
 
     it('handles large graph within reasonable time', () => {
@@ -384,13 +384,13 @@ describe('CommunityDetection', () => {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
-          label: `Node ${i}`
+          label: `Node ${i}`,
         })),
         edges: Array.from({ length: nodeCount * 2 }, (_, i) => ({
           source: `node${i % nodeCount}`,
           target: `node${(i + Math.floor(Math.random() * 20) + 1) % nodeCount}`,
-          type: 'calls' as const
-        }))
+          type: 'calls' as const,
+        })),
       }
 
       const start = performance.now()
@@ -398,7 +398,7 @@ describe('CommunityDetection', () => {
       const elapsed = performance.now() - start
 
       expect(communities.length).toBeGreaterThan(0)
-      expect(elapsed).toBeLessThan(3000)  // Should complete in <3 seconds
+      expect(elapsed).toBeLessThan(3000) // Should complete in <3 seconds
     })
   })
 })

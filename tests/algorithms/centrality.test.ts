@@ -2,13 +2,13 @@
  * Tests for Degree Centrality Algorithm
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   computeDegreeCentrality,
-  identifyGodNodesByDegree,
+  getDegreeCentralityStats,
   identifyBottlenecksByDegree,
+  identifyGodNodesByDegree,
   rankByInDegree,
-  getDegreeCentralityStats
 } from '../../algorithms/centrality'
 import type { GraphifyGraph } from '../../context/graph-types'
 
@@ -21,30 +21,30 @@ describe('DegreeCentrality', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'c', type: 'calls' }
-        ]
+          { source: 'b', target: 'c', type: 'calls' },
+        ],
       }
 
       const result = computeDegreeCentrality(graph)
 
       // Check 'a': 0 in, 1 out
-      const a = result.find((r) => r.nodeId === 'a')
+      const a = result.find(r => r.nodeId === 'a')
       expect(a?.inDegree).toBe(0)
       expect(a?.outDegree).toBe(1)
       expect(a?.totalDegree).toBe(1)
 
       // Check 'b': 1 in, 1 out (middle node)
-      const b = result.find((r) => r.nodeId === 'b')
+      const b = result.find(r => r.nodeId === 'b')
       expect(b?.inDegree).toBe(1)
       expect(b?.outDegree).toBe(1)
       expect(b?.totalDegree).toBe(2)
 
       // Check 'c': 1 in, 0 out
-      const c = result.find((r) => r.nodeId === 'c')
+      const c = result.find(r => r.nodeId === 'c')
       expect(c?.inDegree).toBe(1)
       expect(c?.outDegree).toBe(0)
       expect(c?.totalDegree).toBe(1)
@@ -56,19 +56,19 @@ describe('DegreeCentrality', () => {
           { id: 'hub', type: 'function', label: 'Hub' },
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'hub', type: 'calls' },
           { source: 'b', target: 'hub', type: 'calls' },
-          { source: 'c', target: 'hub', type: 'calls' }
-        ]
+          { source: 'c', target: 'hub', type: 'calls' },
+        ],
       }
 
       const result = computeDegreeCentrality(graph)
-      const hub = result.find((r) => r.nodeId === 'hub')
+      const hub = result.find(r => r.nodeId === 'hub')
 
-      expect(hub?.inDegree).toBe(3)  // Highly depended on
+      expect(hub?.inDegree).toBe(3) // Highly depended on
       expect(hub?.outDegree).toBe(0)
     })
 
@@ -76,19 +76,19 @@ describe('DegreeCentrality', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
-        edges: [{ source: 'a', target: 'b', type: 'calls' }]
+        edges: [{ source: 'a', target: 'b', type: 'calls' }],
       }
 
       const result = computeDegreeCentrality(graph)
 
       // Max degree is 1, so normalized should be 1.0
-      const max = Math.max(...result.map((r) => r.normalized))
+      const max = Math.max(...result.map(r => r.normalized))
       expect(max).toBe(1.0)
 
       // All scores should be 0-1
-      result.forEach((r) => {
+      result.forEach(r => {
         expect(r.normalized).toBeGreaterThanOrEqual(0)
         expect(r.normalized).toBeLessThanOrEqual(1)
       })
@@ -99,12 +99,12 @@ describe('DegreeCentrality', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'c', type: 'calls' }
-        ]
+          { source: 'b', target: 'c', type: 'calls' },
+        ],
       }
 
       const result = computeDegreeCentrality(graph)
@@ -118,14 +118,14 @@ describe('DegreeCentrality', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
-        edges: []
+        edges: [],
       }
 
       const result = computeDegreeCentrality(graph)
 
-      result.forEach((r) => {
+      result.forEach(r => {
         expect(r.inDegree).toBe(0)
         expect(r.outDegree).toBe(0)
         expect(r.totalDegree).toBe(0)
@@ -137,17 +137,17 @@ describe('DegreeCentrality', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'a', type: 'calls' }
-        ]
+          { source: 'b', target: 'a', type: 'calls' },
+        ],
       }
 
       const result = computeDegreeCentrality(graph)
 
-      result.forEach((r) => {
+      result.forEach(r => {
         expect(r.inDegree).toBe(1)
         expect(r.outDegree).toBe(1)
         expect(r.totalDegree).toBe(2)
@@ -158,16 +158,16 @@ describe('DegreeCentrality', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'a', target: 'b', type: 'imports' }
-        ]
+          { source: 'a', target: 'b', type: 'imports' },
+        ],
       }
 
       const result = computeDegreeCentrality(graph)
-      const a = result.find((r) => r.nodeId === 'a')
+      const a = result.find(r => r.nodeId === 'a')
 
       // Multiple edges count separately
       expect(a?.outDegree).toBe(2)
@@ -184,14 +184,14 @@ describe('DegreeCentrality', () => {
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
           { id: 'c', type: 'function', label: 'C' },
-          { id: 'd', type: 'function', label: 'D' }
+          { id: 'd', type: 'function', label: 'D' },
         ],
         edges: [
           { source: 'a', target: 'auth', type: 'calls' },
           { source: 'b', target: 'auth', type: 'calls' },
           { source: 'c', target: 'auth', type: 'calls' },
-          { source: 'd', target: 'auth', type: 'calls' }
-        ]
+          { source: 'd', target: 'auth', type: 'calls' },
+        ],
       }
 
       const degreeScores = computeDegreeCentrality(graph)
@@ -208,14 +208,14 @@ describe('DegreeCentrality', () => {
           { id: 'b', type: 'function', label: 'B' },
           { id: 'c', type: 'function', label: 'C' },
           { id: 'd', type: 'function', label: 'D' },
-          { id: 'e', type: 'function', label: 'E' }
+          { id: 'e', type: 'function', label: 'E' },
         ],
         edges: [
           { source: 'b', target: 'a', type: 'calls' },
           { source: 'c', target: 'a', type: 'calls' },
           { source: 'd', target: 'a', type: 'calls' },
-          { source: 'e', target: 'c', type: 'calls' }
-        ]
+          { source: 'e', target: 'c', type: 'calls' },
+        ],
       }
 
       const degreeScores = computeDegreeCentrality(graph)
@@ -240,14 +240,14 @@ describe('DegreeCentrality', () => {
           { id: 'a', type: 'module', label: 'A' },
           { id: 'b', type: 'module', label: 'B' },
           { id: 'c', type: 'module', label: 'C' },
-          { id: 'd', type: 'module', label: 'D' }
+          { id: 'd', type: 'module', label: 'D' },
         ],
         edges: [
           { source: 'index', target: 'a', type: 'imports' },
           { source: 'index', target: 'b', type: 'imports' },
           { source: 'index', target: 'c', type: 'imports' },
-          { source: 'index', target: 'd', type: 'imports' }
-        ]
+          { source: 'index', target: 'd', type: 'imports' },
+        ],
       }
 
       const degreeScores = computeDegreeCentrality(graph)
@@ -265,13 +265,13 @@ describe('DegreeCentrality', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'b', target: 'a', type: 'calls' },
           { source: 'c', target: 'a', type: 'calls' },
-          { source: 'c', target: 'b', type: 'calls' }
-        ]
+          { source: 'c', target: 'b', type: 'calls' },
+        ],
       }
 
       const degreeScores = computeDegreeCentrality(graph)
@@ -288,13 +288,13 @@ describe('DegreeCentrality', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'b', target: 'a', type: 'calls' },
           { source: 'c', target: 'a', type: 'calls' },
-          { source: 'c', target: 'b', type: 'calls' }
-        ]
+          { source: 'c', target: 'b', type: 'calls' },
+        ],
       }
 
       const degreeScores = computeDegreeCentrality(graph)
@@ -314,12 +314,12 @@ describe('DegreeCentrality', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'c', type: 'calls' }
-        ]
+          { source: 'b', target: 'c', type: 'calls' },
+        ],
       }
 
       const degreeScores = computeDegreeCentrality(graph)

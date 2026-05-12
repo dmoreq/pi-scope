@@ -2,11 +2,11 @@
  * Tests for Cycle Detection Algorithms
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   detectAllCycles,
   detectStronglyConnectedComponents,
-  getCycleDetectionSummary
+  getCycleDetectionSummary,
 } from '../../algorithms/cycle-detection'
 import type { GraphifyGraph } from '../../context/graph-types'
 
@@ -18,12 +18,12 @@ describe('CycleDetection', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'a', type: 'calls' }
-        ]
+          { source: 'b', target: 'a', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
@@ -39,13 +39,13 @@ describe('CycleDetection', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
           { source: 'b', target: 'c', type: 'calls' },
-          { source: 'c', target: 'a', type: 'calls' }
-        ]
+          { source: 'c', target: 'a', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
@@ -62,7 +62,7 @@ describe('CycleDetection', () => {
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
           { id: 'c', type: 'function', label: 'C' },
-          { id: 'd', type: 'function', label: 'D' }
+          { id: 'd', type: 'function', label: 'D' },
         ],
         edges: [
           // Cycle 1: a → b → a
@@ -70,8 +70,8 @@ describe('CycleDetection', () => {
           { source: 'b', target: 'a', type: 'calls' },
           // Cycle 2: c → d → c
           { source: 'c', target: 'd', type: 'calls' },
-          { source: 'd', target: 'c', type: 'calls' }
-        ]
+          { source: 'd', target: 'c', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
@@ -85,12 +85,12 @@ describe('CycleDetection', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'c', type: 'calls' }
-        ]
+          { source: 'b', target: 'c', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
@@ -103,7 +103,7 @@ describe('CycleDetection', () => {
     it('handles empty graph', () => {
       const graph: GraphifyGraph = {
         nodes: [],
-        edges: []
+        edges: [],
       }
 
       const result = detectAllCycles(graph)
@@ -115,7 +115,7 @@ describe('CycleDetection', () => {
     it('handles single node', () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
-        edges: []
+        edges: [],
       }
 
       const result = detectAllCycles(graph)
@@ -126,7 +126,7 @@ describe('CycleDetection', () => {
     it('handles self-loop', () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
-        edges: [{ source: 'a', target: 'a', type: 'calls' }]
+        edges: [{ source: 'a', target: 'a', type: 'calls' }],
       }
 
       const result = detectAllCycles(graph)
@@ -141,22 +141,22 @@ describe('CycleDetection', () => {
           { id: 'b', type: 'function', label: 'B' },
           { id: 'c', type: 'function', label: 'C' },
           { id: 'd', type: 'function', label: 'D' },
-          { id: 'e', type: 'function', label: 'E' }
+          { id: 'e', type: 'function', label: 'E' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
           { source: 'b', target: 'c', type: 'calls' },
           { source: 'c', target: 'd', type: 'calls' },
           { source: 'd', target: 'e', type: 'calls' },
-          { source: 'e', target: 'a', type: 'calls' }
-        ]
+          { source: 'e', target: 'a', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
 
       if (result.cycleCount > 0) {
         const cycles = result.cycles
-        expect(cycles.some((c) => ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(c.severity))).toBe(true)
+        expect(cycles.some(c => ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(c.severity))).toBe(true)
       }
     })
 
@@ -164,12 +164,12 @@ describe('CycleDetection', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'a', type: 'calls' }
-        ]
+          { source: 'b', target: 'a', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
@@ -186,9 +186,9 @@ describe('CycleDetection', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
-        edges: [{ source: 'a', target: 'b', type: 'calls' }]
+        edges: [{ source: 'a', target: 'b', type: 'calls' }],
       }
 
       const sccs = detectStronglyConnectedComponents(graph)
@@ -201,18 +201,18 @@ describe('CycleDetection', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
           { source: 'b', target: 'c', type: 'calls' },
-          { source: 'c', target: 'a', type: 'calls' }
-        ]
+          { source: 'c', target: 'a', type: 'calls' },
+        ],
       }
 
       const sccs = detectStronglyConnectedComponents(graph)
 
-      const cycleComponent = sccs.find((s) => s.isCycle)
+      const cycleComponent = sccs.find(s => s.isCycle)
       expect(cycleComponent).toBeDefined()
     })
 
@@ -220,17 +220,17 @@ describe('CycleDetection', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'a', type: 'calls' }
-        ]
+          { source: 'b', target: 'a', type: 'calls' },
+        ],
       }
 
       const sccs = detectStronglyConnectedComponents(graph)
 
-      const denseComponent = sccs.find((s) => s.size > 1)
+      const denseComponent = sccs.find(s => s.size > 1)
       if (denseComponent) {
         expect(denseComponent.density).toBeGreaterThan(0)
         expect(denseComponent.density).toBeLessThanOrEqual(1)
@@ -245,9 +245,9 @@ describe('CycleDetection', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
-        edges: [{ source: 'a', target: 'b', type: 'calls' }]
+        edges: [{ source: 'a', target: 'b', type: 'calls' }],
       }
 
       const result = detectAllCycles(graph)
@@ -261,12 +261,12 @@ describe('CycleDetection', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'a', type: 'calls' }
-        ]
+          { source: 'b', target: 'a', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
@@ -280,12 +280,12 @@ describe('CycleDetection', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
-          { id: 'b', type: 'function', label: 'B' }
+          { id: 'b', type: 'function', label: 'B' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
-          { source: 'b', target: 'a', type: 'calls' }
-        ]
+          { source: 'b', target: 'a', type: 'calls' },
+        ],
       }
 
       const result = detectAllCycles(graph)
@@ -306,13 +306,13 @@ describe('CycleDetection', () => {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
-          label: `Node ${i}`
+          label: `Node ${i}`,
         })),
         edges: Array.from({ length: nodeCount }, (_, i) => ({
           source: `node${i}`,
           target: `node${(i + 1) % nodeCount}`,
-          type: 'calls' as const
-        }))
+          type: 'calls' as const,
+        })),
       }
 
       const start = performance.now()
@@ -320,7 +320,7 @@ describe('CycleDetection', () => {
       const elapsed = performance.now() - start
 
       expect(result).toBeDefined()
-      expect(elapsed).toBeLessThan(500)  // Should be <500ms for 100 nodes
+      expect(elapsed).toBeLessThan(500) // Should be <500ms for 100 nodes
     })
 
     it('computes SCCs efficiently', () => {
@@ -329,13 +329,13 @@ describe('CycleDetection', () => {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
-          label: `Node ${i}`
+          label: `Node ${i}`,
         })),
         edges: Array.from({ length: nodeCount * 1.5 }, (_, i) => ({
           source: `node${i % nodeCount}`,
           target: `node${(i + Math.floor(Math.random() * 5) + 1) % nodeCount}`,
-          type: 'calls' as const
-        }))
+          type: 'calls' as const,
+        })),
       }
 
       const start = performance.now()

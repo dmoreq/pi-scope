@@ -4,15 +4,10 @@
  * Tests loading and parsing of graph.json files.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import fs from 'fs'
-import path from 'path'
-import {
-  loadGraphifyJson,
-  loadGraphifyJsonSync,
-  getGraphStats,
-  saveGraphifyJson
-} from '../../context/graph-loader'
+import fs from 'node:fs'
+import path from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { getGraphStats, loadGraphifyJson, loadGraphifyJsonSync, saveGraphifyJson } from '../../context/graph-loader'
 import type { GraphifyGraph } from '../../context/graph-types'
 
 const testDir = path.join(__dirname, '.graphify-test')
@@ -37,9 +32,9 @@ describe('GraphifyLoader', () => {
       const graph: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'Function A' },
-          { id: 'b', type: 'function', label: 'Function B' }
+          { id: 'b', type: 'function', label: 'Function B' },
         ],
-        edges: [{ source: 'a', target: 'b', type: 'calls' }]
+        edges: [{ source: 'a', target: 'b', type: 'calls' }],
       }
 
       const filePath = path.join(testDir, 'valid-graph.json')
@@ -57,7 +52,7 @@ describe('GraphifyLoader', () => {
     it('loads graph with relative path', async () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'test', type: 'module', label: 'Test' }],
-        edges: []
+        edges: [],
       }
 
       const fileName = 'relative-test.json'
@@ -74,7 +69,7 @@ describe('GraphifyLoader', () => {
     it('loads graph with absolute path', async () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'abs', type: 'module', label: 'Absolute' }],
-        edges: []
+        edges: [],
       }
 
       const filePath = path.join(testDir, 'absolute-test.json')
@@ -89,7 +84,7 @@ describe('GraphifyLoader', () => {
     it('includes warnings when loading valid but odd graph', async () => {
       const graph = {
         nodes: [{ id: 'a', type: 'function' as const, label: 'A' }],
-        edges: [{ source: 'a', target: 'missing', type: 'calls' as const }]
+        edges: [{ source: 'a', target: 'missing', type: 'calls' as const }],
       }
 
       const filePath = path.join(testDir, 'with-warnings.json')
@@ -106,9 +101,7 @@ describe('GraphifyLoader', () => {
 
   describe('loadGraphifyJson - Error Cases', () => {
     it('returns error for non-existent file', async () => {
-      const result = await loadGraphifyJson(
-        path.join(testDir, 'does-not-exist.json')
-      )
+      const result = await loadGraphifyJson(path.join(testDir, 'does-not-exist.json'))
 
       expect(result.success).toBe(false)
       expect(result.error).toMatch(/not found/)
@@ -151,7 +144,7 @@ describe('GraphifyLoader', () => {
       const filePath = path.join(testDir, 'invalid-node.json')
       const graph = {
         nodes: [{ id: '@@bad@@', type: 'function' as const, label: 'Bad' }],
-        edges: []
+        edges: [],
       }
       fs.writeFileSync(filePath, JSON.stringify(graph))
 
@@ -168,7 +161,7 @@ describe('GraphifyLoader', () => {
     it('loads valid graph synchronously', () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'sync', type: 'module', label: 'Sync Test' }],
-        edges: []
+        edges: [],
       }
 
       const filePath = path.join(testDir, 'sync-test.json')
@@ -181,9 +174,7 @@ describe('GraphifyLoader', () => {
     })
 
     it('returns error for non-existent file (sync)', () => {
-      const result = loadGraphifyJsonSync(
-        path.join(testDir, 'sync-missing.json')
-      )
+      const result = loadGraphifyJsonSync(path.join(testDir, 'sync-missing.json'))
 
       expect(result.success).toBe(false)
       expect(result.error).toMatch(/not found/)
@@ -208,13 +199,13 @@ describe('GraphifyLoader', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'class', label: 'B' },
-          { id: 'c', type: 'module', label: 'C' }
+          { id: 'c', type: 'module', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
           { source: 'b', target: 'c', type: 'uses' },
-          { source: 'a', target: 'c', type: 'imports' }
-        ]
+          { source: 'a', target: 'c', type: 'imports' },
+        ],
       }
 
       const stats = getGraphStats(graph)
@@ -230,9 +221,9 @@ describe('GraphifyLoader', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'class', label: 'C' }
+          { id: 'c', type: 'class', label: 'C' },
         ],
-        edges: []
+        edges: [],
       }
 
       const stats = getGraphStats(graph)
@@ -246,13 +237,13 @@ describe('GraphifyLoader', () => {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
-          { id: 'c', type: 'function', label: 'C' }
+          { id: 'c', type: 'function', label: 'C' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
           { source: 'b', target: 'c', type: 'calls' },
-          { source: 'a', target: 'c', type: 'imports' }
-        ]
+          { source: 'a', target: 'c', type: 'imports' },
+        ],
       }
 
       const stats = getGraphStats(graph)
@@ -264,7 +255,7 @@ describe('GraphifyLoader', () => {
     it('calculates density for empty graph', () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
-        edges: []
+        edges: [],
       }
 
       const stats = getGraphStats(graph)
@@ -279,13 +270,13 @@ describe('GraphifyLoader', () => {
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
           { id: 'c', type: 'function', label: 'C' },
-          { id: 'd', type: 'function', label: 'D' }
+          { id: 'd', type: 'function', label: 'D' },
         ],
         edges: [
           { source: 'a', target: 'b', type: 'calls' },
           { source: 'a', target: 'c', type: 'calls' },
-          { source: 'b', target: 'd', type: 'calls' }
-        ]
+          { source: 'b', target: 'd', type: 'calls' },
+        ],
       }
 
       const stats = getGraphStats(graph)
@@ -301,7 +292,7 @@ describe('GraphifyLoader', () => {
     it('saves graph to file', async () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'save', type: 'module', label: 'Save Test' }],
-        edges: []
+        edges: [],
       }
 
       const filePath = path.join(testDir, 'saved-graph.json')
@@ -318,7 +309,7 @@ describe('GraphifyLoader', () => {
     it('creates directories as needed', async () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'test', type: 'module', label: 'Test' }],
-        edges: []
+        edges: [],
       }
 
       const filePath = path.join(testDir, 'deep', 'nested', 'graph.json')
@@ -331,7 +322,7 @@ describe('GraphifyLoader', () => {
     it('handles absolute paths', async () => {
       const graph: GraphifyGraph = {
         nodes: [{ id: 'abs', type: 'module', label: 'Absolute' }],
-        edges: []
+        edges: [],
       }
 
       const filePath = path.join(testDir, 'abs-save.json')
@@ -349,9 +340,9 @@ describe('GraphifyLoader', () => {
       const original: GraphifyGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'Function A' },
-          { id: 'b', type: 'class', label: 'Class B' }
+          { id: 'b', type: 'class', label: 'Class B' },
         ],
-        edges: [{ source: 'a', target: 'b', type: 'calls', weight: 0.8 }]
+        edges: [{ source: 'a', target: 'b', type: 'calls', weight: 0.8 }],
       }
 
       const filePath = path.join(testDir, 'roundtrip.json')

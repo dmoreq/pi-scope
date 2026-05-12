@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { InjectionPipeline } from '../../context/pipeline.js'
 
 describe('InjectionPipeline', () => {
@@ -61,11 +61,11 @@ describe('InjectionPipeline', () => {
     const result = pipeline.build(12)
     expect(result.content).toContain('a'.repeat(48))
     expect(result.content).not.toContain('b')
-    expect(result.sources[0].injected).toBe(true)   // a
+    expect(result.sources[0].injected).toBe(true) // a
     expect(result.sources[0].trimmed).toBe(false)
-    expect(result.sources[1].injected).toBe(false)  // b trimmed
+    expect(result.sources[1].injected).toBe(false) // b trimmed
     expect(result.sources[1].trimmed).toBe(true)
-    expect(result.sources[2].injected).toBe(false)  // c trimmed
+    expect(result.sources[2].injected).toBe(false) // c trimmed
     expect(result.sources[2].trimmed).toBe(true)
   })
 

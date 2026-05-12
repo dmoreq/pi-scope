@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
-  loadProviderGuidance,
-  formatProviderGuidanceSection,
   buildGuidanceNotification,
+  formatProviderGuidanceSection,
+  loadProviderGuidance,
 } from '../../context/guidance.js'
 
 let tmpDir: string
@@ -94,9 +94,7 @@ describe('loadProviderGuidance', () => {
 
 describe('formatProviderGuidanceSection', () => {
   it('formats files into a section', () => {
-    const result = formatProviderGuidanceSection([
-      { path: '/project/CLAUDE.md', content: 'Use tabs.' },
-    ])
+    const result = formatProviderGuidanceSection([{ path: '/project/CLAUDE.md', content: 'Use tabs.' }])
     expect(result).toContain('# Provider-Specific Context')
     expect(result).toContain('## /project/CLAUDE.md')
     expect(result).toContain('Use tabs.')
@@ -109,10 +107,7 @@ describe('formatProviderGuidanceSection', () => {
 
 describe('buildGuidanceNotification', () => {
   it('builds notification with file count', () => {
-    const result = buildGuidanceNotification(
-      [{ path: join(tmpDir, 'CLAUDE.md'), content: 'rules' }],
-      tmpDir,
-    )
+    const result = buildGuidanceNotification([{ path: join(tmpDir, 'CLAUDE.md'), content: 'rules' }], tmpDir)
     expect(result).toContain('1 file(s)')
     expect(result).toContain('CLAUDE.md')
   })

@@ -11,27 +11,22 @@
  *   7. LSP hover enhancement
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type {
-  GraphifyGraph,
-  GraphifyAnalysis,
-  GodNode,
-  CommunityAnalysis
-} from '../../context/graph-types'
+import type { GodNode, GraphifyAnalysis, GraphifyGraph } from '../../context/graph-types'
 
-import { loadGraphifyJson, saveGraphifyJson } from '../../context/graph-loader'
-import { validateGraphSchema } from '../../context/graph-schema'
 import { computeDegreeCentrality, identifyGodNodesByDegree } from '../../algorithms/centrality'
-import { computePageRank, identifyGodNodesByPageRank } from '../../algorithms/pagerank'
-import { detectCommunitiesLouvain, computeGlobalModularity } from '../../algorithms/community-detection'
-import { detectSurprisingConnections, filterHighImpactSurprises } from '../../algorithms/surprising-connections'
+import { computeGlobalModularity, detectCommunitiesLouvain } from '../../algorithms/community-detection'
 import { detectAllCycles } from '../../algorithms/cycle-detection'
+import { computePageRank, identifyGodNodesByPageRank } from '../../algorithms/pagerank'
+import { detectSurprisingConnections } from '../../algorithms/surprising-connections'
+import { loadGraphifyJson, saveGraphifyJson } from '../../context/graph-loader'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graph-lsp-hover'
-import { serializeAnalysis, deserializeAnalysis, saveGraphCache, loadGraphCache } from '../../persistence/graph-cache'
+import { validateGraphSchema } from '../../context/graph-schema'
+import { deserializeAnalysis, loadGraphCache, saveGraphCache, serializeAnalysis } from '../../persistence/graph-cache'
 // ── Fixtures ─────────────────────────────────────────────────────────────
 
 /**
@@ -75,13 +70,13 @@ function createTestGraph(): GraphifyGraph {
       { source: 'cache', target: 'db', type: 'imports' },
       { source: 'email', target: 'config', type: 'imports' },
       { source: 'email', target: 'logger', type: 'imports' },
-      { source: 'email', target: 'auth', type: 'calls' },  // Surprising: email calls auth
+      { source: 'email', target: 'auth', type: 'calls' }, // Surprising: email calls auth
     ],
   }
 }
 
 /** A larger graph for stress testing (100 nodes). */
-function createLargeGraph(nodeCount: number = 100): GraphifyGraph {
+function createLargeGraph(nodeCount = 100): GraphifyGraph {
   const nodes: GraphifyGraph['nodes'] = []
   const edges: GraphifyGraph['edges'] = []
 
@@ -91,11 +86,7 @@ function createLargeGraph(nodeCount: number = 100): GraphifyGraph {
 
   // Create random-ish edges (each node connects to a few others)
   for (let i = 0; i < nodeCount; i++) {
-    const targets = [
-      (i + 1) % nodeCount,
-      (i + 2) % nodeCount,
-      (i + 5) % nodeCount,
-    ]
+    const targets = [(i + 1) % nodeCount, (i + 2) % nodeCount, (i + 5) % nodeCount]
     for (const t of targets) {
       if (i !== t) {
         edges.push({ source: `node${i}`, target: `node${t}`, type: 'imports' })
@@ -172,12 +163,12 @@ describe('Graphify Integration', () => {
       // auth has high in-degree (depended on by user, api, email)
       const auth = degreeScores.find(d => d.nodeId === 'auth')
       expect(auth).toBeDefined()
-      expect(auth!.inDegree).toBeGreaterThanOrEqual(3)
+      expect(auth?.inDegree).toBeGreaterThanOrEqual(3)
 
       // db has moderate in-degree
       const db = degreeScores.find(d => d.nodeId === 'db')
       expect(db).toBeDefined()
-      expect(db!.inDegree).toBeGreaterThanOrEqual(2)
+      expect(db?.inDegree).toBeGreaterThanOrEqual(2)
 
       // Config has highest out-degree? Actually edge count
       const godNodes = identifyGodNodesByDegree(degreeScores, 2)
@@ -191,7 +182,7 @@ describe('Graphify Integration', () => {
       // auth should have high PageRank (many things depend on it)
       const auth = prResults.find(p => p.nodeId === 'auth')
       expect(auth).toBeDefined()
-      expect(auth!.score).toBeGreaterThan(0.05)
+      expect(auth?.score).toBeGreaterThan(0.05)
 
       const godNodes = identifyGodNodesByPageRank(prResults, 0.05)
       expect(godNodes.length).toBeGreaterThanOrEqual(1)
@@ -301,7 +292,7 @@ describe('Graphify Integration', () => {
   // ── Phase 3: Retrieval Boost ────────────────────────────────────────
 
   describe('Phase 3: Retrieval Boost', () => {
-    let analysis: GraphifyAnalysis
+    let _analysis: GraphifyAnalysis
 
     beforeAll(() => {
       graph = createTestGraph()
@@ -335,7 +326,7 @@ describe('Graphify Integration', () => {
       const surprises = detectSurprisingConnections(graph, communityMap)
       const cycles = detectAllCycles(graph)
 
-      analysis = {
+      _analysis = {
         godNodes,
         communities,
         surprises,
@@ -442,7 +433,7 @@ describe('Graphify Integration', () => {
       expect(hover.baseInfo).toContain('authenticate')
       expect(hover.godNodeInfo).toBeDefined()
       // godNodeInfo is GodNode & { recommendation } — isGodNode is not present; presence itself suffices
-      expect(hover.godNodeInfo!.criticality).toBeDefined()
+      expect(hover.godNodeInfo?.criticality).toBeDefined()
 
       const markdown = formatHoverAsMarkdown(hover)
       expect(markdown).toContain('God Node')
@@ -457,8 +448,8 @@ describe('Graphify Integration', () => {
     beforeAll(() => {
       cacheDir = mkdtempSync(join(tmpdir(), 'graph-cache-test-'))
       graph = createTestGraph()
-      const degreeScores = computeDegreeCentrality(graph)
-      const prResults = computePageRank(graph)
+      const _degreeScores = computeDegreeCentrality(graph)
+      const _prResults = computePageRank(graph)
       const communities = detectCommunitiesLouvain(graph)
       const communityMap = new Map<string, string>()
       for (const c of communities) {
@@ -510,7 +501,7 @@ describe('Graphify Integration', () => {
 
       const loaded = await loadGraphCache(cacheDir, graph)
       expect(loaded).not.toBeNull()
-      expect(loaded!.communities).toHaveLength(analysis.communities.length)
+      expect(loaded?.communities).toHaveLength(analysis.communities.length)
     })
 
     it('should return null for missing cache', async () => {

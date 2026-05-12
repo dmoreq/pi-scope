@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  detectPathsInMessage,
+  detectPathsInOutput,
   detectPathsInText,
   detectPathsInToolCall,
-  detectPathsInOutput,
-  detectPathsInMessage,
 } from '../../shared/file-detector.js'
 
 let tmpDir: string
@@ -92,18 +92,30 @@ describe('detectPathsInText', () => {
 
 describe('detectPathsInToolCall', () => {
   it('detects path from read tool', () => {
-    const results = detectPathsInToolCall('read', { path: 'src/foo.ts' }, { projectRoot: '/p', validateExistence: false })
+    const results = detectPathsInToolCall(
+      'read',
+      { path: 'src/foo.ts' },
+      { projectRoot: '/p', validateExistence: false }
+    )
     expect(results).toHaveLength(1)
     expect(results[0].path).toContain('foo.ts')
   })
 
   it('detects path from edit tool', () => {
-    const results = detectPathsInToolCall('edit', { path: 'src/bar.ts' }, { projectRoot: '/p', validateExistence: false })
+    const results = detectPathsInToolCall(
+      'edit',
+      { path: 'src/bar.ts' },
+      { projectRoot: '/p', validateExistence: false }
+    )
     expect(results).toHaveLength(1)
   })
 
   it('detects paths from bash command string', () => {
-    const results = detectPathsInToolCall('bash', { command: 'cat src/foo.ts' }, { projectRoot: '/p', validateExistence: false })
+    const results = detectPathsInToolCall(
+      'bash',
+      { command: 'cat src/foo.ts' },
+      { projectRoot: '/p', validateExistence: false }
+    )
     expect(results.length).toBeGreaterThanOrEqual(1)
     expect(results.some(r => r.path.includes('foo.ts'))).toBe(true)
   })
@@ -125,7 +137,9 @@ describe('detectPathsInOutput', () => {
   })
 
   it('detects paths from array content', () => {
-    const results = detectPathsInOutput('bash', [{ type: 'text', text: 'Error in src/foo.ts' }], { validateExistence: false })
+    const results = detectPathsInOutput('bash', [{ type: 'text', text: 'Error in src/foo.ts' }], {
+      validateExistence: false,
+    })
     expect(results).toHaveLength(1)
   })
 
@@ -139,17 +153,14 @@ describe('detectPathsInOutput', () => {
 
 describe('detectPathsInMessage', () => {
   it('scans user message text', () => {
-    const results = detectPathsInMessage(
-      { role: 'user', content: 'Edit src/foo.ts' },
-      { validateExistence: false },
-    )
+    const results = detectPathsInMessage({ role: 'user', content: 'Edit src/foo.ts' }, { validateExistence: false })
     expect(results).toHaveLength(1)
   })
 
   it('scans tool call arguments', () => {
     const results = detectPathsInMessage(
       { role: 'assistant', toolName: 'read', input: { path: 'src/bar.ts' }, content: '' },
-      { validateExistence: false },
+      { validateExistence: false }
     )
     expect(results).toHaveLength(1)
   })
@@ -157,7 +168,7 @@ describe('detectPathsInMessage', () => {
   it('scans tool result output', () => {
     const results = detectPathsInMessage(
       { role: 'toolResult', toolName: 'bash', content: 'src/baz.ts:10: error' },
-      { validateExistence: false },
+      { validateExistence: false }
     )
     expect(results).toHaveLength(1)
   })
