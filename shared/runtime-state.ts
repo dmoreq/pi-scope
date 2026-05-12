@@ -23,7 +23,7 @@ import { PathUtils } from './utils/path-utils.js'
 
 export type StateValue = string | number | boolean | null | StateValue[] | { [key: string]: StateValue }
 
-/** Base directory for slim state. */
+/** Base directory for scope state. */
 function stateDir(projectRoot: string): string {
   return scopeDir(projectRoot)
 }
@@ -41,7 +41,7 @@ export async function readState<T extends Record<string, StateValue> = Record<st
   try {
     const raw = await readFile(statePath(projectRoot), 'utf-8')
     const parsed = JSON.parse(raw) as T
-    console.log(`[slim/state] Loaded state from ${statePath(projectRoot)}`)
+    console.log(`[scope/state] Loaded state from ${statePath(projectRoot)}`)
     return parsed
   } catch {
     return null
@@ -58,9 +58,9 @@ export async function writeState<T extends Record<string, StateValue> = Record<s
   try {
     await mkdir(stateDir(projectRoot), { recursive: true })
     await writeFile(statePath(projectRoot), JSON.stringify(state, null, 2), 'utf-8')
-    console.log(`[slim/state] Persisted state to ${statePath(projectRoot)}`)
+    console.log(`[scope/state] Persisted state to ${statePath(projectRoot)}`)
   } catch (err) {
-    console.error('[slim/state] Failed to write state:', err)
+    console.error('[scope/state] Failed to write state:', err)
   }
 }
 
@@ -91,7 +91,7 @@ export function writeStateSync<T extends Record<string, StateValue> = Record<str
     mkdirSync(stateDir(projectRoot), { recursive: true })
     writeFileSync(statePath(projectRoot), JSON.stringify(state, null, 2), 'utf-8')
   } catch (err) {
-    console.error('[slim/state] Failed to write state:', err)
+    console.error('[scope/state] Failed to write state:', err)
   }
 }
 
