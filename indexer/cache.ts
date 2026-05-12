@@ -9,7 +9,7 @@ export class DiskCache {
   private entries: Map<string, FileIndex> = new Map()
 
   constructor(projectRoot: string) {
-    this.cachePath = PathUtils.joinSafe(projectRoot, '.pi-cache', 'slim.json')
+    this.cachePath = PathUtils.joinSafe(projectRoot, '.pi-cache', 'scope.json')
   }
 
   async load(): Promise<void> {
@@ -18,18 +18,18 @@ export class DiskCache {
       const data: CacheFile = JSON.parse(raw)
       if (data.version !== CACHE_VERSION) {
         console.log(
-          `[slim/cache] Cache version mismatch (expected ${CACHE_VERSION}, got ${data.version}), starting fresh`
+          `[scope/cache] Cache version mismatch (expected ${CACHE_VERSION}, got ${data.version}), starting fresh`
         )
         this.entries = new Map()
         return
       }
       this.entries = new Map(Object.entries(data.entries))
-      console.log(`[slim/cache] Loaded ${this.entries.size} entries from ${this.cachePath}`)
+      console.log(`[scope/cache] Loaded ${this.entries.size} entries from ${this.cachePath}`)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        console.error('[slim/cache] Failed to load cache, starting fresh:', err)
+        console.error('[scope/cache] Failed to load cache, starting fresh:', err)
       } else {
-        console.log('[slim/cache] No existing cache found, starting fresh')
+        console.log('[scope/cache] No existing cache found, starting fresh')
       }
       this.entries = new Map()
     }
@@ -41,7 +41,7 @@ export class DiskCache {
       version: CACHE_VERSION,
       entries: Object.fromEntries(this.entries),
     }
-    console.log(`[slim/cache] Persisting ${this.entries.size} entries to ${this.cachePath}`)
+    console.log(`[scope/cache] Persisting ${this.entries.size} entries to ${this.cachePath}`)
     const tmp = `${this.cachePath}.tmp`
     try {
       await writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8')

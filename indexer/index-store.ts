@@ -135,7 +135,7 @@ export async function saveStore(
   const rawSize = Buffer.byteLength(json, 'utf-8')
   const compressed = await gzipAsync(json)
   console.log(
-    `[slim/store] Persisting index v2 → ${indexPath(projectRoot)} (${rawSize} → ${compressed.length} bytes, ${Math.round((1 - compressed.length / rawSize) * 100)}% compressed)`
+    `[scope/store] Persisting index v2 → ${indexPath(projectRoot)} (${rawSize} → ${compressed.length} bytes, ${Math.round((1 - compressed.length / rawSize) * 100)}% compressed)`
   )
 
   await Promise.all([writeFile(indexPath(projectRoot), compressed), writeFile(mapPath(projectRoot), repoMap, 'utf-8')])
@@ -150,14 +150,14 @@ export async function loadStore(
     readFile(mapPath(projectRoot), 'utf-8'),
   ])
 
-  console.log(`[slim/store] Loading index from ${indexPath(projectRoot)} (${compressed.length} bytes compressed)`)
+  console.log(`[scope/store] Loading index from ${indexPath(projectRoot)} (${compressed.length} bytes compressed)`)
   const raw = await gunzipAsync(compressed)
   const stored: StoredIndex = JSON.parse(raw.toString('utf-8'))
 
   // Auto-migrate v3 → v2
   let index: StoredIndexV2
   if (stored.version === LEGACY_STORE_VERSION) {
-    console.log('[slim/store] Detected legacy v3 index, migrating to v2...')
+    console.log('[scope/store] Detected legacy v3 index, migrating to v2...')
     index = migrateToV2(stored)
   } else if (stored.version === STORE_VERSION) {
     index = stored as StoredIndexV2
@@ -173,7 +173,7 @@ export async function loadStore(
   const symbolIndex = new Map<string, string[]>(Object.entries(index.symbolIndex))
 
   console.log(
-    `[slim/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes, ${reverseDeps.size} reverse deps, ${symbolIndex.size} symbols`
+    `[scope/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes, ${reverseDeps.size} reverse deps, ${symbolIndex.size} symbols`
   )
 
   return {
