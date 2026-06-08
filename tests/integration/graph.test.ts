@@ -10,7 +10,7 @@
  *   6. LSP hover enhancement
  */
 
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -462,6 +462,16 @@ describe('Code-Graph Integration', () => {
     it('should return null for missing cache', async () => {
       const result = await loadGraphCache('/nonexistent', graph)
       expect(result).toBeNull()
+    })
+
+    it('should ignore and remove corrupt cache files', async () => {
+      const cachePath = join(cacheDir, 'graph-cache.json')
+      writeFileSync(cachePath, '{"version":1,"nodes":[', 'utf-8')
+
+      const result = await loadGraphCache(cacheDir, graph)
+
+      expect(result).toBeNull()
+      expect(existsSync(cachePath)).toBe(false)
     })
   })
 

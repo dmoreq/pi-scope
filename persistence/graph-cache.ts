@@ -11,7 +11,8 @@
  *   - TTL expired → recompute (future)
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { dirname } from 'node:path'
 import type {
   Anomaly,
@@ -288,9 +289,14 @@ export async function saveGraphCache(
       await mkdir(dir, { recursive: true })
     }
 
-    const cached = serializeAnalysis(analysis, graph, indexFingerprint)
     const filePath = PathUtils.joinSafe(cacheDir, 'graph-cache.json')
-    await writeFile(filePath, JSON.stringify(cached, null, 2), 'utf-8')
+    const tempPath = PathUtils.joinSafe(
+      cacheDir,
+      `graph-cache.json.${process.pid}.${Date.now()}.${randomUUID()}.tmp`
+    )
+    const cached = serializeAnalysis(analysis, graph, indexFingerprint)
+    await writeFile(tempPath, JSON.stringify(cached, null, 2), 'utf-8')
+    await rename(tempPath, filePath)
     return true
   } catch (err) {
     console.error('[graph-cache] Failed to save:', err)
@@ -319,7 +325,17 @@ export async function loadGraphCache(
     }
 
     const content = await readFile(filePath, 'utf-8')
-    const cached: CachedGraphData = JSON.parse(content)
+    let cached: CachedGraphData
+    try {
+      cached = JSON.parse(content)
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        console.warn('[graph-cache] Corrupt cache ignored; removing graph-cache.json')
+        await unlink(filePath).catch(() => {})
+        return null
+      }
+      throw err
+    }
 
     // Version check
     if (cached.version !== GRAPH_CACHE_VERSION) {
@@ -335,7 +351,7 @@ export async function loadGraphCache(
 
     return deserializeAnalysis(cached, graph)
   } catch (err) {
-    console.warn('[graph-cache] Failed to load cache:', err)
+    console.warn('[graph-cache] Failed to load cache:', err instanceof Error ? err.message : err)
     return null
   }
 }
