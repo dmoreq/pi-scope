@@ -40,9 +40,11 @@ export function detectCommunitiesLouvain(graph: CodeGraph, maxIterations = 10): 
   // Initialize: each node is its own community
   const nodeIds = graph.nodes.map(n => n.id)
   const communities = new Map<string, Set<string>>()
+  const nodeToCommunity = new Map<string, string>()
 
   for (const nodeId of nodeIds) {
     communities.set(nodeId, new Set([nodeId]))
+    nodeToCommunity.set(nodeId, nodeId)
   }
 
   // Build adjacency for efficiency
@@ -59,13 +61,13 @@ export function detectCommunitiesLouvain(graph: CodeGraph, maxIterations = 10): 
 
     // Phase 1: Try moving each node to neighboring communities
     for (const nodeId of nodeIds) {
-      const currentCommunity = findCommunity(communities, nodeId)
+      const currentCommunity = nodeToCommunity.get(nodeId) ?? nodeId
       const nodeNeighbors = neighbors.get(nodeId) ?? new Set()
 
       // Collect neighboring communities
       const neighboringCommunities = new Set<string>()
       for (const neighbor of nodeNeighbors) {
-        const neighborComm = findCommunity(communities, neighbor)
+        const neighborComm = nodeToCommunity.get(neighbor) ?? neighbor
         if (neighborComm !== currentCommunity) {
           neighboringCommunities.add(neighborComm)
         }
@@ -88,6 +90,7 @@ export function detectCommunitiesLouvain(graph: CodeGraph, maxIterations = 10): 
       if (bestCommunity !== currentCommunity && bestDelta > 1e-10) {
         communities.get(currentCommunity)?.delete(nodeId)
         communities.get(bestCommunity)?.add(nodeId)
+        nodeToCommunity.set(nodeId, bestCommunity)
         improved = true
       }
     }
@@ -95,14 +98,15 @@ export function detectCommunitiesLouvain(graph: CodeGraph, maxIterations = 10): 
 
   // Phase 2: Collapse communities to final result
   const finalCommunities: CommunityAnalysis[] = []
-  const seen = new Set<string>()
+  const stats = computeCommunityStats(communities, nodeToCommunity, graph, neighbors)
 
   for (const [commId, members] of communities) {
-    if (members.size > 0 && !seen.has(commId)) {
-      const internalEdges = countEdgesInCommunity(members, graph)
-      const externalEdges = countEdgesOutside(members, graph)
+    if (members.size > 0) {
+      const communityStats = stats.get(commId)
+      const internalEdges = communityStats?.internalEdges ?? 0
+      const externalEdges = communityStats?.externalEdges ?? 0
       const density = computeDensity(members, internalEdges)
-      const interfaceNodes = findInterfaceNodes(members, graph)
+      const interfaceNodes = Array.from(communityStats?.interfaceNodes ?? [])
 
       finalCommunities.push({
         id: `community-${finalCommunities.length}`,
@@ -113,10 +117,6 @@ export function detectCommunitiesLouvain(graph: CodeGraph, maxIterations = 10): 
         interfaceNodes,
         bottlenecks: findBottlenecksInCommunity(members, neighbors),
       })
-
-      for (const member of members) {
-        seen.add(member)
-      }
     }
   }
 
@@ -145,22 +145,6 @@ function buildNeighborMap(graph: CodeGraph): Map<string, Set<string>> {
   }
 
   return neighbors
-}
-
-/**
- * Find which community a node belongs to.
- *
- * @param communities Community map
- * @param nodeId Node to find
- * @returns Community ID or node ID if not found
- */
-function findCommunity(communities: Map<string, Set<string>>, nodeId: string): string {
-  for (const [commId, members] of communities) {
-    if (members.has(nodeId)) {
-      return commId
-    }
-  }
-  return nodeId
 }
 
 /**
@@ -227,23 +211,56 @@ function countEdgesInCommunity(community: Set<string>, graph: CodeGraph): number
   return count
 }
 
-/**
- * Count edges going outside a community.
- *
- * @param community Set of node IDs
- * @param graph The graph
- * @returns Number of edges crossing boundary
- */
-function countEdgesOutside(community: Set<string>, graph: CodeGraph): number {
-  let count = 0
-  for (const edge of graph.edges) {
-    const sourceIn = community.has(edge.source)
-    const targetIn = community.has(edge.target)
-    if (sourceIn !== targetIn) {
-      count++
+function computeCommunityStats(
+  communities: Map<string, Set<string>>,
+  nodeToCommunity: Map<string, string>,
+  graph: CodeGraph,
+  neighbors: Map<string, Set<string>>
+): Map<string, { internalEdges: number; externalEdges: number; interfaceNodes: Set<string> }> {
+  const stats = new Map<string, { internalEdges: number; externalEdges: number; interfaceNodes: Set<string> }>()
+
+  for (const [commId, members] of communities) {
+    if (members.size > 0) {
+      stats.set(commId, { internalEdges: 0, externalEdges: 0, interfaceNodes: new Set() })
     }
   }
-  return count
+
+  for (const edge of graph.edges) {
+    const sourceComm = nodeToCommunity.get(edge.source)
+    const targetComm = nodeToCommunity.get(edge.target)
+    if (!sourceComm || !targetComm) continue
+
+    if (sourceComm === targetComm) {
+      const sourceStats = stats.get(sourceComm)
+      if (sourceStats) sourceStats.internalEdges++
+    } else {
+      const sourceStats = stats.get(sourceComm)
+      if (sourceStats) {
+        sourceStats.externalEdges++
+        sourceStats.interfaceNodes.add(edge.source)
+      }
+      const targetStats = stats.get(targetComm)
+      if (targetStats) {
+        targetStats.externalEdges++
+        targetStats.interfaceNodes.add(edge.target)
+      }
+    }
+  }
+
+  for (const [commId, members] of communities) {
+    const communityStats = stats.get(commId)
+    if (!communityStats) continue
+    for (const nodeId of members) {
+      for (const neighbor of neighbors.get(nodeId) ?? []) {
+        if ((nodeToCommunity.get(neighbor) ?? neighbor) !== commId) {
+          communityStats.interfaceNodes.add(nodeId)
+          break
+        }
+      }
+    }
+  }
+
+  return stats
 }
 
 /**
@@ -261,31 +278,6 @@ function computeDensity(community: Set<string>, internalEdges: number): number {
 
   const maxEdges = n * (n - 1) // Directed
   return maxEdges > 0 ? internalEdges / maxEdges : 0
-}
-
-/**
- * Find interface nodes (nodes with external connections).
- *
- * @param community Set of node IDs
- * @param graph The graph
- * @returns Array of interface node IDs
- */
-function findInterfaceNodes(community: Set<string>, graph: CodeGraph): string[] {
-  const interfaceNodes = new Set<string>()
-
-  for (const edge of graph.edges) {
-    const sourceIn = community.has(edge.source)
-    const targetIn = community.has(edge.target)
-
-    if (sourceIn && !targetIn) {
-      interfaceNodes.add(edge.source)
-    }
-    if (targetIn && !sourceIn) {
-      interfaceNodes.add(edge.target)
-    }
-  }
-
-  return Array.from(interfaceNodes)
 }
 
 /**

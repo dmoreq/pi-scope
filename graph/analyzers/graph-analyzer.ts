@@ -13,6 +13,14 @@ import type {
   SurprisingConnection,
 } from '../interfaces/analyzer.interface.js'
 
+interface GraphIndexes {
+  neighbors: Map<string, Set<string>>
+  edgeKeys: Set<string>
+  incidentEdges: Map<string, number>
+}
+
+const MAX_CLUSTERING_PAIR_CHECKS_PER_NODE = 50_000
+
 export class GraphAnalyzer implements GraphAnalyzerContract {
   constructor(private readonly cache: AnalysisCache) {}
 
@@ -23,10 +31,11 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
       return cached
     }
 
+    const indexes = this.buildIndexes(graph)
     const result: AnalysisResult = {
-      godNodes: this.identifyGodNodes(graph),
-      communities: this.detectCommunities(graph),
-      metrics: this.computeMetrics(graph),
+      godNodes: this.identifyGodNodes(graph, indexes),
+      communities: this.detectCommunities(graph, indexes),
+      metrics: this.computeMetrics(graph, indexes),
       surprisingConnections: this.findSurprisingConnections(graph),
     }
 
@@ -34,16 +43,11 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
     return result
   }
 
-  private identifyGodNodes(graph: Graph): GodNode[] {
+  private identifyGodNodes(graph: Graph, indexes: GraphIndexes): GodNode[] {
     const connectivity = new Map<string, number>()
 
     graph.nodes.forEach(node => {
-      connectivity.set(node.id, 0)
-    })
-
-    graph.edges.forEach(edge => {
-      connectivity.set(edge.from, (connectivity.get(edge.from) ?? 0) + 1)
-      connectivity.set(edge.to, (connectivity.get(edge.to) ?? 0) + 1)
+      connectivity.set(node.id, indexes.incidentEdges.get(node.id) ?? 0)
     })
 
     const sortedNodes = Array.from(connectivity.entries()).sort((a, b) => {
@@ -57,18 +61,18 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
     return sortedNodes.slice(0, threshold).map(([id, connections]) => ({
       id,
       connectivity: connections,
-      centrality: this.calculateCentrality(id, graph),
+      centrality: this.calculateCentrality(id, graph, indexes),
       influence: this.calculateInfluence(id, graph),
     }))
   }
 
-  private detectCommunities(graph: Graph): Community[] {
+  private detectCommunities(graph: Graph, indexes: GraphIndexes): Community[] {
     const visited = new Set<string>()
     const communities: Community[] = []
 
     graph.nodes.forEach(node => {
       if (!visited.has(node.id)) {
-        const community = this.expandCommunity(node.id, graph, visited)
+        const community = this.expandCommunity(node.id, graph, visited, indexes)
         if (community.nodes.length > 1) {
           communities.push(community)
         }
@@ -78,33 +82,31 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
     return communities
   }
 
-  private expandCommunity(startNode: string, graph: Graph, visited: Set<string>): Community {
+  private expandCommunity(startNode: string, graph: Graph, visited: Set<string>, indexes: GraphIndexes): Community {
     const community: string[] = []
     const queue = [startNode]
+    let head = 0
 
-    while (queue.length > 0) {
-      const current = queue.shift()
+    while (head < queue.length) {
+      const current = queue[head++]
       if (!current || visited.has(current)) continue
 
       visited.add(current)
       community.push(current)
 
-      const neighbors = graph.edges
-        .filter(e => e.from === current || e.to === current)
-        .map(e => (e.from === current ? e.to : e.from))
-        .filter(n => !visited.has(n))
-
-      queue.push(...neighbors)
+      for (const neighbor of indexes.neighbors.get(current) ?? []) {
+        if (!visited.has(neighbor)) queue.push(neighbor)
+      }
     }
 
     return {
       id: `community-${startNode}`,
       nodes: community,
-      cohesion: this.calculateCohesion(community, graph),
+      cohesion: this.calculateCohesion(community, indexes),
     }
   }
 
-  private computeMetrics(graph: Graph): GraphMetrics {
+  private computeMetrics(graph: Graph, indexes: GraphIndexes): GraphMetrics {
     const nodeCount = graph.nodes.length
     const edgeCount = graph.edges.length
     const maxPossibleEdges = (nodeCount * (nodeCount - 1)) / 2
@@ -113,7 +115,7 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
       nodeCount,
       edgeCount,
       density: maxPossibleEdges > 0 ? edgeCount / maxPossibleEdges : 0,
-      avgClustering: this.calculateAverageClustering(graph),
+      avgClustering: this.calculateAverageClustering(graph, indexes),
     }
   }
 
@@ -121,47 +123,58 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
     return []
   }
 
-  private calculateCentrality(nodeId: string, graph: Graph): number {
+  private calculateCentrality(nodeId: string, graph: Graph, indexes: GraphIndexes): number {
     if (graph.nodes.length === 0) return 0
-    const connections = graph.edges.filter(e => e.from === nodeId || e.to === nodeId)
-    return connections.length / graph.nodes.length
+    return (indexes.incidentEdges.get(nodeId) ?? 0) / graph.nodes.length
   }
 
   private calculateInfluence(_nodeId: string, _graph: Graph): number {
     return 0.5
   }
 
-  private calculateCohesion(nodes: string[], graph: Graph): number {
+  private calculateCohesion(nodes: string[], indexes: GraphIndexes): number {
     if (nodes.length < 2) return 0
 
-    const internalEdges = graph.edges.filter(e => nodes.includes(e.from) && nodes.includes(e.to)).length
+    const nodeSet = new Set(nodes)
+    let internalEdges = 0
+    for (const node of nodeSet) {
+      for (const neighbor of indexes.neighbors.get(node) ?? []) {
+        if (nodeSet.has(neighbor)) internalEdges++
+      }
+    }
+    internalEdges /= 2
 
     const maxInternalEdges = (nodes.length * (nodes.length - 1)) / 2
     return maxInternalEdges > 0 ? internalEdges / maxInternalEdges : 0
   }
 
-  private calculateAverageClustering(graph: Graph): number {
+  private calculateAverageClustering(graph: Graph, indexes: GraphIndexes): number {
     if (graph.nodes.length < 3) return 0
 
     let totalClustering = 0
     let counted = 0
 
     for (const node of graph.nodes) {
-      const neighbors = this.getNeighbors(node.id, graph)
+      const neighbors = Array.from(indexes.neighbors.get(node.id) ?? [])
       if (neighbors.length < 2) continue
 
       const possibleTriangles = (neighbors.length * (neighbors.length - 1)) / 2
       let actualTriangles = 0
+      let checkedPairs = 0
+      const pairBudget = Math.min(possibleTriangles, MAX_CLUSTERING_PAIR_CHECKS_PER_NODE)
 
       for (let i = 0; i < neighbors.length; i++) {
         for (let j = i + 1; j < neighbors.length; j++) {
-          if (neighbors[i] && neighbors[j] && this.hasEdge(neighbors[i], neighbors[j], graph)) {
+          checkedPairs++
+          if (neighbors[i] && neighbors[j] && this.hasEdge(neighbors[i], neighbors[j], indexes)) {
             actualTriangles++
           }
+          if (checkedPairs >= pairBudget) break
         }
+        if (checkedPairs >= pairBudget) break
       }
 
-      const clustering = possibleTriangles > 0 ? actualTriangles / possibleTriangles : 0
+      const clustering = checkedPairs > 0 ? actualTriangles / checkedPairs : 0
       totalClustering += clustering
       counted++
     }
@@ -169,21 +182,30 @@ export class GraphAnalyzer implements GraphAnalyzerContract {
     return counted > 0 ? totalClustering / counted : 0
   }
 
-  private getNeighbors(nodeId: string, graph: Graph): string[] {
-    const neighbors = new Set<string>()
+  private buildIndexes(graph: Graph): GraphIndexes {
+    const edgeKeys = new Set<string>()
+    const neighborMap = new Map<string, Set<string>>()
+    const incidentEdges = new Map<string, number>()
 
-    for (const edge of graph.edges) {
-      if (edge.from === nodeId) neighbors.add(edge.to)
-      if (edge.to === nodeId) neighbors.add(edge.from)
+    for (const node of graph.nodes) {
+      neighborMap.set(node.id, new Set())
+      incidentEdges.set(node.id, 0)
     }
 
-    return Array.from(neighbors)
+    for (const edge of graph.edges) {
+      neighborMap.get(edge.from)?.add(edge.to)
+      neighborMap.get(edge.to)?.add(edge.from)
+      edgeKeys.add(`${edge.from}\0${edge.to}`)
+      edgeKeys.add(`${edge.to}\0${edge.from}`)
+      incidentEdges.set(edge.from, (incidentEdges.get(edge.from) ?? 0) + 1)
+      incidentEdges.set(edge.to, (incidentEdges.get(edge.to) ?? 0) + 1)
+    }
+
+    return { neighbors: neighborMap, edgeKeys, incidentEdges }
   }
 
-  private hasEdge(node1: string, node2: string, graph: Graph): boolean {
-    return graph.edges.some(
-      edge => (edge.from === node1 && edge.to === node2) || (edge.from === node2 && edge.to === node1)
-    )
+  private hasEdge(node1: string, node2: string, indexes: GraphIndexes): boolean {
+    return indexes.edgeKeys.has(`${node1}\0${node2}`)
   }
 
   private generateCacheKey(graph: Graph): string {

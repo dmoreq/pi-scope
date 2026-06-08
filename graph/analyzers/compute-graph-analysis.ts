@@ -29,10 +29,15 @@ export function assembleGraphAnalysis(graph: CodeGraph, analyzerResult: Analysis
   const prMap = new Map(prResults.map(p => [p.nodeId, p]))
 
   const communities = detectCommunitiesLouvain(graph)
+  const nodeMap = new Map(graph.nodes.map(n => [n.id, n]))
+  const communityMap = new Map<string, string>()
+  for (const c of communities) {
+    for (const node of c.nodes) communityMap.set(node, c.id)
+  }
 
   const godNodes: GodNode[] = analyzerResult.godNodes.map(gn => {
     const nodeId = gn.id
-    const meta = graph.nodes.find(n => n.id === nodeId)
+    const meta = nodeMap.get(nodeId)
     const d = degMap.get(nodeId)
     const p = prMap.get(nodeId)
     const inDegree = d?.inDegree ?? 0
@@ -44,15 +49,10 @@ export function assembleGraphAnalysis(graph: CodeGraph, analyzerResult: Analysis
       outDegree: d?.outDegree ?? 0,
       betweenness: 0,
       pageRank: p?.score ?? 0,
-      community: communities.find(c => c.nodes.includes(nodeId))?.id ?? 'unknown',
+      community: communityMap.get(nodeId) ?? 'unknown',
       criticality: inDegree > 20 ? ('CRITICAL' as const) : inDegree > 10 ? ('IMPORTANT' as const) : ('NORMAL' as const),
     }
   })
-
-  const communityMap = new Map<string, string>()
-  for (const c of communities) {
-    for (const node of c.nodes) communityMap.set(node, c.id)
-  }
 
   const surprises = detectSurprisingConnections(graph, communityMap)
 

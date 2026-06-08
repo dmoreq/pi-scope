@@ -57,18 +57,18 @@ export function computePageRank(
     rank.set(id, 1 / n)
   }
 
-  // ── Build outlink map for efficiency ───────────────────────────────────
+  // ── Build link maps for efficiency ─────────────────────────────────────
 
   const outlinks = new Map<string, string[]>()
+  const incoming = new Map<string, string[]>()
   for (const id of nodeIds) {
     outlinks.set(id, [])
+    incoming.set(id, [])
   }
 
   for (const edge of graph.edges) {
-    const links = outlinks.get(edge.source)
-    if (links) {
-      links.push(edge.target)
-    }
+    outlinks.get(edge.source)?.push(edge.target)
+    incoming.get(edge.target)?.push(edge.source)
   }
 
   // ── Iterative computation ──────────────────────────────────────────────
@@ -83,13 +83,11 @@ export function computePageRank(
     for (const nodeId of nodeIds) {
       let score = baseScore
 
-      // Sum contributions from nodes pointing to this node
-      for (const edge of graph.edges) {
-        if (edge.target === nodeId) {
-          const sourceRank = rank.get(edge.source) ?? 0
-          const sourceOutDegree = outlinks.get(edge.source)?.length ?? 1
-          score += damping * (sourceRank / sourceOutDegree)
-        }
+      // Sum contributions from nodes pointing to this node.
+      for (const sourceId of incoming.get(nodeId) ?? []) {
+        const sourceRank = rank.get(sourceId) ?? 0
+        const sourceOutDegree = outlinks.get(sourceId)?.length ?? 1
+        score += damping * (sourceRank / sourceOutDegree)
       }
 
       newRank.set(nodeId, score)
