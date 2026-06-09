@@ -86,13 +86,26 @@ export class LspNavigationService {
   private clients = new Map<string, LSPClientInfo>()
   private processes = new Map<string, LSPProcess>()
   private openedDocs = new Set<string>()
+  private openingDocs = new Map<string, Promise<void>>()
 
   private async ensureDocumentOpen(absPath: string, client: LSPClientInfo): Promise<void> {
     if (this.openedDocs.has(absPath)) return
-    const content = await readFile(absPath, 'utf-8')
-    const languageId = getLanguageId(absPath)
-    await client.notify.open(absPath, content, languageId)
-    this.openedDocs.add(absPath)
+    const inFlight = this.openingDocs.get(absPath)
+    if (inFlight) return inFlight
+
+    const opening = (async () => {
+      const content = await readFile(absPath, 'utf-8')
+      const languageId = getLanguageId(absPath)
+      await client.notify.open(absPath, content, languageId)
+      this.openedDocs.add(absPath)
+    })()
+
+    this.openingDocs.set(absPath, opening)
+    try {
+      await opening
+    } finally {
+      this.openingDocs.delete(absPath)
+    }
   }
 
   async ensureServer(filePath: string, projectRoot: string): Promise<LSPClientInfo> {
@@ -289,6 +302,7 @@ export class LspNavigationService {
     this.clients.clear()
     this.processes.clear()
     this.openedDocs.clear()
+    this.openingDocs.clear()
   }
 }
 

@@ -12,6 +12,7 @@ import { buildGraphLookupIndex, type GraphLookupIndex } from '../context/graph-l
 import type { GraphAnalysis } from '../context/graph-types.js'
 import { appendHashlineHoverSection, setHashlineHoverEnabled } from '../hashline/lsp-hover-anchor.js'
 import { LspNavigationService } from '../lsp/service.js'
+import { mapLimit } from '../shared/concurrency.js'
 import type { RepoIndex } from '../shared/types.js'
 
 let currentAnalysis: GraphAnalysis | null = null
@@ -268,13 +269,17 @@ const batchGotoTool = defineTool({
     if (disabled) return disabled
 
     try {
-      for (const pos of p.positions) {
+      const results = await mapLimit(p.positions, 5, async pos => {
         const { text, paths } = await getService().goToDefinition(
           resolve(cwd, pos.path),
           pos.line,
           pos.column,
           cwd
         )
+        return { pos, text, paths }
+      })
+
+      for (const { pos, text, paths } of results) {
         sections.push(`### ${pos.path}:${pos.line}:${pos.column}\n${text}`)
         for (const path of paths) allPaths.add(path)
       }
