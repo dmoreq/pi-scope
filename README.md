@@ -312,11 +312,14 @@ Most behavior is still automatic (no other user commands):
 - 8 nodes, 15 edges: ~30ms (all algorithms)
 - 100 nodes, 300 edges: ~300ms (all algorithms)
 - Cache reload: <25ms
+- Graph lookup (community/god-node/adjacency): <0.1ms via pre-built `GraphLookupIndex`
 
-**Performance benchmarks:**
-- First index: ~1-2s for 1,000 files, ~5-10s for 10,000 files
+**Indexing & pipeline benchmarks:**
+- First index: ~1s for 1,000 files (12-way parallel), ~3-5s for 10,000 files
 - Cache load: < 50ms from `.pi/pi-scope/index.json.gz`
 - Pruning overhead: < 5ms per turn
+- Context pipeline: budget-aware lazy evaluation (expensive sources skipped once budget is met)
+- Symbol lookup: < 1ms via pre-built inverted index (O(1))
 
 ---
 
@@ -335,6 +338,7 @@ pi-scope/
 ├── algorithms/               # Graph algorithms (centrality, PageRank, Louvain, cycles, surprises)
 ├── cli/                      # CLI command handlers (wiki commands)
 ├── context/                  # Retrieval engine, injection pipeline, graph modules
+│   └── graph-lookup-index.ts # Pre-built O(1) lookup tables over GraphAnalysis
 ├── hashline/                 # Hashline edit system (6 modules)
 ├── lsp/                      # LSP client + service
 ├── indexer/                  # AST index engine + cache + store
@@ -344,12 +348,16 @@ pi-scope/
 ├── tools/                    # Pi tool definitions
 ├── metrics/                  # Session stats, cost estimation, graph metrics
 ├── visualization/            # D3.js HTML dashboard generator
-├── shared/                   # Utilities
+├── shared/                   # Cross-cutting utilities
+│   ├── path-policy.ts        # Unified source-path policy (ignore rules, extensions)
+│   ├── concurrency.ts        # mapLimit() for bounded parallel async
+│   ├── line-window.ts        # readLineWindow / readLineWindowSync (partial-file reads)
+│   └── index-fingerprint.ts  # computeRepoIndexFingerprint() — SHA-256, persisted
 ├── ui/                       # TUI notifications, dashboard, init prompt
 ├── docs/                     # Reference documentation
 │   └── algorithms/
 │       └── GRAPH_ALGORITHMS_REFERENCE.md
-└── tests/                    # Test suite (594 tests, all passing)
+└── tests/                    # Test suite (~730 tests, all passing)
     ├── algorithms/           # Algorithm unit tests
     ├── cli/                  # CLI test
     ├── context/              # Context module tests
@@ -365,7 +373,7 @@ pi-scope/
 npm test
 ```
 
-**594 tests** across 42 files — all passing. 2 pre-existing failures unrelated to pi-scope (pi-telemetry package resolution).
+**~730 tests** across 60+ files — all passing. 2 pre-existing failures unrelated to pi-scope (pi-telemetry package resolution).
 
 Test coverage includes:
 - All graph algorithms (centrality, PageRank, Louvain, cycles, surprises)
