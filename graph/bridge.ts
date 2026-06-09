@@ -31,6 +31,19 @@ export function repoIndexToCodeGraph(index: RepoIndex, projectRoot: string): Cod
   const nodeIds = new Set<string>()
   const fileNodeIds = new Map<string, string>() // absPath → nodeId
 
+  // Precompute a map of filePath → symbolName[] from index.symbolIndex
+  const fileExports = new Map<string, string[]>()
+  for (const [symbolName, filePaths] of index.symbolIndex) {
+    for (const filePath of filePaths) {
+      let exportsList = fileExports.get(filePath)
+      if (!exportsList) {
+        exportsList = []
+        fileExports.set(filePath, exportsList)
+      }
+      exportsList.push(symbolName)
+    }
+  }
+
   // Phase 1: Create file-level module nodes
   for (const absPath of index.skeletons.keys()) {
     const fileId = fileNodeId(absPath, projectRoot)
@@ -45,18 +58,18 @@ export function repoIndexToCodeGraph(index: RepoIndex, projectRoot: string): Cod
   }
 
   // Phase 2: Create symbol-level nodes from exports
-  for (const [absPath, symbols] of index.symbolIndex) {
-    const fileId = fileNodeId(absPath, projectRoot)
-    for (const sym of symbols) {
-      const symId = `${fileId}:${sym}`
+  for (const [symbolName, filePaths] of index.symbolIndex) {
+    for (const absFilePath of filePaths) {
+      const fileId = fileNodeId(absFilePath, projectRoot)
+      const symId = `${fileId}:${symbolName}`
       // Skip duplicates (same symbol exported from multiple paths gets one node per file)
       if (nodeIds.has(symId)) continue
       nodeIds.add(symId)
 
       nodes.push({
         id: symId,
-        type: inferSymbolType(sym),
-        label: sym,
+        type: inferSymbolType(symbolName),
+        label: symbolName,
         description: undefined,
       })
 
@@ -92,7 +105,7 @@ export function repoIndexToCodeGraph(index: RepoIndex, projectRoot: string): Cod
       })
 
       // Also add file→symbol edges for all exports of the target file
-      const targetSymbols = index.symbolIndex.get(depPath) ?? []
+      const targetSymbols = fileExports.get(depPath) ?? []
       for (const sym of targetSymbols) {
         const symId = `${tgtFileId}:${sym}`
         if (!nodeIds.has(symId)) {
@@ -126,10 +139,10 @@ export function repoIndexToCodeGraph(index: RepoIndex, projectRoot: string): Cod
   }
 
   // Phase 4: Reverse edges — symbol → file (for algorithms that traverse in reverse)
-  for (const [absPath, symbols] of index.symbolIndex) {
-    const fileId = fileNodeId(absPath, projectRoot)
-    for (const sym of symbols) {
-      const symId = `${fileId}:${sym}`
+  for (const [symbolName, filePaths] of index.symbolIndex) {
+    for (const absFilePath of filePaths) {
+      const fileId = fileNodeId(absFilePath, projectRoot)
+      const symId = `${fileId}:${symbolName}`
       if (!nodeIds.has(symId)) continue
       // Symbol → file ownership is already handled above (depends_on)
     }

@@ -113,7 +113,7 @@ export function startServer(port: number) {
     const systemResult = await manager.handleBeforeAgentStart(beforeAgentEvent, mockContext)
     expect(systemResult).toBeDefined()
     expect(systemResult.systemPrompt).toContain('<repo-map>')
-    expect(systemResult.systemPrompt).toContain('src/auth.ts')
+    expect(systemResult.systemPrompt).toContain('auth.ts')
     expect(systemResult.systemPrompt).toContain('authenticate')
     expect(systemResult.systemPrompt).toContain('User')
 

@@ -34,12 +34,12 @@ function makeIndex(projectRoot: string, variant: 'auth-to-db' | 'db-to-auth'): R
     symbolIndex: new Map(
       variant === 'auth-to-db'
         ? [
-            [authPath, ['authenticate']],
-            [dbPath, ['query']],
+            ['authenticate', [authPath]],
+            ['query', [dbPath]],
           ]
         : [
-            [authPath, ['authorize']],
-            [dbPath, ['lookup']],
+            ['authorize', [authPath]],
+            ['lookup', [dbPath]],
           ]
     ),
   }
