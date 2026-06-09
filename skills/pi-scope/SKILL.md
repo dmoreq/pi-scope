@@ -134,3 +134,4 @@ You do NOT need to run any commands. Here's what the agent sees in its system pr
 - **Large projects (>10K files):** Set `exclude` patterns in `.pi/scope.jsonc`
 - **First-degree imports only** in dep graph (transitive configurable via `dependencyDepth`)
 - **Graph data not used everywhere** — graph analysis only runs at startup; incremental code changes don't trigger re-analysis (future feature)
+- **Context sources are evaluated lazily by priority** — sources with lower priority (e.g., `<repo-map>`) are skipped entirely when the token budget is already exhausted by higher-priority sources. If expected context is missing, check `slim.maxInjectionTokens` in config.
