@@ -205,11 +205,11 @@ export class ContextIntelligenceEngine {
             dependentCount: godNode.inDegree,
             affectedCommunities: this.estimateAffectedCommunities(godNode, graphAnalysis),
           }
-      const icon = godNode.criticality === 'CRITICAL' ? '🔥' : godNode.criticality === 'IMPORTANT' ? '⚠️' : '🔍'
+      const icon = godNode.criticality === 'CRITICAL' ? '⚡' : godNode.criticality === 'IMPORTANT' ? '★' : '🔍'
       return `- ${icon} \`${godNode.label}\` (${dependentCount} dependents, ${affectedCommunities} communities)`
     })
 
-    return `⚠️ HIGH-IMPACT SYMBOLS (edit carefully):\n${warnings.join('\n')}`
+    return `⚠ HIGH-CONNECTIVITY SYMBOLS (verify downstream impact):\n${warnings.join('\n')}`
   }
 
   private generateContextualSuggestions(

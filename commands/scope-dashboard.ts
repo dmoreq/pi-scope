@@ -40,9 +40,9 @@ export function formatScopeDashboard(manager: SessionManager): string {
     const hasGraph = !!graph
     const status =
       !hasGraph || !lspActive
-        ? '✗ Limited'
+        ? 'ℹ Basic'
         : q && (q.score < 70 || q.cycleCount > 0)
-          ? '⚠ Degraded'
+          ? '⚠ Needs Attention'
           : '✓ Healthy'
 
     const indexAge =
@@ -374,19 +374,17 @@ export function formatScopeImpact(manager: SessionManager, symbol: string): stri
   const critIcon = !godNode
     ? '🟢'
     : godNode.criticality === 'CRITICAL'
-      ? '🔴'
+      ? '⚡'
       : godNode.criticality === 'IMPORTANT'
-        ? '🟠'
-        : '🟡'
+        ? '★'
+        : '🔍'
 
   const rec =
     godNode?.criticality === 'CRITICAL'
-      ? 'Schedule mandatory code review before editing this symbol.'
+      ? 'Highly coupled. Inspect dependents using lsp_find_references before editing.'
       : godNode?.criticality === 'IMPORTANT'
-        ? 'Request code review before applying changes.'
-        : dependentCount > 5
-          ? 'Run lsp_find_references before editing.'
-          : 'Standard review applies.'
+        ? 'Highly visible. Verify usage impact using lsp_find_references.'
+        : 'Verify references with lsp_find_references if changes are large.'
 
   const lines = [
     `┌──── Impact: ${symbol} ${'─'.repeat(Math.max(0, 46 - symbol.length))}┐`,

@@ -130,7 +130,7 @@ describe('ContextIntelligenceEngine', () => {
 
     const guidance = engine.generateActionableGuidance(insights, mockGraphAnalysis)
 
-    expect(guidance).toContain('HIGH-IMPACT SYMBOLS')
+    expect(guidance).toContain('HIGH-CONNECTIVITY SYMBOLS')
     expect(guidance).toContain('Client')
     expect(guidance).toContain('hashline_edit')
   })
@@ -337,7 +337,7 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
 
     expect(guidance).toContain('OPTIMIZATION SUGGESTIONS')
     expect(guidance).toContain('Prefer hashline_edit for verified edits')
-    expect(guidance).toContain('HIGH-IMPACT SYMBOLS')
+    expect(guidance).toContain('HIGH-CONNECTIVITY SYMBOLS')
   })
 
   it('should generate navigation-specific guidance for references vs definition', () => {
@@ -486,7 +486,7 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
     })
 
     expect(guidance).not.toContain('WORKFLOW OPTIMIZATION')
-    expect(guidance).toContain('HIGH-IMPACT SYMBOLS')
+    expect(guidance).toContain('HIGH-CONNECTIVITY SYMBOLS')
   })
 
   it('includes IMPACT UNKNOWN when graph is missing during editing', () => {

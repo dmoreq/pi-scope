@@ -43,7 +43,7 @@ export class HashlineValidatePlugin implements Plugin {
     return {
       allowed: true,
       reason:
-        `No hashline anchors recorded for \`${path}\`. Call \`hashline_read\` (or check dep-context) before applying edits.`,
+        `\`${path}\` does not have active hashline anchors. We recommend calling \`hashline_read\` (or checking the dep-context) to inspect current anchors first.`,
     }
   }
 }

@@ -76,8 +76,8 @@ export class HashlineSteerPlugin implements Plugin {
 
     const dryRunHint = cfg.preferDryRun ? ' Use `dry_run: true` on the first attempt.' : ''
     const reason =
-      `Prefer \`hashline_edit\` for \`${path}\` — anchors are in dep-context or use \`/hashline-read ${path}\`.` +
-      ` Built-in \`${tool}\` can drift; hashline validates line anchors.${dryRunHint}`
+      `We recommend using \`hashline_edit\` for \`${path}\` to ensure line anchors match. ` +
+      `You can read the file with \`/hashline-read ${path}\` to see current anchors.${dryRunHint}`
 
     const block =
       cfg.strictMode || (cfg.contextualStrictMode && pathHasAnchorsThisTurn(this.getAnchorPathsThisTurn, state, path))

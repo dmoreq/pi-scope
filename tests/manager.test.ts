@@ -79,7 +79,7 @@ describe('SessionManager Intelligence Integration', () => {
     manager.addMessages(messages)
     const guidance = await manager.generateIntelligentGuidance()
 
-    expect(guidance).toContain('HIGH-IMPACT SYMBOLS')
+    expect(guidance).toContain('HIGH-CONNECTIVITY SYMBOLS')
     expect(guidance).toContain('Client')
   })
 

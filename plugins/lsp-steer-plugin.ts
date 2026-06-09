@@ -46,7 +46,7 @@ export class LspSteerPlugin implements Plugin {
 
     if (GREP_TOOLS.has(tool)) {
       const reason =
-        'Prefer `lsp_go_to_definition` or `lsp_workspace_symbol` over text search when locating symbols in indexed code.'
+        '`lsp_go_to_definition` or `lsp_find_references` is recommended over text search for navigating symbols in indexed files.'
       if (state.config.lsp.strictNavigation) {
         return { allowed: false, reason }
       }
@@ -55,7 +55,7 @@ export class LspSteerPlugin implements Plugin {
 
     if (tool === 'read' && path && pathIsIndexed(state, path) && readLooksLikeNavigation(event.input)) {
       const reason =
-        `For type and impact at a specific line in \`${path}\`, use \`lsp_hover\` (0-based line/col) instead of partial \`read\`.`
+        `You can use \`lsp_hover\` on \`${path}\` to inspect type definitions and codebase impact at a specific line/column.`
       if (state.config.lsp.strictNavigation) {
         return { allowed: false, reason }
       }

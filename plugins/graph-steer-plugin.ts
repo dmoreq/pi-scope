@@ -54,7 +54,7 @@ export class GraphSteerPlugin implements Plugin {
     if (hasRecentLspImpact(state)) return undefined
 
     const reason =
-      'Target symbol is a CRITICAL god node — run `lsp_find_references` and `lsp_hover` (or `graph_symbol_impact`) before editing.'
+      'This symbol has high connectivity. Please verify its references and usage impact using lsp_find_references or lsp_hover before making edits.'
 
     state.stats.recordGraphSteer()
 
@@ -64,7 +64,7 @@ export class GraphSteerPlugin implements Plugin {
     )
     const depLabel = godNode ? ` (${godNode.inDegree} dependents)` : ''
     this.onUserNotify?.(
-      `🛡 Guiding AI to check impact before editing CRITICAL symbol \`${symbolNames}\`${depLabel}`
+      `💡 Advising impact check before modifying highly connected symbol \`${symbolNames}\`${depLabel}`
     )
 
     if (state.config.graph.strictGraphImpact) {

@@ -82,7 +82,7 @@ describe('GraphSteerPlugin', () => {
     )
     await plugin.onToolCall!({ toolName: 'edit', input: { path: 'src/hub.ts' } })
     expect(userMessages.length).toBeGreaterThan(0)
-    expect(userMessages[0]).toMatch(/CRITICAL.*Hub|Hub.*CRITICAL/)
+    expect(userMessages[0]).toMatch(/highly connected.*Hub|Hub.*highly connected/)
   })
 
   it('does not steer when LSP impact tool was used recently', async () => {

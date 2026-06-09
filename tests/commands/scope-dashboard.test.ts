@@ -126,7 +126,7 @@ describe('formatScopeDashboard', () => {
     manager.lspServerHealth = [{ id: 'typescript', available: true, installCommand: '' }]
     const text = formatScopeDashboard(manager)
     expect(text).toContain('🏥 HEALTH')
-    expect(text).toMatch(/Status\s+:\s+(✓|⚠|✗)/)
+    expect(text).toMatch(/Status\s+:\s+(✓|⚠|ℹ)/)
   })
 
   it('shows graph quality and injection breakdown when metrics snapshot exists', () => {

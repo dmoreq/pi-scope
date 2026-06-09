@@ -40,12 +40,12 @@ export function cycleWarningForFiles(
     const anRel = relPathsFromAnomaly(an)
     if (pathsOverlap(focusRel, anRel)) {
       const sample = anRel.slice(0, 3).join(', ')
-      return `Circular dependency involves in-focus file(s) (${sample}) — avoid deepening import cycles.`
+      return `An in-focus file participates in a circular dependency (${sample}). Please be mindful of import directions when editing.`
     }
   }
 
   if (analysis.metrics.cycleCount > 0 && focusRel.length > 0) {
-    return `Graph reports ${analysis.metrics.cycleCount} circular dependency cycle(s) in this repo — review imports before large refactors.`
+    return `The repository has ${analysis.metrics.cycleCount} circular dependencies. Please review package structures when planning large changes.`
   }
 
   return null
@@ -61,5 +61,5 @@ export function formatCycleIntelligenceBlock(
 ): string | null {
   const line = cycleWarningForFiles(analysis, focusAbsPaths, projectRoot)
   if (!line) return null
-  return `⚠️ GRAPH CYCLE RISK:\n- ${line}`
+  return `🔄 IMPORT CYCLE HINT:\n- ${line}`
 }

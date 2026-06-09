@@ -20,7 +20,7 @@ describe('cycleWarningForFiles', () => {
     } as GraphAnalysis
 
     const warn = cycleWarningForFiles(analysis, [join(ROOT, 'src/a.ts')], ROOT)
-    expect(warn).toContain('Circular dependency')
+    expect(warn).toContain('circular dependency')
   })
 
   it('returns null when no anomalies', () => {

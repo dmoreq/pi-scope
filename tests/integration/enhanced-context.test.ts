@@ -77,7 +77,7 @@ describe('Enhanced Context Intelligence Integration', () => {
     const response = await manager.handleContext(event)
 
     expect(response).toBeDefined()
-    expect(response?.content).toContain('HIGH-IMPACT SYMBOLS')
+    expect(response?.content).toContain('HIGH-CONNECTIVITY SYMBOLS')
     expect(response?.content).toContain('Client')
     expect(response?.content).toContain('WORKFLOW OPTIMIZATION')
   })
@@ -202,7 +202,7 @@ describe('Enhanced Context Intelligence Integration - Extended', () => {
       manager.addMessages([{ role: 'user', content: 'modify the Client class constructor' }])
 
       const withGraph = await manager.generateIntelligentGuidance()
-      expect(withGraph).toContain('HIGH-IMPACT SYMBOLS')
+      expect(withGraph).toContain('HIGH-CONNECTIVITY SYMBOLS')
 
       mockGraphService.analysis = null
 
