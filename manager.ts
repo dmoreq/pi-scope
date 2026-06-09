@@ -44,6 +44,7 @@ import { LspSteerPlugin } from './plugins/lsp-steer-plugin.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { GraphService } from './services/graph-service.js'
 import { IndexService } from './services/index-service.js'
+import { formatStalenessReasonCompact } from './indexer/freshness.js'
 import type { AgentMessage } from './shared/agent-message.js'
 import { detectPathsInOutput, detectPathsInToolCall, type FileReference } from './shared/file-detector.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
@@ -537,7 +538,8 @@ export class SessionManager {
     }
 
     if (cached.stale?.stale) {
-      ctx.ui.notify(nWarn(`Cached index stale, rebuilding (${cached.stale.reasons.join('; ')})`), 'warning')
+      const reason = formatStalenessReasonCompact(cached.stale)
+      ctx.ui.notify(nWarn(`Index stale, rebuilding (${reason})`), 'warning')
     }
 
     // Fresh build

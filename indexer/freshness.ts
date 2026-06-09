@@ -56,9 +56,12 @@ export async function checkIndexFreshness(
     try {
       const changedFiles = await detectChangedFiles(projectRoot, storedIndex.checksums.files)
       if (changedFiles.length > 0) {
-        reasons.push(
-          `${changedFiles.length} files changed since index (${changedFiles.slice(0, 3).join(', ')}${changedFiles.length > 3 ? '...' : ''})`
-        )
+        // Use basenames only — absolute paths are too verbose for a notification
+        const names = changedFiles
+          .slice(0, 3)
+          .map(f => f.replace(/\\/g, '/').split('/').pop() ?? f)
+        const ellipsis = changedFiles.length > 3 ? `, +${changedFiles.length - 3} more` : ''
+        reasons.push(`${changedFiles.length} files changed (${names.join(', ')}${ellipsis})`)
       }
     } catch {
       // Error checking files, continue without this check
@@ -153,7 +156,7 @@ export async function buildChecksums(projectRoot: string, filePaths: string[]): 
 }
 
 /**
- * Format freshness result for user display
+ * Format freshness result for the /scope dashboard (multi-line, detailed).
  */
 export function formatStalenessResult(result: StalenessResult, builtAt: string): string {
   if (!result.stale) {
@@ -169,4 +172,17 @@ export function formatStalenessResult(result: StalenessResult, builtAt: string):
   const lines = [`${iconMap[result.severity]} Index may be stale:`, ...result.reasons.map(r => `  • ${r}`)]
 
   return lines.join('\n')
+}
+
+/**
+ * Format a compact single-line stale reason for notifications.
+ *
+ * Merges all staleness signals into one short sentence so the warning
+ * badge does not spam the user with long file-path lists. Examples:
+ *   "git commit changed · 3 files changed (engine.ts, manager.ts, +1 more)"
+ *   "index 26.3 hours old"
+ */
+export function formatStalenessReasonCompact(result: StalenessResult): string {
+  // Each raw reason is already concise — just join with " · " (no semicolons, no newlines)
+  return result.reasons.join(' · ')
 }
