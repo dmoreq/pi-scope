@@ -1,9 +1,9 @@
 # Báo Cáo Phân Tích Tính Năng Pi-Scope Extension
 
 > Tác giả: Claude Code  
-> Ngày cập nhật: 2026-06-01  
-> Phiên bản: pi-scope v0.7.0  
-> Số tests: **698/698 pass** (84 file test)  
+> Ngày cập nhật: 2026-06-09  
+> Phiên bản: pi-scope v0.9.0  
+> Số tests: **~730/730 pass** (60+ file test)  
 > Kế hoạch đã hoàn tất: [Hashline v2](HASHLINE_ADOPTION_PLAN_VI.md) · [LSP v1](LSP_ADOPTION_PLAN_VI.md) · [Graph adoption v1](GRAPH_ADOPTION_PLAN_VI.md)  
 
 ---
@@ -114,6 +114,14 @@ RepoIndex = {
 
 ✅ **Hoàn toàn kích hoạt.** Cả cache load và fresh build đều hoạt động. Auto-reindex đã được kiểm chứng qua `manager-reindex.test.ts`. Guard codebase hợp lệ bảo vệ môi trường ngoài project.
 
+**Cải thiện hiệu năng (2026-06-09):**
+- `IndexEngine.build()` nay parse file **song song tối đa 12 workers** qua `mapLimit()` từ `shared/concurrency.ts` (thay vì tuần tự).
+- `resolveImport()` dùng `Set<string>` pre-built (`sourcePaths`) thay vì `existsSync()` per-import → loại bỏ O(files²) filesystem calls.
+- `shared/path-policy.ts` — **module mới** tập trung hóa toàn bộ logic ignore/path: `createPathPolicy()`, `DEFAULT_IGNORES`, `SOURCE_EXTENSIONS`, `PARSER_EXTENSIONS`, `.gitignore` tích hợp. Thay thế logic phân tán ở indexer, commands, tools.
+- `shared/index-fingerprint.ts` — **module mới**: `computeRepoIndexFingerprint()` tính SHA-256 hash của toàn bộ `RepoIndex` (files + deps + symbols). Được lưu vào `StoredIndexV2.graphFingerprint` để tái sử dụng qua các lần restart mà không cần recompute.
+- `shared/concurrency.ts` — **module mới**: `mapLimit<T, R>()` cho bounded concurrent async mapping.
+- `shared/line-window.ts` — **module mới**: `readLineWindow()` (async) và `readLineWindowSync()` (sync, chunked) cho phép đọc partial file thay vì load toàn bộ — dùng trong hashline anchor extraction.
+
 ### 2.3 Nhận xét sử dụng
 
 ✅ **Đúng cách.** Freshness check 3-layer (age + git + checksum) rất robust. Gzip compression tiết kiệm đáng kể dung lượng (57–64% trong test logs).
@@ -157,6 +165,8 @@ RepoIndex = {
 
 ✅ **Đúng cách.** Priority system rõ ràng, token budget được enforce. `smart-dep-context` (priority 5) và `dep-context` (priority 7) bổ trợ nhau — SmartDepContext focus vào god nodes/community hints, dep-context inject skeleton thực tế.
 
+**Cải thiện hiệu năng (2026-06-09):** `InjectionPipeline.produce()` nay **lazy evaluation** — sort sources theo priority, gọi `source.produce()` lần lượt, dừng ngay khi budget đã đầy. Các nguồn đắt token ở cuối danh sách (priority cao) bị bỏ qua hoàn toàn khi không còn room — giảm thời gian inject đáng kể khi budget nhỏ.
+
 ### 3.4 Cơ hội cải thiện
 
 - **Dynamic budget allocation**: Budget 4000+8000 tokens là fixed. Nên điều chỉnh theo kích thước codebase.
@@ -196,7 +206,7 @@ RepoIndex
 **Communities**: Louvain phân cụm các module liên quan nhau thành nhóm. Mỗi community có `internalDensity`, `externalDensity`, `interfaceNodes`, và `bottlenecks`.
 
 **Graph Cache** (`persistence/graph-cache.ts`): Kết quả được serialize thành JSON và lưu vào `.pi/pi-scope/graph-cache.json` với:
-- **Fingerprint**: `files:N|symbols:N|deps:N` — tự động invalidate khi index thay đổi
+- **Fingerprint**: `graphFingerprint` — SHA-256 hash (via `computeRepoIndexFingerprint()` từ `shared/index-fingerprint.ts`) của toàn bộ file paths+skeletons, dep edges, và symbols. Được persist vào `StoredIndexV2.graphFingerprint` để graph-service tái sử dụng mà không cần recompute khi reload.
 - **Version guard**: `GRAPH_CACHE_VERSION = 1` — bump integer để force rebuild
 - **Exports**: `serializeAnalysis`, `deserializeAnalysis`, `saveGraphCache`, `loadGraphCache`, `graphCacheExists`, `clearGraphCache`, `getGraphCacheStats`
 - **Wikipedia stub**: Index được restore nhưng không cache entry thực (rebuilt on load nếu cần)
@@ -356,7 +366,11 @@ score = 3 × symbolMatch        // file export symbol mà user nhắc đến
 - `+2` và signal `graph:god-symbol` — symbol match god node label/id
 - `+1` và signal `graph:community` — file thuộc `activeCommunityId`
 
-**2-phase retrieval**: Phase 1 dùng symbol index (fast O(symbols)), Phase 2 scan toàn bộ files (fallback cho filename/dep matches).
+**Cải thiện hiệu năng (2026-06-09):**
+- `RetrievalEngine` nay build **inverted lookup tables** tại thời điểm khởi tạo (`exactSymbols`, `partialSymbols`, `filenames`, `exactPaths`, `suffixPaths`) — scoring query không còn scan toàn bộ `symbolIndex`.
+- `context/graph-lookup-index.ts` — **module mới**: `GraphLookupIndex` class, pre-build tất cả lookup tables (node adjacency, in/out-degree, community membership, god-node maps, surprises) từ `GraphAnalysis` **một lần duy nhất**, chia sẻ qua retrieval, dep-context, LSP hover, và hashline-inject → O(1) lookups thay vì linear scans.
+
+**2-phase retrieval** (vẫn giữ): Phase 1 dùng symbol index (fast), Phase 2 scan toàn bộ files (fallback cho filename/dep matches).
 
 ### 6.2 Tình trạng kích hoạt
 
