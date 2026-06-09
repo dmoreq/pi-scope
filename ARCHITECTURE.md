@@ -61,7 +61,9 @@ Builds and maintains the symbol index.
 **Lifecycle:**
 1. On session start, check `.pi/pi-scope/index.json.gz` for freshness
 2. If stale or missing, run `IndexEngine` to walk/parse/extract
-3. Save to cache, build dependency graph
+   - Files are parsed concurrently (up to 12 workers) via `mapLimit()` from `shared/concurrency.ts`
+   - Import resolution uses a pre-built `Set<string>` of source paths instead of per-import `existsSync()` calls
+3. Save to cache (including `graphFingerprint`), build dependency graph
 4. Run native code-graph analysis from the RepoIndex
 
 **Key Data Structures:**
@@ -73,10 +75,11 @@ Builds and maintains the symbol index.
 Retrieves files and generates injection layers.
 
 **Components:**
-- `retrieval.ts` — Scores and retrieves files by symbol name
+- `retrieval.ts` — Scores and retrieves files by symbol name; builds pre-computed inverted lookup tables at construction time (no per-query symbol-index scans)
+- `graph-lookup-index.ts` — `GraphLookupIndex` class: pre-built read-only lookup tables (node adjacency, in/out-degree, community membership, god-node maps, surprise maps). Built once from `GraphAnalysis` and shared across retrieval, dep-context, LSP hover, and hashline-inject
 - `repo-map.ts` / `smart-repo-map.ts` — Directory tree with exports
 - `dep-context.ts` / `smart-dep-context.ts` — Builds dependency skeletons
-- `pipeline.ts` — Orchestrates context generation
+- `pipeline.ts` — Orchestrates context generation; lazily calls `source.produce()` in priority order, stopping once the token budget is exhausted
 - `context-files.ts` — Loads `.context` and `.guidance` files
 - `guidance.ts` — Extracts task-specific guidance
 
@@ -205,7 +208,17 @@ Stores session state and analysis results.
 - `runtime-state.ts` — Session metadata
 - `graph-cache.ts` — Analysis results cache
 
-### 10. UI & Notifications (`ui/`)
+### 10. Shared Utilities (`shared/`)
+
+Cross-cutting utilities consumed by multiple subsystems.
+
+**Components:**
+- `path-policy.ts` — Unified source-path policy: `createPathPolicy()`, `PathPolicy` interface, `DEFAULT_IGNORES`, `SOURCE_EXTENSIONS`, `PARSER_EXTENSIONS`, `.gitignore` integration. Centralizes ignore/path logic previously scattered across indexer, commands, and tools.
+- `concurrency.ts` — `mapLimit<T, R>(items, limit, fn)`: bounded concurrent async mapping used by the indexer for 12-way parallel file parsing.
+- `line-window.ts` — `readLineWindow()` (async, streaming) and `readLineWindowSync()` (sync, chunked): efficient partial-file reads for hashline anchor extraction without loading full file content.
+- `index-fingerprint.ts` — `computeRepoIndexFingerprint(index)`: SHA-256 fingerprint of `RepoIndex` (files + deps + symbols), persisted in `StoredIndexV2.graphFingerprint` so the graph-service reuses it across restarts without recomputation.
+
+### 11. UI & Notifications (`ui/`)
 
 User-facing feedback.
 
@@ -365,7 +378,7 @@ Native code-graph analysis:
 
 ## Test Coverage
 
-**614 tests** across 49 test files, all passing:
+**~730 tests** across 60+ test files, all passing:
 
 | Module | Tests | Status |
 |--------|-------|--------|
@@ -384,12 +397,14 @@ Native code-graph analysis:
 
 | Operation | Time | Scaling |
 |-----------|------|---------|
-| First index (1,000 files) | 1-2s | Linear |
-| First index (10,000 files) | 5-10s | Linear |
+| First index (1,000 files) | ~1s | Linear + 12-way parallel |
+| First index (10,000 files) | ~3-5s | Linear + 12-way parallel |
 | Cache load | < 50ms | O(1) |
-| Symbol lookup | < 1ms | O(log n) |
+| Symbol lookup | < 1ms | O(1) via pre-built inverted index |
 | Graph analysis (100 nodes) | ~300ms | O(n log n) |
+| Graph lookup (community/god-node/adjacency) | < 0.1ms | O(1) via `GraphLookupIndex` |
 | Pruning per turn | < 5ms | O(m) (messages) |
+| Context pipeline source evaluation | Lazy | Skips sources past budget |
 
 ---
 
