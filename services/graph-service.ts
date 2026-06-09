@@ -22,6 +22,7 @@ import { repoIndexToCodeGraph } from '../graph/bridge.js'
 import { InMemoryAnalysisCache } from '../graph/cache/analysis-cache.js'
 import type { Graph as AnalysisGraph } from '../graph/interfaces/analyzer.interface.js'
 import { loadGraphCache, saveGraphCache } from '../persistence/graph-cache.js'
+import { computeRepoIndexFingerprint } from '../shared/index-fingerprint.js'
 import type { RepoIndex } from '../shared/types.js'
 
 export interface GraphResult {
@@ -29,39 +30,6 @@ export interface GraphResult {
   analysis: GraphAnalysis
   /** True when the result was served from disk cache (no algorithms re-ran). */
   cacheHit: boolean
-}
-
-/**
- * Compute a fingerprint of the RepoIndex to use as cache key.
- * Changes when files/symbols/deps change, so cached analysis invalidates properly.
- */
-function indexFingerprint(index: RepoIndex): string {
-  const hash = createHash('sha256')
-  hash.update('repo-index-v2\0')
-
-  hash.update('files\0')
-  for (const [path, skeleton] of [...index.skeletons.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    updateHashPart(hash, path)
-    updateHashPart(hash, skeleton)
-  }
-
-  hash.update('deps\0')
-  for (const [path, deps] of [...index.deps.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    updateHashPart(hash, path)
-    for (const dep of [...deps].sort()) {
-      updateHashPart(hash, dep)
-    }
-  }
-
-  hash.update('symbols\0')
-  for (const [path, symbols] of [...index.symbolIndex.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    updateHashPart(hash, path)
-    for (const symbol of [...symbols].sort()) {
-      updateHashPart(hash, symbol)
-    }
-  }
-
-  return `repo-index-v2:${hash.digest('hex')}`
 }
 
 function graphStructureCacheKey(graph: CodeGraph): string {
@@ -106,8 +74,13 @@ export class GraphService {
    * Converts the index into a CodeGraph on the fly, runs all 5 algorithms,
    * and caches the result.
    */
-  async analyzeFromIndex(index: RepoIndex, projectRoot: string, cacheDir: string): Promise<GraphResult> {
-    const fp = indexFingerprint(index)
+  async analyzeFromIndex(
+    index: RepoIndex,
+    projectRoot: string,
+    cacheDir: string,
+    options: { indexFingerprint?: string } = {}
+  ): Promise<GraphResult> {
+    const fp = options.indexFingerprint ?? computeRepoIndexFingerprint(index)
 
     // Try cache with index-fingerprinted key
     const cached = await loadGraphCache(cacheDir, undefined, fp)

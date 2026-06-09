@@ -629,7 +629,9 @@ export class SessionManager {
     if (session.config.metrics.notifyGraphProgress) {
       this._notify(nInfo('Analyzing codebase graph…'), 'info')
     }
-    const nativeResult = await this.graphService.analyzeFromIndex(index, projectRoot, cacheDir)
+    const nativeResult = await this.graphService.analyzeFromIndex(index, projectRoot, cacheDir, {
+      indexFingerprint: this.indexService.metadata?.graphFingerprint,
+    })
     const analysisMs = Date.now() - analysisStart
 
     this._graphNodeCount = nativeResult.graph.nodes.length

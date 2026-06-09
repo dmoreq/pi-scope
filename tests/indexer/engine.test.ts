@@ -176,7 +176,7 @@ export function startServer() {
     await saveStore(tmpDir, originalIndex, 'test-repo-map')
 
     // Load from store
-    const { index: restoredIndex } = await loadStore(tmpDir)
+    const { index: restoredIndex, metadata } = await loadStore(tmpDir)
 
     // Verify symbolIndex is preserved
     expect(restoredIndex.symbolIndex.size).toBe(originalIndex.symbolIndex.size)
@@ -193,5 +193,6 @@ export function startServer() {
     const authDeps = restoredIndex.reverseDeps.get(authPath!)
     expect(authDeps).toBeDefined()
     expect(authDeps?.has(serverPath!)).toBe(true)
+    expect(metadata.graphFingerprint).toMatch(/^repo-index-v2:/)
   })
 })

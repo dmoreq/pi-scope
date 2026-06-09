@@ -19,6 +19,7 @@ import { buildChecksums } from './freshness.js'
 import { scopeDir } from '../shared/paths.js'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
 import { STORE_VERSION_V2, migrateToV2 } from '../shared/schema-v2.js'
+import { computeRepoIndexFingerprint } from '../shared/index-fingerprint.js'
 import type { RepoIndex } from '../shared/types.js'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
@@ -57,6 +58,7 @@ export interface LoadStoreResult {
     languages: Record<string, { fileCount: number; symbolCount: number; edgeCount: number }>
     gitCommit?: string
     gitBranch?: string
+    graphFingerprint?: string
     buildDuration: number
     circularDependencies?: number
     godNodes?: string[]
@@ -149,6 +151,7 @@ export async function saveStore(
     deps,
     reverseDeps,
     symbolIndex,
+    graphFingerprint: metadata?.graphFingerprint ?? computeRepoIndexFingerprint(index),
     checksums: {
       files: checksums,
       timestamp: Date.now(),
@@ -216,6 +219,7 @@ export async function loadStore(
       languages: index.languages,
       gitCommit: index.gitCommit,
       gitBranch: index.gitBranch,
+      graphFingerprint: index.graphFingerprint,
       buildDuration: index.builtIn,
       circularDependencies: index.graph?.circularDependencies,
       godNodes: index.graph?.godNodes,

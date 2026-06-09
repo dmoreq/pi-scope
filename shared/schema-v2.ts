@@ -60,6 +60,7 @@ export interface StoredIndexV2 {
   deps: Record<string, string[]>
   reverseDeps: Record<string, string[]>
   symbolIndex: Record<string, string[]>
+  graphFingerprint?: string
 
   // ── Validation checksums ───────────────────────────────────
   checksums: {
@@ -143,6 +144,7 @@ export interface IndexMetadata {
   languages: string[]
   gitCommit?: string
   gitBranch?: string
+  graphFingerprint?: string
   godNodesCount?: number
   communityCount?: number
 }
@@ -159,6 +161,7 @@ export function extractMetadata(index: StoredIndexV2): IndexMetadata {
     languages: Object.keys(index.languages),
     gitCommit: index.gitCommit,
     gitBranch: index.gitBranch,
+    graphFingerprint: index.graphFingerprint,
     godNodesCount: index.graph?.godNodes.length,
     communityCount: index.graph?.communities,
   }
