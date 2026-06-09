@@ -143,4 +143,22 @@ export function authenticate(token: string): boolean {
     await manager.shutdown(ctx)
     expect(watcherCloses[0]).toHaveBeenCalledTimes(1)
   })
+
+  it('does not reindex for ignored temporary paths', async () => {
+    const manager = new SessionManager()
+    await manager.start(tmpDir, configFlag, ctx)
+
+    expect(manager.state?.index.skeletons.size).toBe(1)
+    expect(watcherCallbacks).toHaveLength(1)
+
+    await writeFixture(tmpDir, '.pytest_cache/generated.ts', 'export const ignored = 1\n')
+    watcherCallbacks[0]('change', '.pytest_cache/generated.ts')
+
+    await new Promise(resolve => setTimeout(resolve, 700))
+
+    expect(manager.state?.index.skeletons.size).toBe(1)
+    expect(manager.state?.index.skeletons.has(join(tmpDir, '.pytest_cache/generated.ts'))).toBe(false)
+
+    await manager.shutdown(ctx)
+  })
 })

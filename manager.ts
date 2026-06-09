@@ -48,6 +48,7 @@ import { detectPathsInOutput, detectPathsInToolCall, type FileReference } from '
 import type { ContextInsights } from './shared/intelligence-types.js'
 import { extractInjectedFilePaths, extractText } from './shared/message.js'
 import { scopeDir } from './shared/paths.js'
+import { createPathPolicy, type PathPolicy } from './shared/path-policy.js'
 import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { setHashlineMismatchReporter } from './metrics/hashline-reporter.js'
@@ -182,6 +183,7 @@ export class SessionManager {
   private intelligenceEngine: ContextIntelligenceEngine
   private smartDepGenerator = new SmartDependencyContextGenerator()
   private autoReindexWatcher: FSWatcher | null = null
+  private autoReindexPathPolicy: PathPolicy | null = null
   private autoReindexTimer: ReturnType<typeof setTimeout> | null = null
   private autoReindexInFlight: Promise<void> | null = null
   private autoReindexQueued = false
@@ -1382,6 +1384,7 @@ export class SessionManager {
     if (!s) return
 
     try {
+      this.autoReindexPathPolicy = createPathPolicy(s.projectRoot, s.config.exclude)
       this.autoReindexWatcher = watch(s.projectRoot, { recursive: true }, (_eventType, filename) => {
         const path = typeof filename === 'string' ? filename.replaceAll('\\', '/') : ''
         if (path && this.shouldIgnoreAutoReindexPath(path)) return
@@ -1398,21 +1401,13 @@ export class SessionManager {
       this.autoReindexTimer = null
     }
     this.autoReindexQueued = false
+    this.autoReindexPathPolicy = null
     this.autoReindexWatcher?.close()
     this.autoReindexWatcher = null
   }
 
   private shouldIgnoreAutoReindexPath(path: string): boolean {
-    return (
-      path.startsWith('.git/') ||
-      path.startsWith('.pi/') ||
-      path.includes('/.git/') ||
-      path.includes('/.pi/') ||
-      path.startsWith('node_modules/') ||
-      path.includes('/node_modules/') ||
-      path.startsWith('dist/') ||
-      path.includes('/dist/')
-    )
+    return this.autoReindexPathPolicy?.shouldIgnore(path) ?? false
   }
 
   private scheduleAutoReindex(ctx: ExtensionContext): void {

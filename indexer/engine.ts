@@ -1,14 +1,9 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import { dirname, extname, relative, resolve } from 'node:path'
+import { createPathPolicy, type PathPolicy } from '../shared/path-policy.js'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
-// CJS `export = fn` doesn't unwrap under NodeNext + esModuleInterop; use createRequire instead
-const _require = createRequire(import.meta.url)
-type IgnoreInstance = { add(p: string | string[]): IgnoreInstance; ignores(p: string): boolean }
-const ignore: () => IgnoreInstance = _require('ignore')
 import type { LanguageParser } from '../parsers/language-parser.js'
 import { PythonParser } from '../parsers/python-parser.js'
 import { RustParser } from '../parsers/rust-parser.js'
@@ -16,22 +11,7 @@ import { TypeScriptParser } from '../parsers/typescript-parser.js'
 import type { FileIndex, RepoIndex, SlimConfig } from '../shared/types.js'
 import { DiskCache } from './cache.js'
 
-const DEFAULT_IGNORES = ['node_modules', '.git', '.pi-cache', 'dist', 'build']
-
-function buildIgnore(projectRoot: string, extraExcludes: string[] = []) {
-  const ig = ignore()
-  ig.add(DEFAULT_IGNORES)
-  if (extraExcludes.length) ig.add(extraExcludes)
-  try {
-    const gitignore = readFileSync(PathUtils.joinSafe(projectRoot, '.gitignore'), 'utf-8')
-    ig.add(gitignore)
-  } catch {
-    /* no .gitignore */
-  }
-  return ig
-}
-
-async function* walkDir(dir: string, root: string, ig: IgnoreInstance): AsyncGenerator<string> {
+async function* walkDir(dir: string, root: string, policy: PathPolicy): AsyncGenerator<string> {
   let entries: { name: string; isDirectory(): boolean; isFile(): boolean }[]
   try {
     entries = (await readdir(dir, { withFileTypes: true })) as unknown as {
@@ -47,9 +27,9 @@ async function* walkDir(dir: string, root: string, ig: IgnoreInstance): AsyncGen
   for (const entry of entries) {
     const full = PathUtils.joinSafe(dir, entry.name)
     const rel = relative(root, full)
-    if (ig.ignores(rel)) continue
+    if (policy.shouldIgnore(rel)) continue
     if (entry.isDirectory()) {
-      yield* walkDir(full, root, ig)
+      yield* walkDir(full, root, policy)
     } else if (entry.isFile()) {
       yield full
     }
@@ -126,10 +106,10 @@ export class IndexEngine {
 
   async build(): Promise<void> {
     await this.cache.load()
-    const ig = buildIgnore(this.projectRoot, [...this.config.exclude])
+    const policy = createPathPolicy(this.projectRoot, [...this.config.exclude])
     const fileIndexes: FileIndex[] = []
 
-    for await (const filePath of walkDir(this.projectRoot, this.projectRoot, ig)) {
+    for await (const filePath of walkDir(this.projectRoot, this.projectRoot, policy)) {
       const ext = extname(filePath)
       const parser = this.parsers.get(ext)
       if (!parser) continue

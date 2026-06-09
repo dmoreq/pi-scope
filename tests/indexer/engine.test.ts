@@ -69,6 +69,24 @@ export function add(a: number, b: number): number {
     }
   })
 
+  it('ignores common temporary and generated folders', async () => {
+    await writeFixture('src/foo.ts', 'export const y = 1')
+    await writeFixture('.pi/pi-scope/cache.ts', 'export const cache = 1')
+    await writeFixture('.venv/lib/pkg.py', 'def virtualenv(): pass')
+    await writeFixture('__pycache__/mod.py', 'def pycache(): pass')
+    await writeFixture('.pytest_cache/out.ts', 'export const pytest = 1')
+    await writeFixture('coverage/out.ts', 'export const coverage = 1')
+    await writeFixture('.next/server/out.ts', 'export const next = 1')
+    await writeFixture('target/debug/out.rs', 'pub fn target() {}')
+    await writeFixture('tmp/generated.ts', 'export const generated = 1')
+
+    const engine = new IndexEngine(tmpDir, DEFAULT_CONFIG)
+    await engine.build()
+    const keys = Array.from(engine.getRepoIndex().skeletons.keys())
+
+    expect(keys).toEqual([join(tmpDir, 'src/foo.ts')])
+  })
+
   it('uses cache for unchanged files on second build', async () => {
     await writeFixture('src/foo.ts', 'export function foo() {}')
 

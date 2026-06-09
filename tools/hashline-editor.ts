@@ -9,7 +9,7 @@
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import { Type } from '@mariozechner/pi-ai'
 import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
 
@@ -21,6 +21,7 @@ import { buildCompactHashlineDiffPreview } from '../hashline/diff-preview.js'
 import { generateDiffString } from '../hashline/diff.js'
 import { initHash } from '../hashline/line-hash.js'
 import { detectLineEnding, normalizeToLF, restoreLineEndings, stripBom } from '../hashline/normalize.js'
+import { createPathPolicy } from '../shared/path-policy.js'
 
 let _initialized = false
 
@@ -72,7 +73,9 @@ async function makeEdit(
   cwd: string
 ): Promise<HashlineEditResult> {
   await ensureInit()
-  const absPath = resolve(cwd, path)
+  const resolved = createPathPolicy(cwd).resolveProjectFile(path)
+  if (!resolved.ok) throw new Error(resolved.reason)
+  const absPath = resolved.absPath
 
   const { rawContent, isNew } = await readOrCreate(absPath, edits)
 

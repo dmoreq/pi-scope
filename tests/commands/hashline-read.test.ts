@@ -46,6 +46,21 @@ describe('formatHashlineRead', () => {
     expect(out).toContain('Could not read file')
   })
 
+  it('rejects ignored temporary paths', async () => {
+    await mkdir(join(root, '.pytest_cache'), { recursive: true })
+    await writeFile(join(root, '.pytest_cache', 'cached.ts'), 'export const cached = 1\n')
+
+    const out = await formatHashlineRead(root, '.pytest_cache/cached.ts')
+    expect(out).toContain('Could not read file')
+    expect(out).toContain('ignored by project policy')
+  })
+
+  it('rejects paths outside the project', async () => {
+    const out = await formatHashlineRead(root, '../outside.ts')
+    expect(out).toContain('Could not read file')
+    expect(out).toContain('escapes project root')
+  })
+
   it('streams anchors when slice exceeds threshold', async () => {
     const bigPath = join(root, 'src', 'big.ts')
     const lines = Array.from({ length: 120 }, (_, i) => `export const v${i} = ${i}`)

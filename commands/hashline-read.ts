@@ -2,11 +2,13 @@
  * `/hashline-read` and shared formatter for `hashline_read` tool.
  */
 
+import { createReadStream } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { createInterface } from 'node:readline'
 import { AnchorStateManager } from '../hashline/state-manager.js'
 import { formatHashLines, initHash } from '../hashline/line-hash.js'
 import { streamHashLinesFromLines } from '../hashline/streaming.js'
+import { createPathPolicy } from '../shared/path-policy.js'
 
 export interface HashlineReadOptions {
   recordOnRead?: boolean
@@ -75,6 +77,38 @@ function resolveSliceBounds(
   }
 }
 
+async function readLineWindow(
+  absPath: string,
+  options: HashlineReadOptions
+): Promise<{ lines: string[]; totalLines: number; start: number; end: number }> {
+  const requestedStart = options.startLine != null ? Math.max(1, options.startLine) : 1
+  const requestedEnd =
+    options.endLine != null
+      ? Math.max(requestedStart, options.endLine)
+      : options.maxLines != null
+        ? requestedStart + options.maxLines - 1
+        : Number.POSITIVE_INFINITY
+
+  const lines: string[] = []
+  let totalLines = 0
+  const rl = createInterface({
+    input: createReadStream(absPath, { encoding: 'utf-8' }),
+    crlfDelay: Number.POSITIVE_INFINITY,
+  })
+
+  for await (const line of rl) {
+    totalLines++
+    if (totalLines >= requestedStart && totalLines <= requestedEnd) {
+      lines.push(line)
+    }
+  }
+
+  const boundedTotal = Math.max(totalLines, 1)
+  const start = Math.max(1, Math.min(requestedStart, boundedTotal))
+  const end = lines.length ? start + lines.length - 1 : start
+  return { lines, totalLines: boundedTotal, start, end }
+}
+
 export async function formatHashlineRead(
   projectRoot: string,
   fileArg: string,
@@ -86,31 +120,56 @@ export async function formatHashlineRead(
   }
 
   await initHash()
-  const absPath = resolve(projectRoot, trimmed)
+  const resolved = createPathPolicy(projectRoot).resolveProjectFile(trimmed)
+  if (!resolved.ok) {
+    return `Could not read file: ${trimmed}\n${resolved.reason}`
+  }
 
-  let raw: string
+  const shouldStreamWindow = options.startLine != null || options.endLine != null || options.maxLines != null
+  let lines: string[]
+  let totalLines: number
+  let start: number
+  let end: number
+  let label: string
+  let recorded = false
+
   try {
-    raw = await readFile(absPath, 'utf-8')
+    if (shouldStreamWindow) {
+      const window = await readLineWindow(resolved.absPath, options)
+      lines = window.lines
+      totalLines = window.totalLines
+      start = window.start
+      end = window.end
+      label = start === 1 && end === totalLines ? `lines 1–${totalLines}` : `lines ${start}–${end} of ${totalLines}`
+    } else {
+      const raw = await readFile(resolved.absPath, 'utf-8')
+      if (options.recordOnRead !== false) {
+        AnchorStateManager.record(resolved.absPath, raw)
+        recorded = true
+      }
+
+      const rawLines = raw.split('\n')
+      const bounds = resolveSliceBounds(rawLines.length, options)
+      lines = rawLines.slice(bounds.start - 1, bounds.end)
+      totalLines = rawLines.length
+      start = bounds.start
+      end = bounds.end
+      label = bounds.label
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return `Could not read file: ${trimmed}\n${msg}`
   }
 
-  if (options.recordOnRead !== false) {
-    AnchorStateManager.record(absPath, raw)
-  }
-
-  const lines = raw.split('\n')
-  const { start, end, label } = resolveSliceBounds(lines.length, options)
-  const slice = lines.slice(start - 1, end)
-  const { body: annotated, chunked, chunkCount } = await formatAnnotatedSlice(slice, start, options)
+  const { body: annotated, chunked, chunkCount } = await formatAnnotatedSlice(lines, start, options)
 
   const header = [
     `## Hashline read: ${trimmed}`,
-    `${lines.length} line(s) — showing ${label}.`,
-    chunked
-      ? `Large slice (${slice.length} lines) — streamed in ${chunkCount} anchor chunk(s).`
+    `${totalLines} line(s) — showing ${label}.`,
+    shouldStreamWindow && options.recordOnRead !== false && !recorded
+      ? 'Anchor state was not recorded for this ranged read; `hashline_edit` will validate against the current file.'
       : null,
+    chunked ? `Large slice (${lines.length} lines) — streamed in ${chunkCount} anchor chunk(s).` : null,
     'Edit with `hashline_edit` using anchors like `42nd` (line + bigram). Use `dry_run: true` to preview.',
     '',
     '```',
@@ -118,10 +177,10 @@ export async function formatHashlineRead(
     '```',
   ].filter((line): line is string => line != null)
 
-  if (end < lines.length) {
+  if (end < totalLines) {
     header.push(
       '',
-      `_(File continues to line ${lines.length}. Use \`hashline_read\` with start_line/end_line or \`/hashline-read ${trimmed} <start> <end>\`.)_`
+      `_(File continues to line ${totalLines}. Use \`hashline_read\` with start_line/end_line or \`/hashline-read ${trimmed} <start> <end>\`.)_`
     )
   }
 

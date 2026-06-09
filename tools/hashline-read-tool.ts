@@ -26,7 +26,7 @@ const hashlineReadTool = defineTool({
     max_lines: Type.Optional(
       Type.Integer({
         minimum: 1,
-        description: 'Cap lines returned when start/end omitted (default: no cap except file length)',
+        description: 'Cap lines returned when start/end omitted',
       })
     ),
   }),

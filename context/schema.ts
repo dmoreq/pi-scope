@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod'
+import { DEFAULT_IGNORES } from '../shared/path-policy.js'
 
 export type SlimConfig = z.infer<typeof SlimConfigSchema>
 
@@ -95,7 +96,7 @@ export const SlimConfigSchema = z
     maxInjectionTokens: z.number().int().positive().default(8000),
     scanLastNMessages: z.number().int().positive().default(10),
     dependencyDepth: z.number().int().min(0).max(3).default(1),
-    exclude: z.array(z.string()).default(['**/node_modules/**', '**/.git/**', '**/.pi-cache/**', '**/dist/**']),
+    exclude: z.array(z.string()).default(DEFAULT_IGNORES.map(path => `**/${path}/**`)),
     contextFiles: ContextFilesSchema.default({}),
     providerGuidance: ProviderGuidanceSchema.default({}),
     intelligence: IntelligenceSchema.default({}),

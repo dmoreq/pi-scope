@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -43,5 +43,27 @@ describe('hashline_edit mismatch handling', () => {
     expect(result.details.addedLines).toBe(0)
     expect(result.details.removedLines).toBe(0)
     expect(reportSpy).toHaveBeenCalledTimes(1)
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it('rejects ignored temporary paths', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'hashline-edit-ignored-'))
+    await mkdir(join(dir, '.pytest_cache'), { recursive: true })
+
+    await expect(
+      hashlineTool.execute(
+        'tc-ignored',
+        {
+          path: '.pytest_cache/generated.ts',
+          dry_run: false,
+          edits: [{ loc: 'append', content: ['export const ignored = 1'] }],
+        },
+        undefined,
+        undefined,
+        { cwd: dir }
+      )
+    ).rejects.toThrow('ignored by project policy')
+
+    await rm(dir, { recursive: true, force: true })
   })
 })
