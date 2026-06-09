@@ -10,9 +10,10 @@
  */
 
 import { computeDependentFanout } from './graph-impact.js'
+import { buildGraphLookupIndex, type GraphLookupIndex } from './graph-lookup-index.js'
 import { resolveGraphLookup } from './graph-lsp-resolve.js'
 import { normalizeNodeIdForMatch } from './graph-node-id.js'
-import type { GodNode, GraphAnalysis, CodeGraph, SurprisingConnection, GraphNode, GraphEdge } from './graph-types.js'
+import type { GodNode, GraphAnalysis, SurprisingConnection } from './graph-types.js'
 
 /**
  * Enhanced hover information with graph metrics.
@@ -92,7 +93,8 @@ export function enhanceHoverWithGraphMetrics(
   baseInfo: string,
   analysis: GraphAnalysis | null,
   relativeFilePath?: string,
-  reverseDepFiles?: string[]
+  reverseDepFiles?: string[],
+  lookupIndex?: GraphLookupIndex
 ): EnhancedHoverInfo {
   const resolved = resolveGraphLookup(relativeFilePath, symbol, analysis)
   const lookupKey = resolved.lookupKey
@@ -108,31 +110,32 @@ export function enhanceHoverWithGraphMetrics(
     return hoverInfo
   }
 
+  const index = lookupIndex ?? buildGraphLookupIndex(analysis)
   const nodeId = normalizeNodeIdForMatch(lookupKey)
 
   // Compute graph metrics
-  hoverInfo.graphMetrics = computeGraphMetrics(nodeId, analysis)
+  hoverInfo.graphMetrics = computeGraphMetrics(nodeId, analysis, index)
 
   // Check if god node
-  const godNode = findGodNode(nodeId, analysis)
+  const godNode = findGodNode(nodeId, analysis, index)
   if (godNode) {
     hoverInfo.godNodeInfo = createGodNodeInfo(godNode)
   }
 
   // Check for surprising connections
-  const surprises = findSurprises(nodeId, analysis)
+  const surprises = findSurprises(nodeId, analysis, index)
   if (surprises.length > 0) {
     hoverInfo.surpriseInfo = createSurpriseInfo(surprises)
   }
 
   // Get community info
-  const community = findCommunity(nodeId, analysis)
+  const community = findCommunity(nodeId, analysis, index)
   if (community) {
     hoverInfo.communityInfo = createCommunityInfo(community, nodeId)
   }
 
   // Analyze impact
-  hoverInfo.impactAnalysis = analyzeImpact(nodeId, analysis)
+  hoverInfo.impactAnalysis = analyzeImpact(nodeId, analysis, index)
 
   return hoverInfo
 }
@@ -233,8 +236,8 @@ function normalizeNodeId(symbol: string): string {
  * @param analysis Graph analysis
  * @returns Graph metrics
  */
-function computeGraphMetrics(nodeId: string, analysis: GraphAnalysis): GraphMetrics {
-  const godNode = analysis.godNodes.find(gn => normalizeNodeId(gn.nodeId) === nodeId)
+function computeGraphMetrics(nodeId: string, analysis: GraphAnalysis, lookupIndex: GraphLookupIndex): GraphMetrics {
+  const godNode = findGodNode(nodeId, analysis, lookupIndex)
 
   if (godNode) {
     return {
@@ -246,21 +249,17 @@ function computeGraphMetrics(nodeId: string, analysis: GraphAnalysis): GraphMetr
     }
   }
 
-  // Try to find in graph nodes (legacy compat via analysis.graph)
-  const g = (analysis as any).graph as CodeGraph | undefined
-  if (g) {
-    const graphNode = g.nodes.find((n: GraphNode) => normalizeNodeId(n.id) === nodeId)
-    if (graphNode) {
-      const inDegree = g.edges.filter((e: GraphEdge) => e.target === graphNode.id).length
-      const outDegree = g.edges.filter((e: GraphEdge) => e.source === graphNode.id).length
+  const graphNode = lookupIndex.findGraphNode(nodeId)
+  if (graphNode) {
+    const inDegree = lookupIndex.getInDegree(graphNode.id)
+    const outDegree = lookupIndex.getOutDegree(graphNode.id)
 
-      return {
-        inDegree,
-        outDegree,
-        betweenness: 0,
-        pageRank: 0,
-        centrality: outDegree > 5 ? 'high' : outDegree > 2 ? 'medium' : 'low',
-      }
+    return {
+      inDegree,
+      outDegree,
+      betweenness: 0,
+      pageRank: 0,
+      centrality: outDegree > 5 ? 'high' : outDegree > 2 ? 'medium' : 'low',
     }
   }
 
@@ -281,8 +280,8 @@ function computeGraphMetrics(nodeId: string, analysis: GraphAnalysis): GraphMetr
  * @param analysis Graph analysis
  * @returns God node or undefined
  */
-function findGodNode(nodeId: string, analysis: GraphAnalysis): GodNode | undefined {
-  return analysis.godNodes.find(gn => normalizeNodeId(gn.nodeId) === nodeId)
+function findGodNode(nodeId: string, _analysis: GraphAnalysis, lookupIndex: GraphLookupIndex): GodNode | undefined {
+  return lookupIndex.findGodNode(nodeId)
 }
 
 /**
@@ -292,14 +291,12 @@ function findGodNode(nodeId: string, analysis: GraphAnalysis): GodNode | undefin
  * @param analysis Graph analysis
  * @returns Array of surprising connections
  */
-function findSurprises(nodeId: string, analysis: GraphAnalysis): SurprisingConnection[] {
-  if (!analysis.surprises) {
-    return []
-  }
-
-  return analysis.surprises.filter(
-    (s: SurprisingConnection) => normalizeNodeId(s.source) === nodeId || normalizeNodeId(s.target) === nodeId
-  )
+function findSurprises(
+  nodeId: string,
+  _analysis: GraphAnalysis,
+  lookupIndex: GraphLookupIndex
+): SurprisingConnection[] {
+  return lookupIndex.surprisesForNode(nodeId)
 }
 
 /**
@@ -346,8 +343,8 @@ function createSurpriseInfo(surprises: SurprisingConnection[]): SurpriseInfo {
  * @param analysis Graph analysis
  * @returns Community or undefined
  */
-function findCommunity(nodeId: string, analysis: GraphAnalysis) {
-  return analysis.communities.find(c => c.nodes.some(n => normalizeNodeId(n) === nodeId))
+function findCommunity(nodeId: string, _analysis: GraphAnalysis, lookupIndex: GraphLookupIndex) {
+  return lookupIndex.findCommunity(nodeId)
 }
 
 /**
@@ -375,10 +372,10 @@ function createCommunityInfo(community: GraphAnalysis['communities'][0], nodeId:
  * @param analysis Graph analysis
  * @returns Impact analysis
  */
-function analyzeImpact(nodeId: string, analysis: GraphAnalysis): ImpactAnalysis {
-  const { dependentCount, affectedCommunities } = computeDependentFanout(nodeId, analysis)
+function analyzeImpact(nodeId: string, analysis: GraphAnalysis, lookupIndex: GraphLookupIndex): ImpactAnalysis {
+  const { dependentCount, affectedCommunities } = computeDependentFanout(nodeId, analysis, lookupIndex)
 
-  const godNode = analysis.godNodes.find(gn => normalizeNodeIdForMatch(gn.nodeId) === nodeId)
+  const godNode = findGodNode(nodeId, analysis, lookupIndex)
   const criticality: GodNode['criticality'] | 'LOW' = godNode ? godNode.criticality : 'LOW'
 
   const recommendations: Record<string, string> = {
@@ -406,7 +403,8 @@ function analyzeImpact(nodeId: string, analysis: GraphAnalysis): ImpactAnalysis 
  */
 export function getNodeRoleSummary(
   symbol: string,
-  analysis: GraphAnalysis | null
+  analysis: GraphAnalysis | null,
+  lookupIndex?: GraphLookupIndex
 ): {
   isCritical: boolean
   summary: string
@@ -417,9 +415,10 @@ export function getNodeRoleSummary(
   }
 
   const nodeId = normalizeNodeId(symbol)
-  const godNode = findGodNode(nodeId, analysis)
-  const community = findCommunity(nodeId, analysis)
-  const surprises = findSurprises(nodeId, analysis)
+  const index = lookupIndex ?? buildGraphLookupIndex(analysis)
+  const godNode = findGodNode(nodeId, analysis, index)
+  const community = findCommunity(nodeId, analysis, index)
+  const surprises = findSurprises(nodeId, analysis, index)
 
   const metrics: string[] = []
   const isCritical = godNode?.criticality === 'CRITICAL'

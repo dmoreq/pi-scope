@@ -15,6 +15,7 @@ import { godNodeMatchesFilePath } from './graph-node-id.js'
 import { godNodeMatchesSymbol } from './god-node-match.js'
 import type { GraphAnalysis } from './graph-types.js'
 import { fileInCommunity } from './graph-community-files.js'
+import { buildGraphLookupIndex } from './graph-lookup-index.js'
 import type { RepoIndex } from '../shared/types.js'
 
 export interface RetrievalGraphOptions {
@@ -31,8 +32,32 @@ export interface ScoredFile {
   signals: string[]
 }
 
+interface SymbolLookupEntry {
+  symbol: string
+  file: string
+}
+
+interface RetrievalLookups {
+  exactSymbols: Map<string, SymbolLookupEntry[]>
+  partialSymbols: Map<string, SymbolLookupEntry[]>
+  filenames: Map<string, Set<string>>
+  exactPaths: Map<string, Set<string>>
+  suffixPaths: Map<string, Set<string>>
+}
+
+interface QueryMatches {
+  exactSymbolTokensByFile: Map<string, Set<string>>
+  partialSymbolByFile: Map<string, string>
+  filenameByFile: Map<string, string>
+  candidateFiles: Set<string>
+}
+
 export class RetrievalEngine {
-  constructor(private index: RepoIndex) {}
+  private readonly lookups: RetrievalLookups
+
+  constructor(private index: RepoIndex) {
+    this.lookups = this.buildLookups(index)
+  }
 
   /**
    * Extract potential symbol names from query text.
@@ -65,66 +90,198 @@ export class RetrievalEngine {
     return tokens
   }
 
-  /**
-   * Score a single file against query tokens and active dependency set.
-   * Optimized version that doesn't iterate over all symbols.
-   */
-  private scoreFile(query: string, file: string, activeDeps: Set<string>, queryTokens?: Set<string>): ScoredFile {
-    const signals: string[] = []
-    let score = 0
+  private tokenizeIdentifier(value: string): Set<string> {
+    const tokens = new Set<string>()
+    const lower = value.toLowerCase()
+    if (lower.length > 1) tokens.add(lower)
 
-    const tokens = queryTokens || this.extractQueryTokens(query)
-
-    // Symbol match: find symbols this file exports that match query tokens
-    const matchedSymbols = new Set<string>()
-
-    for (const token of tokens) {
-      // Exact symbol matches
-      const exportingFiles = this.index.symbolIndex.get(token)
-      if (exportingFiles?.includes(file) && !matchedSymbols.has(token)) {
-        score += 3
-        signals.push(`symbol:${token}`)
-        matchedSymbols.add(token)
-      }
+    for (const part of value.split(/(?=[A-Z])/)) {
+      const normalized = part.toLowerCase()
+      if (normalized.length > 1) tokens.add(normalized)
     }
 
-    // Partial symbol matches (more expensive, so only if we haven't found exact matches)
-    if (matchedSymbols.size === 0) {
-      for (const [symbol, files] of this.index.symbolIndex) {
-        if (!files.includes(file)) continue
-        const symbolLower = symbol.toLowerCase()
+    for (const part of value.split(/[_\-.]+/)) {
+      const normalized = part.toLowerCase()
+      if (normalized.length > 1) tokens.add(normalized)
+    }
 
-        for (const token of tokens) {
-          if (symbolLower.includes(token) && token.length > 2) {
-            // Avoid short token noise
-            score += 2 // Lower score for partial matches
-            signals.push(`partial-symbol:${symbol}`)
-            matchedSymbols.add(symbol)
-            break
-          }
+    return tokens
+  }
+
+  private buildLookups(index: RepoIndex): RetrievalLookups {
+    const lookups: RetrievalLookups = {
+      exactSymbols: new Map(),
+      partialSymbols: new Map(),
+      filenames: new Map(),
+      exactPaths: new Map(),
+      suffixPaths: new Map(),
+    }
+
+    for (const [symbol, files] of index.symbolIndex) {
+      const symbolLower = symbol.toLowerCase()
+      for (const file of files) {
+        this.addSymbolLookup(lookups.exactSymbols, symbolLower, { symbol, file })
+        for (const token of this.tokenizeIdentifier(symbol)) {
+          this.addSymbolLookup(lookups.partialSymbols, token, { symbol, file })
         }
-
-        if (matchedSymbols.size > 0) break // Only need one partial match per file
       }
     }
 
-    // Filename match
-    const name =
-      file
+    for (const file of index.skeletons.keys()) {
+      const normalizedPath = this.normalizePath(file)
+      this.addPathLookup(lookups.exactPaths, normalizedPath, file)
+
+      const parts = normalizedPath.split('/').filter(Boolean)
+      for (let i = 0; i < parts.length; i++) {
+        this.addPathLookup(lookups.suffixPaths, parts.slice(i).join('/'), file)
+      }
+
+      const name =
+        normalizedPath
+          .split('/')
+          .pop()
+          ?.replace(/\.[^.]+$/, '') ?? ''
+      for (const token of this.tokenizeIdentifier(name)) {
+        this.addPathLookup(lookups.filenames, token, file)
+      }
+      for (const gram of this.bigrams(name.toLowerCase())) {
+        this.addPathLookup(lookups.filenames, gram, file)
+      }
+      for (const gram of this.trigrams(name.toLowerCase())) {
+        this.addPathLookup(lookups.filenames, gram, file)
+      }
+    }
+
+    return lookups
+  }
+
+  private addSymbolLookup(map: Map<string, SymbolLookupEntry[]>, key: string, entry: SymbolLookupEntry): void {
+    const existing = map.get(key)
+    if (existing) {
+      if (!existing.some(e => e.symbol === entry.symbol && e.file === entry.file)) existing.push(entry)
+      return
+    }
+    map.set(key, [entry])
+  }
+
+  private addPathLookup(map: Map<string, Set<string>>, key: string, file: string): void {
+    if (key.length === 0) return
+    const existing = map.get(key)
+    if (existing) {
+      existing.add(file)
+      return
+    }
+    map.set(key, new Set([file]))
+  }
+
+  private trigrams(value: string): Set<string> {
+    return this.ngrams(value, 3)
+  }
+
+  private bigrams(value: string): Set<string> {
+    return this.ngrams(value, 2)
+  }
+
+  private ngrams(value: string, length: number): Set<string> {
+    const grams = new Set<string>()
+    if (value.length < length) return grams
+    for (let i = 0; i <= value.length - length; i++) {
+      grams.add(value.slice(i, i + length))
+    }
+    return grams
+  }
+
+  private normalizePath(path: string): string {
+    return path.replace(/\\/g, '/').replace(/^\.\//, '')
+  }
+
+  private candidateEntriesForPartialToken(token: string): SymbolLookupEntry[] {
+    if (token.length <= 2) return []
+    return this.lookups.partialSymbols.get(token) ?? []
+  }
+
+  private candidateFilesForFilenameToken(token: string): Set<string> {
+    const files = new Set<string>(this.lookups.filenames.get(token) ?? [])
+    if (token.length <= 2) return files
+
+    for (const gram of this.trigrams(token)) {
+      for (const file of this.lookups.filenames.get(gram) ?? []) files.add(file)
+    }
+    return files
+  }
+
+  private basenameWithoutExtension(file: string): string {
+    return (
+      this.normalizePath(file)
         .split('/')
         .pop()
         ?.replace(/\.[^.]+$/, '') ?? ''
-    if (name.length > 1) {
-      for (const token of tokens) {
-        if (name.toLowerCase().includes(token)) {
-          score += 2
-          signals.push(`filename:${name}`)
-          break // Only count filename match once
+    )
+  }
+
+  private buildQueryMatches(queryTokens: Set<string>): QueryMatches {
+    const matches: QueryMatches = {
+      exactSymbolTokensByFile: new Map(),
+      partialSymbolByFile: new Map(),
+      filenameByFile: new Map(),
+      candidateFiles: new Set(),
+    }
+
+    for (const token of queryTokens) {
+      for (const entry of this.lookups.exactSymbols.get(token) ?? []) {
+        let tokens = matches.exactSymbolTokensByFile.get(entry.file)
+        if (!tokens) {
+          tokens = new Set()
+          matches.exactSymbolTokensByFile.set(entry.file, tokens)
+        }
+        tokens.add(token)
+        matches.candidateFiles.add(entry.file)
+      }
+
+      for (const entry of this.candidateEntriesForPartialToken(token)) {
+        if (!entry.symbol.toLowerCase().includes(token)) continue
+        if (!matches.partialSymbolByFile.has(entry.file)) {
+          matches.partialSymbolByFile.set(entry.file, entry.symbol)
+        }
+        matches.candidateFiles.add(entry.file)
+      }
+
+      for (const file of this.candidateFilesForFilenameToken(token)) {
+        const name = this.basenameWithoutExtension(file)
+        if (name.length > 1 && name.toLowerCase().includes(token)) {
+          if (!matches.filenameByFile.has(file)) matches.filenameByFile.set(file, name)
+          matches.candidateFiles.add(file)
         }
       }
     }
 
-    // Dependency proximity (this file is a transitive dep of an active file)
+    return matches
+  }
+
+  private scoreFileFromMatches(file: string, activeDeps: Set<string>, matches: QueryMatches): ScoredFile {
+    const signals: string[] = []
+    let score = 0
+
+    const exactTokens = matches.exactSymbolTokensByFile.get(file)
+    if (exactTokens) {
+      for (const token of exactTokens) {
+        score += 3
+        signals.push(`symbol:${token}`)
+      }
+    } else {
+      const partial = matches.partialSymbolByFile.get(file)
+      if (partial) {
+        score += 2
+        signals.push(`partial-symbol:${partial}`)
+      }
+    }
+
+    const filename = matches.filenameByFile.get(file)
+    if (filename) {
+      score += 2
+      signals.push(`filename:${filename}`)
+    }
+
     if (activeDeps.has(file)) {
       score += 1
       signals.push('dep-proximity')
@@ -150,31 +307,18 @@ export class RetrievalEngine {
   ): ScoredFile[] {
     const candidates = new Map<string, ScoredFile>()
     const queryTokens = this.extractQueryTokens(query)
+    const queryMatches = this.buildQueryMatches(queryTokens)
 
-    // Phase 1: Symbol-based retrieval (most important signal)
-    for (const token of queryTokens) {
-      const files = this.index.symbolIndex.get(token)
-      if (files) {
-        for (const file of files) {
-          if (!candidates.has(file)) {
-            const scored = this.scoreFile(query, file, activeDeps, queryTokens)
-            if (scored.score > 0) {
-              candidates.set(file, scored)
-            }
-          }
-        }
+    const addCandidate = (file: string) => {
+      if (candidates.has(file) || !this.index.skeletons.has(file)) return
+      const scored = this.scoreFileFromMatches(file, activeDeps, queryMatches)
+      if (scored.score > 0) {
+        candidates.set(file, scored)
       }
     }
 
-    // Phase 2: Filename-based retrieval and dependency proximity for remaining files
-    for (const file of this.index.skeletons.keys()) {
-      if (!candidates.has(file)) {
-        const scored = this.scoreFile(query, file, activeDeps, queryTokens)
-        if (scored.score > 0) {
-          candidates.set(file, scored)
-        }
-      }
-    }
+    for (const file of queryMatches.candidateFiles) addCandidate(file)
+    for (const file of activeDeps) addCandidate(file)
 
     let results = Array.from(candidates.values()).sort((a, b) => b.score - a.score)
 
@@ -189,6 +333,7 @@ export class RetrievalEngine {
     const graph = opts.graph
     const root = opts.projectRoot
     if (!graph || !root) return files
+    const graphLookupIndex = buildGraphLookupIndex(graph)
 
     const boosted = files.map(f => {
       let score = f.score
@@ -211,7 +356,7 @@ export class RetrievalEngine {
       }
 
       if (opts.boostActiveCommunity && opts.activeCommunityId) {
-        if (fileInCommunity(f.file, opts.activeCommunityId, graph, root)) {
+        if (fileInCommunity(f.file, opts.activeCommunityId, graph, root, graphLookupIndex)) {
           score += 1
           signals.push('graph:community')
         }
@@ -228,5 +373,20 @@ export class RetrievalEngine {
    */
   findBySymbol(name: string): string[] {
     return this.index.symbolIndex.get(name) ?? []
+  }
+
+  /**
+   * Resolve a mentioned path using exact, relative, and suffix path indexes.
+   */
+  findByPathMention(path: string): string[] {
+    const normalized = this.normalizePath(path)
+    const withoutDotSlash = normalized.replace(/^\.\//, '')
+    const candidates = new Set<string>()
+
+    for (const file of this.lookups.exactPaths.get(normalized) ?? []) candidates.add(file)
+    for (const file of this.lookups.exactPaths.get(withoutDotSlash) ?? []) candidates.add(file)
+    for (const file of this.lookups.suffixPaths.get(withoutDotSlash) ?? []) candidates.add(file)
+
+    return [...candidates]
   }
 }

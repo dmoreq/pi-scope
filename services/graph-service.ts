@@ -14,6 +14,7 @@
  *   6. Cache results for fast reload
  */
 
+import { createHash } from 'node:crypto'
 import type { GraphAnalysis, CodeGraph } from '../context/graph-types.js'
 import { assembleGraphAnalysis } from '../graph/analyzers/compute-graph-analysis.js'
 import { GraphAnalyzer } from '../graph/analyzers/graph-analyzer.js'
@@ -35,30 +36,52 @@ export interface GraphResult {
  * Changes when files/symbols/deps change, so cached analysis invalidates properly.
  */
 function indexFingerprint(index: RepoIndex): string {
-  const parts: string[] = []
-  parts.push(`files:${index.skeletons.size}`)
-  parts.push(`symbols:${index.symbolIndex.size}`)
-  // Sum of dep edges as a quick checksum
-  let depSum = 0
-  for (const deps of index.deps.values()) depSum += deps.size
-  parts.push(`deps:${depSum}`)
-  return parts.join('|')
+  const hash = createHash('sha256')
+  hash.update('repo-index-v2\0')
+
+  hash.update('files\0')
+  for (const [path, skeleton] of [...index.skeletons.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    updateHashPart(hash, path)
+    updateHashPart(hash, skeleton)
+  }
+
+  hash.update('deps\0')
+  for (const [path, deps] of [...index.deps.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    updateHashPart(hash, path)
+    for (const dep of [...deps].sort()) {
+      updateHashPart(hash, dep)
+    }
+  }
+
+  hash.update('symbols\0')
+  for (const [path, symbols] of [...index.symbolIndex.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    updateHashPart(hash, path)
+    for (const symbol of [...symbols].sort()) {
+      updateHashPart(hash, symbol)
+    }
+  }
+
+  return `repo-index-v2:${hash.digest('hex')}`
 }
 
 function graphStructureCacheKey(graph: CodeGraph): string {
-  const content = JSON.stringify({
-    nodeCount: graph.nodes.length,
-    edgeCount: graph.edges.length,
-    nodeIds: graph.nodes.map(n => n.id).sort(),
-    edges: graph.edges.map(e => `${e.source}|${e.target}|${e.type}`).sort(),
-  })
-  let hash = 0
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash |= 0
+  const hash = createHash('sha256')
+  hash.update('code-graph-v1\0')
+  hash.update(`nodes:${graph.nodes.length}\0`)
+  for (const id of graph.nodes.map(n => n.id).sort()) {
+    updateHashPart(hash, id)
   }
-  return `graph-${Math.abs(hash)}`
+  hash.update(`edges:${graph.edges.length}\0`)
+  for (const edge of graph.edges.map(e => `${e.source}\0${e.target}\0${e.type}`).sort()) {
+    updateHashPart(hash, edge)
+  }
+  return `graph:${hash.digest('hex')}`
+}
+
+function updateHashPart(hash: ReturnType<typeof createHash>, value: string): void {
+  hash.update(`${Buffer.byteLength(value, 'utf8')}:`)
+  hash.update(value)
+  hash.update('\0')
 }
 
 export class GraphService {

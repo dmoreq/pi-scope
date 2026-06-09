@@ -8,12 +8,14 @@ import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
 import { extractSymbolFromHoverText } from '../context/graph-node-id.js'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../context/graph-lsp-hover.js'
 import { resolveGraphLookup } from '../context/graph-lsp-resolve.js'
+import { buildGraphLookupIndex, type GraphLookupIndex } from '../context/graph-lookup-index.js'
 import type { GraphAnalysis } from '../context/graph-types.js'
 import { appendHashlineHoverSection, setHashlineHoverEnabled } from '../hashline/lsp-hover-anchor.js'
 import { LspNavigationService } from '../lsp/service.js'
 import type { RepoIndex } from '../shared/types.js'
 
 let currentAnalysis: GraphAnalysis | null = null
+let currentGraphLookupIndex: GraphLookupIndex | null = null
 let currentIndex: RepoIndex | null = null
 let enrichHoverWithGraph = true
 let hoverMaxReferencesListed = 10
@@ -21,6 +23,7 @@ let hashlineHoverEnabled = true
 
 export function setLspGraphAnalysis(a: GraphAnalysis | null): void {
   currentAnalysis = a
+  currentGraphLookupIndex = a ? buildGraphLookupIndex(a) : null
 }
 
 export function setLspRepoIndex(index: RepoIndex | null): void {
@@ -177,7 +180,7 @@ const hoverTool = defineTool({
       if (enrichHoverWithGraph && currentAnalysis && result && !result.startsWith('No hover info')) {
         const symbol = resolveHoverLookupKey(fp, result, cwd)
         const reverseDeps = reverseDepsForFileAbs(cwd, rel)
-        const enhanced = enhanceHoverWithGraphMetrics(symbol, result, currentAnalysis, rel, reverseDeps)
+        const enhanced = enhanceHoverWithGraphMetrics(symbol, result, currentAnalysis, rel, reverseDeps, currentGraphLookupIndex ?? undefined)
         text = formatHoverAsMarkdown(enhanced)
       }
 

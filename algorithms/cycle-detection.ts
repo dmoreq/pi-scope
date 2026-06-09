@@ -10,6 +10,8 @@
 
 import type { CodeGraph } from '../context/graph-types.js'
 
+const MAX_MATERIALIZED_CYCLES = 50
+
 /**
  * Represents a cycle in the graph.
  */
@@ -66,100 +68,117 @@ export interface Anomaly {
  * @returns Cycle detection result
  */
 export function detectAllCycles(graph: CodeGraph): CycleDetectionResult {
-  const visited = new Set<string>()
-  const recursionStack = new Set<string>()
-  const cycles: Cycle[] = []
+  const adj = buildAdjacency(graph)
+  const sccs = detectStronglyConnectedComponentsFromAdjacency(graph, adj)
+  const cyclicComponents = sccs.filter(scc => scc.isCycle)
+  const cycles = materializeRepresentativeCycles(cyclicComponents, adj, graph)
   const anomalies: Anomaly[] = []
-
-  // Build adjacency list
-  const adj = new Map<string, string[]>()
-  for (const node of graph.nodes) {
-    adj.set(node.id, [])
-  }
-  for (const edge of graph.edges) {
-    adj.get(edge.source)?.push(edge.target)
-  }
-
-  // DFS-based cycle detection
-  const path: string[] = []
-  for (const node of graph.nodes) {
-    if (!visited.has(node.id)) {
-      detectCyclesDFS(node.id, adj, visited, recursionStack, path, cycles, graph)
-    }
-  }
-
-  // Detect strongly connected components (SCCs)
-  const sccs = detectStronglyConnectedComponents(graph)
 
   // Find anomalies
   anomalies.push(...detectAnomalies(cycles, sccs, graph))
 
   // Calculate statistics
   const cycleNodes = new Set<string>()
-  for (const c of cycles) {
-    for (const n of c.nodes) {
+  for (const scc of cyclicComponents) {
+    for (const n of scc.nodes) {
       cycleNodes.add(n)
     }
   }
 
   return {
-    hasCycles: cycles.length > 0,
-    cycleCount: cycles.length,
+    hasCycles: cyclicComponents.length > 0,
+    cycleCount: cyclicComponents.length,
     totalNodesInCycles: cycleNodes.size,
-    cycles: cycles.slice(0, 50), // Limit to 50 cycles
+    cycles,
     strongComponents: sccs,
     anomalies,
   }
 }
 
 /**
- * Detect cycles using DFS recursion.
- *
- * @param node Current node
- * @param adj Adjacency list
- * @param visited Global visited set
- * @param recursionStack Current recursion stack
- * @param path Current path
- * @param cycles Found cycles
- * @param graph Original graph
+ * Build adjacency list once for cycle-related algorithms.
  */
-function detectCyclesDFS(
-  node: string,
+function buildAdjacency(graph: CodeGraph): Map<string, string[]> {
+  const adj = new Map<string, string[]>()
+  for (const node of graph.nodes) {
+    adj.set(node.id, [])
+  }
+  for (const edge of graph.edges) {
+    const neighbors = adj.get(edge.source)
+    if (neighbors) {
+      neighbors.push(edge.target)
+    }
+  }
+  for (const neighbors of adj.values()) {
+    neighbors.sort()
+  }
+  return adj
+}
+
+function materializeRepresentativeCycles(
+  sccs: StronglyConnectedComponent[],
   adj: Map<string, string[]>,
-  visited: Set<string>,
-  recursionStack: Set<string>,
-  path: string[],
-  cycles: Cycle[],
   graph: CodeGraph
-): void {
-  visited.add(node)
-  recursionStack.add(node)
-  path.push(node)
+): Cycle[] {
+  const cycles: Cycle[] = []
+  for (const scc of sccs) {
+    if (cycles.length >= MAX_MATERIALIZED_CYCLES) break
+    const cyclePath = findRepresentativeCycle(scc.nodes, adj)
+    if (!cyclePath) continue
+    const length = cyclePath.length - 1
+    cycles.push({
+      id: `cycle-${cycles.length}`,
+      nodes: cyclePath.slice(0, -1),
+      edges: getCycleEdges(cyclePath, graph),
+      length,
+      severity: determineCycleSeverity(length),
+      recommendation: getCycleRecommendation(length),
+    })
+  }
+  return cycles
+}
 
-  const neighbors = adj.get(node) || []
+function findRepresentativeCycle(nodes: string[], adj: Map<string, string[]>): string[] | null {
+  const nodeSet = new Set(nodes)
 
-  for (const neighbor of neighbors) {
-    if (!visited.has(neighbor)) {
-      detectCyclesDFS(neighbor, adj, visited, recursionStack, path, cycles, graph)
-    } else if (recursionStack.has(neighbor)) {
-      // Found a cycle
-      const cycleStart = path.indexOf(neighbor)
-      const cyclePath = path.slice(cycleStart).concat([neighbor])
-      const cycleEdges = getCycleEdges(cyclePath, graph)
+  if (nodes.length === 1) {
+    const node = nodes[0]
+    return adj.get(node)?.includes(node) ? [node, node] : null
+  }
 
-      cycles.push({
-        id: `cycle-${cycles.length}`,
-        nodes: cyclePath.slice(0, -1),
-        edges: cycleEdges,
-        length: cyclePath.length - 1,
-        severity: determineCycleSeverity(cyclePath.length - 1),
-        recommendation: getCycleRecommendation(cyclePath.length - 1),
-      })
+  const visited = new Set<string>()
+  const onStack = new Set<string>()
+  const path: string[] = []
+
+  function dfs(node: string): string[] | null {
+    visited.add(node)
+    onStack.add(node)
+    path.push(node)
+
+    for (const neighbor of adj.get(node) ?? []) {
+      if (!nodeSet.has(neighbor)) continue
+      if (!visited.has(neighbor)) {
+        const found = dfs(neighbor)
+        if (found) return found
+      } else if (onStack.has(neighbor)) {
+        const cycleStart = path.indexOf(neighbor)
+        return path.slice(cycleStart).concat(neighbor)
+      }
+    }
+
+    path.pop()
+    onStack.delete(node)
+    return null
+  }
+
+  for (const node of [...nodes].sort()) {
+    if (!visited.has(node)) {
+      const found = dfs(node)
+      if (found) return found
     }
   }
 
-  path.pop()
-  recursionStack.delete(node)
+  return null
 }
 
 /**
@@ -227,21 +246,19 @@ function getCycleRecommendation(length: number): string {
  * @returns Array of strongly connected components
  */
 export function detectStronglyConnectedComponents(graph: CodeGraph): StronglyConnectedComponent[] {
+  return detectStronglyConnectedComponentsFromAdjacency(graph, buildAdjacency(graph))
+}
+
+function detectStronglyConnectedComponentsFromAdjacency(
+  graph: CodeGraph,
+  adj: Map<string, string[]>
+): StronglyConnectedComponent[] {
   const index = new Map<string, number>()
   const lowLink = new Map<string, number>()
   const onStack = new Set<string>()
   const stack: string[] = []
   const sccs: StronglyConnectedComponent[] = []
   let indexCounter = 0
-
-  // Build adjacency
-  const adj = new Map<string, string[]>()
-  for (const node of graph.nodes) {
-    adj.set(node.id, [])
-  }
-  for (const edge of graph.edges) {
-    adj.get(edge.source)?.push(edge.target)
-  }
 
   function strongConnect(node: string) {
     index.set(node, indexCounter)
@@ -276,13 +293,14 @@ export function detectStronglyConnectedComponents(graph: CodeGraph): StronglyCon
         if (popped === node) break
       }
 
-      if (component.length > 1) {
+      const isCycle = component.length > 1 || (component.length === 1 && (adj.get(component[0]) ?? []).includes(component[0]))
+      if (isCycle) {
         const density = computeComponentDensity(component, graph)
         sccs.push({
           id: `scc-${sccs.length}`,
           nodes: component,
           size: component.length,
-          isCycle: component.length > 1,
+          isCycle,
           density,
         })
       }
@@ -327,14 +345,15 @@ function computeComponentDensity(nodes: string[], graph: CodeGraph): number {
  * @param graph Graph data
  * @returns Array of anomalies
  */
-function detectAnomalies(cycles: Cycle[], _sccs: StronglyConnectedComponent[], graph: CodeGraph): Anomaly[] {
+function detectAnomalies(cycles: Cycle[], sccs: StronglyConnectedComponent[], graph: CodeGraph): Anomaly[] {
   const anomalies: Anomaly[] = []
 
   // Circular dependency anomalies
-  if (cycles.length > 0) {
+  const cyclicComponents = sccs.filter(scc => scc.isCycle)
+  if (cyclicComponents.length > 0) {
     const nodesInCycles = new Set<string>()
-    for (const c of cycles) {
-      for (const n of c.nodes) {
+    for (const scc of cyclicComponents) {
+      for (const n of scc.nodes) {
         nodesInCycles.add(n)
       }
     }
@@ -343,7 +362,7 @@ function detectAnomalies(cycles: Cycle[], _sccs: StronglyConnectedComponent[], g
       type: 'circular',
       severity: cycles.some(c => c.severity === 'CRITICAL') ? 'CRITICAL' : 'HIGH',
       affectedNodes: Array.from(nodesInCycles),
-      description: `${cycles.length} circular dependencies detected`,
+      description: `${cyclicComponents.length} circular dependencies detected`,
       recommendation: 'Break cycles by extracting shared dependencies or inverting dependencies',
     })
   }

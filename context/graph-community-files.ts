@@ -3,24 +3,19 @@
  */
 
 import { relative, resolve } from 'node:path'
-import { parseGraphNodeId } from './graph-node-id.js'
+import { buildGraphLookupIndex, type GraphLookupIndex } from './graph-lookup-index.js'
 import type { GraphAnalysis } from './graph-types.js'
 
 /** Collect absolute file paths that belong to a community (module nodes). */
 export function communityFilePaths(
   analysis: GraphAnalysis,
   communityId: string,
-  projectRoot: string
+  projectRoot: string,
+  lookupIndex: GraphLookupIndex = buildGraphLookupIndex(analysis)
 ): Set<string> {
-  const comm = analysis.communities.find(c => c.id === communityId)
-  if (!comm) return new Set()
-
   const paths = new Set<string>()
-  for (const nodeId of comm.nodes) {
-    const { pathPart, symbolPart } = parseGraphNodeId(nodeId)
-    if (symbolPart) continue
-    const abs = resolve(projectRoot, pathPart)
-    paths.add(abs)
+  for (const relPath of lookupIndex.communityFilePathsById.get(communityId) ?? []) {
+    paths.add(resolve(projectRoot, relPath))
   }
   return paths
 }
@@ -29,9 +24,10 @@ export function fileInCommunity(
   absPath: string,
   communityId: string,
   analysis: GraphAnalysis,
-  projectRoot: string
+  projectRoot: string,
+  lookupIndex: GraphLookupIndex = buildGraphLookupIndex(analysis)
 ): boolean {
-  const files = communityFilePaths(analysis, communityId, projectRoot)
+  const files = communityFilePaths(analysis, communityId, projectRoot, lookupIndex)
   if (files.has(absPath)) return true
   const rel = relative(projectRoot, absPath).replace(/\\/g, '/')
   for (const f of files) {

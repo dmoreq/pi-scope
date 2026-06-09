@@ -2,11 +2,10 @@
  * Inject hashline anchor snippets into dep-context for in-focus files.
  */
 
-import { readFileSync } from 'node:fs'
+import { closeSync, openSync, readSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
-import { AnchorStateManager } from '../hashline/state-manager.js'
 import { formatHashLines } from '../hashline/line-hash.js'
-import { applyLinePadding, type LineRegionHint } from './hashline-region.js'
+import type { LineRegionHint } from './hashline-region.js'
 import { estimateTokens } from '../shared/token.js'
 
 export interface HashlineInjectOptions {
@@ -25,22 +24,29 @@ export function contentHasHashlineAnchors(text: string): boolean {
   return HASHLINE_ANCHOR_LINE_RE.test(text)
 }
 
-function resolveAnnotateBounds(
-  lineCount: number,
+interface AnchorWindow {
+  lines: string[]
+  start: number
+  end: number
+  label: string
+}
+
+function resolveRequestedBounds(
   opts: HashlineInjectOptions,
   region?: LineRegionHint
 ): { start: number; end: number; label: string } {
   const padding = opts.annotateRangePaddingLines ?? 15
+  const maxLines = Math.max(1, opts.maxLinesPerFile)
 
   if (opts.annotateBySymbolRange !== false && region) {
-    const padded = applyLinePadding(region, lineCount, padding)
-    let end = padded.endLine
-    const span = end - padded.startLine + 1
-    if (span > opts.maxLinesPerFile) {
-      const center = Math.floor((padded.startLine + padded.endLine) / 2)
-      const half = Math.floor(opts.maxLinesPerFile / 2)
+    const paddedStart = Math.max(1, region.startLine - padding)
+    const paddedEnd = Math.max(paddedStart, region.endLine + padding)
+    const span = paddedEnd - paddedStart + 1
+    if (span > maxLines) {
+      const center = Math.floor((paddedStart + paddedEnd) / 2)
+      const half = Math.floor(maxLines / 2)
       const start = Math.max(1, center - half)
-      end = Math.min(lineCount, start + opts.maxLinesPerFile - 1)
+      const end = start + maxLines - 1
       return {
         start,
         end,
@@ -48,14 +54,62 @@ function resolveAnnotateBounds(
       }
     }
     return {
-      start: padded.startLine,
-      end,
-      label: `lines ${padded.startLine}–${end} (around citation)`,
+      start: paddedStart,
+      end: paddedEnd,
+      label: `lines ${paddedStart}–${paddedEnd} (around citation ${region.startLine})`,
     }
   }
 
-  const end = Math.min(opts.maxLinesPerFile, lineCount)
+  const end = maxLines
   return { start: 1, end, label: `lines 1–${end}` }
+}
+
+function readLineWindowSync(absPath: string, startLine: number, endLine: number): string[] {
+  const fd = openSync(absPath, 'r')
+  const buffer = Buffer.allocUnsafe(64 * 1024)
+  const lines: string[] = []
+  let carry = ''
+  let currentLine = 1
+
+  try {
+    while (currentLine <= endLine) {
+      const bytesRead = readSync(fd, buffer, 0, buffer.length, null)
+      if (bytesRead === 0) break
+
+      const text = carry + buffer.toString('utf-8', 0, bytesRead)
+      const parts = text.split(/\r?\n/)
+      carry = parts.pop() ?? ''
+
+      for (const line of parts) {
+        if (currentLine >= startLine && currentLine <= endLine) {
+          lines.push(line)
+        }
+        currentLine++
+        if (currentLine > endLine) break
+      }
+    }
+
+    if (carry.length > 0 && currentLine >= startLine && currentLine <= endLine) {
+      lines.push(carry)
+    }
+
+    return lines
+  } finally {
+    closeSync(fd)
+  }
+}
+
+function readAnchorWindow(absPath: string, opts: HashlineInjectOptions): AnchorWindow | null {
+  const region = opts.regionHints?.get(absPath)
+  const bounds = resolveRequestedBounds(opts, region)
+  if (bounds.end < bounds.start) return null
+
+  const lines = readLineWindowSync(absPath, bounds.start, bounds.end)
+  if (lines.length === 0) return null
+
+  const actualEnd = bounds.start + lines.length - 1
+  const label = actualEnd === bounds.end ? bounds.label : bounds.label.replace(`–${bounds.end}`, `–${actualEnd}`)
+  return { lines, start: bounds.start, end: actualEnd, label }
 }
 
 /**
@@ -69,22 +123,13 @@ export function buildHashlineAnchorBlock(
   if (!opts.enabled) return null
 
   try {
-    const raw = readFileSync(absPath, 'utf-8')
-    if (opts.recordOnRead) {
-      AnchorStateManager.record(absPath, raw)
-    }
+    const window = readAnchorWindow(absPath, opts)
+    if (!window) return null
 
-    const lines = raw.split('\n')
-    if (lines.length === 0) return null
-
-    const region = opts.regionHints?.get(absPath)
-    const { start, end, label } = resolveAnnotateBounds(lines.length, opts, region)
-    if (end < start) return null
-
-    const annotated = formatHashLines(lines.slice(start - 1, end).join('\n'), start)
+    const annotated = formatHashLines(window.lines.join('\n'), window.start)
     const rel = relative(projectRoot, absPath)
     return (
-      `#### Hashline anchors (${label})\n` +
+      `#### Hashline anchors (${window.label})\n` +
       `Use \`LINE+bigram\` refs with \`hashline_edit\` (\`dry_run: true\` first). ` +
       `Full file or range: \`hashline_read\` or \`/hashline-read ${rel}\`.\n` +
       '```\n' +

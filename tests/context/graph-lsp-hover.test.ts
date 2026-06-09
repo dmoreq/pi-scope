@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import { buildGraphLookupIndex } from '../../context/graph-lookup-index'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown, getNodeRoleSummary } from '../../context/graph-lsp-hover'
 import type { GraphAnalysis } from '../../context/graph-types'
 
@@ -162,6 +163,69 @@ describe('Graph LSP Hover', () => {
       expect(hover.surpriseInfo).toBeDefined()
       expect(hover.surpriseInfo?.hasUnexpectedConnections).toBe(true)
       expect(hover.surpriseInfo?.count).toBe(1)
+    })
+
+    it('reuses an injected graph lookup index for file-scoped hover enrichment', () => {
+      const analysis = {
+        graph: {
+          nodes: [
+            { id: 'file:src/auth.ts:authenticate', type: 'function', label: 'authenticate' },
+            { id: 'file:src/api.ts:handler', type: 'function', label: 'handler' },
+          ],
+          edges: [{ source: 'file:src/api.ts:handler', target: 'file:src/auth.ts:authenticate', type: 'calls' }],
+        },
+        godNodes: [
+          {
+            nodeId: 'file:src/auth.ts:authenticate',
+            label: 'Authenticate',
+            inDegree: 1,
+            outDegree: 0,
+            betweenness: 0.4,
+            pageRank: 0.3,
+            community: 'auth',
+            criticality: 'IMPORTANT',
+          },
+        ],
+        communities: [
+          {
+            id: 'auth',
+            label: 'Auth',
+            nodes: ['file:src/auth.ts:authenticate'],
+            internalDensity: 0.7,
+            externalDensity: 0.2,
+            interfaceNodes: ['file:src/auth.ts:authenticate'],
+            bottlenecks: [],
+          },
+        ],
+        surprises: [
+          {
+            source: 'file:src/auth.ts:authenticate',
+            target: 'file:src/legacy.ts:legacyAuth',
+            reason: 'legacy',
+            confidence: 0.8,
+          },
+        ],
+        bottlenecks: [],
+        anomalies: [],
+        metrics: {},
+      } as GraphAnalysis
+
+      const index = buildGraphLookupIndex(analysis)
+      const hover = enhanceHoverWithGraphMetrics(
+        'authenticate',
+        'function authenticate(): boolean',
+        analysis,
+        'src/auth.ts',
+        undefined,
+        index
+      )
+
+      expect(hover.symbol).toBe('file:src/auth.ts:authenticate')
+      expect(hover.godNodeInfo?.criticality).toBe('IMPORTANT')
+      expect(hover.communityInfo?.communityLabel).toBe('Auth')
+      expect(hover.communityInfo?.isInterfaceNode).toBe(true)
+      expect(hover.surpriseInfo?.count).toBe(1)
+      expect(hover.impactAnalysis?.dependentCount).toBe(1)
     })
   })
 

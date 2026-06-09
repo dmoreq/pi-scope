@@ -56,6 +56,18 @@ describe('RetrievalEngine', () => {
     expect(appFile?.signals.some(s => s.startsWith('filename:'))).toBe(true)
   })
 
+  it('finds files by short filename substring without scanning all files', () => {
+    const dbIndex = createMockIndex()
+    dbIndex.skeletons.set('src/database/connectDB.ts', 'export function connect(): void {...}')
+    const dbEngine = new RetrievalEngine(dbIndex)
+
+    const results = dbEngine.retrieveTopK('DB', 5)
+
+    const dbFile = results.find(r => r.file === 'src/database/connectDB.ts')
+    expect(dbFile).toBeDefined()
+    expect(dbFile?.signals).toContain('filename:connectDB')
+  })
+
   it('scores by dependency proximity', () => {
     const activeDeps = new Set(['src/auth/models.ts'])
     const results = engine.retrieveTopK('test query', 5, activeDeps)
@@ -102,8 +114,7 @@ describe('RetrievalEngine', () => {
     expect(tokens.has('data')).toBe(true)
   })
 
-  it('performs better than O(files × symbols) for large datasets', () => {
-    // Create a larger mock index to test performance
+  it('retrieves exact matches from large datasets', () => {
     const largeSkeletons = new Map()
     const largeSymbolIndex = new Map()
 
@@ -130,17 +141,46 @@ describe('RetrievalEngine', () => {
 
     const largeEngine = new RetrievalEngine(largeIndex)
 
-    // Time the retrieval operation
-    const start = Date.now()
     const results = largeEngine.retrieveTopK('func500_5 func200', 20)
-    const duration = Date.now() - start
 
-    // Should complete quickly (bound is lenient for CI / cold VMs)
-    expect(duration).toBeLessThan(1500)
     expect(results.length).toBeGreaterThan(0)
 
-    // Should find the exact matches
     const exactMatch = results.find(r => r.signals.includes('symbol:func500_5'))
     expect(exactMatch).toBeDefined()
+  })
+
+  it('does not iterate all skeletons or symbols during query-time lookup', () => {
+    const largeSkeletons = new Map<string, string>()
+    const largeSymbolIndex = new Map<string, string[]>()
+
+    for (let i = 0; i < 2000; i++) {
+      const file = `src/module${i}/target${i}.ts`
+      largeSkeletons.set(file, `export function target${i}() {...}`)
+      largeSymbolIndex.set(`target${i}`, [file])
+      largeSymbolIndex.set(`buildTarget${i}`, [file])
+    }
+
+    const largeIndex: RepoIndex = {
+      skeletons: largeSkeletons,
+      deps: new Map(),
+      reverseDeps: new Map(),
+      symbolIndex: largeSymbolIndex,
+    }
+    const largeEngine = new RetrievalEngine(largeIndex)
+
+    largeIndex.skeletons.keys = () => {
+      throw new Error('query-time skeleton scan')
+    }
+    largeIndex.symbolIndex[Symbol.iterator] = () => {
+      throw new Error('query-time symbol scan')
+    }
+
+    const symbolResults = largeEngine.retrieveTopK('build target1999', 5)
+    expect(symbolResults.some(result => result.file === 'src/module1999/target1999.ts')).toBe(true)
+
+    const filenameResults = largeEngine.retrieveTopK('target1500', 5)
+    expect(filenameResults.some(result => result.file === 'src/module1500/target1500.ts')).toBe(true)
+
+    expect(largeEngine.findByPathMention('module1234/target1234.ts')).toEqual(['src/module1234/target1234.ts'])
   })
 })

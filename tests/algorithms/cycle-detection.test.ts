@@ -323,6 +323,33 @@ describe('CycleDetection', () => {
       expect(elapsed).toBeLessThan(500) // Should be <500ms for 100 nodes
     })
 
+    it('caps materialized cycles while counting all cyclic components', () => {
+      const cycleCount = 75
+      const graph: CodeGraph = {
+        nodes: Array.from({ length: cycleCount * 2 }, (_, i) => ({
+          id: `node${i}`,
+          type: 'function' as const,
+          label: `Node ${i}`,
+        })),
+        edges: Array.from({ length: cycleCount * 2 }, (_, i) => {
+          const pairStart = Math.floor(i / 2) * 2
+          return {
+            source: `node${i}`,
+            target: `node${i === pairStart ? pairStart + 1 : pairStart}`,
+            type: 'calls' as const,
+          }
+        }),
+      }
+
+      const result = detectAllCycles(graph)
+
+      expect(result.hasCycles).toBe(true)
+      expect(result.cycleCount).toBe(cycleCount)
+      expect(result.totalNodesInCycles).toBe(cycleCount * 2)
+      expect(result.cycles).toHaveLength(50)
+      expect(result.anomalies.find(a => a.type === 'circular')?.affectedNodes).toHaveLength(cycleCount * 2)
+    })
+
     it('computes SCCs efficiently', () => {
       const nodeCount = 100
       const graph: CodeGraph = {

@@ -163,4 +163,37 @@ describe('ContextInjector', () => {
     expect(result).toContain('extension.ts')
     expect(result).toContain('manager.ts')
   })
+
+  it('matches mentioned paths through retrieval path lookups without scanning all skeletons', () => {
+    const skeletons = new Map<string, string>()
+    const symbolIndex = new Map<string, string[]>()
+    for (let i = 0; i < 2000; i++) {
+      const file = join(ROOT, `src/module${i}/target${i}.ts`)
+      skeletons.set(file, `export function target${i}(): void { ... }`)
+      symbolIndex.set(`target${i}`, [file])
+    }
+
+    const index = makeIndex({
+      skeletons,
+      deps: new Map(),
+      reverseDeps: new Map(),
+      symbolIndex,
+    })
+    const retrieval = new RetrievalEngine(index)
+    const injector = new ContextInjector(ROOT, 8000, 10)
+
+    index.skeletons.keys = () => {
+      throw new Error('query-time skeleton scan')
+    }
+
+    const result = injector.buildInjection(
+      index,
+      [{ role: 'user', content: 'Please edit src/module1999/target1999.ts' }] as never,
+      undefined,
+      retrieval
+    )
+
+    expect(result).toContain('src/module1999/target1999.ts')
+    expect(result).toContain('target1999()')
+  })
 })

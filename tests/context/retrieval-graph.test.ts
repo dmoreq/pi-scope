@@ -1,5 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { communityFilePaths, fileInCommunity } from '../../context/graph-community-files.js'
+import { buildGraphLookupIndex } from '../../context/graph-lookup-index.js'
 import { RetrievalEngine } from '../../context/retrieval.js'
 import type { GraphAnalysis, GodNode } from '../../context/graph-types.js'
 import type { RepoIndex } from '../../shared/types.js'
@@ -65,5 +67,14 @@ describe('RetrievalEngine graph boosts', () => {
     })
     const hub = scored.find(s => s.file === HUB)
     expect(hub?.signals.some(sig => sig.startsWith('graph:'))).toBe(true)
+  })
+
+  it('resolves community file membership from a reusable graph lookup index', () => {
+    const index = buildGraphLookupIndex(graph)
+    const files = communityFilePaths(graph, 'core', ROOT, index)
+
+    expect(files.has(HUB)).toBe(true)
+    expect(fileInCommunity(HUB, 'core', graph, ROOT, index)).toBe(true)
+    expect(fileInCommunity(UTIL, 'core', graph, ROOT, index)).toBe(false)
   })
 })

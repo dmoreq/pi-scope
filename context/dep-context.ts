@@ -158,6 +158,7 @@ export class ContextInjector {
   ): Set<string> {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()
+    const pathLookup = retrieval ?? new RetrievalEngine(index)
 
     for (const msg of recent) {
       const text = extractText(msg.content)
@@ -192,21 +193,17 @@ export class ContextInjector {
 
       const inFocus = new Set<string>()
       for (const { file } of scored) inFocus.add(file)
-      for (const absPath of index.skeletons.keys()) {
-        const rel = relative(this.projectRoot, absPath)
-        for (const mention of mentioned) {
-          if (rel.endsWith(mention) || rel === mention || absPath.endsWith(mention)) inFocus.add(absPath)
-        }
+      for (const mention of mentioned) {
+        for (const absPath of pathLookup.findByPathMention(mention)) inFocus.add(absPath)
       }
       return inFocus
     }
 
-    // Fallback: regex matching
+    // Fallback: path lookup matching
     const inFocus = new Set<string>()
-    for (const absPath of index.skeletons.keys()) {
-      const rel = relative(this.projectRoot, absPath)
-      for (const mention of mentioned) {
-        if (rel.endsWith(mention) || rel === mention || absPath.endsWith(mention)) inFocus.add(absPath)
+    for (const mention of mentioned) {
+      for (const absPath of pathLookup.findByPathMention(mention)) {
+        inFocus.add(absPath)
       }
     }
     return inFocus
