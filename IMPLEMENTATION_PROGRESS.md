@@ -1,7 +1,7 @@
 # Code-Graph Integration — Implementation Progress
 
-> Last updated: 2026-05-30  
-> All 690 tests passing across 81 test files.
+> Last updated: 2026-06-09  
+> All ~730 tests passing across 60+ test files.
 
 ---
 
@@ -28,8 +28,8 @@ implemented, tested, and committed.
 Persistent JSON cache for `GraphAnalysis` stored alongside the index in
 `.pi/pi-scope/graph-cache.json`.
 
-- **Cache key**: `indexFingerprint` — `files:N|symbols:N|deps:N` string that
-  changes whenever the RepoIndex changes, triggering a fresh analysis.
+- **Cache key**: `graphFingerprint` — SHA-256 hash over all file paths+skeletons, dep edges, and symbol entries, computed by `computeRepoIndexFingerprint()` from `shared/index-fingerprint.ts`. Persisted in `StoredIndexV2.graphFingerprint` so it is reused on restart without recomputation.
+  Changes whenever the RepoIndex changes, triggering a fresh analysis.
 - **Version guard**: `GRAPH_CACHE_VERSION = 1` — bumping this integer forces
   all clients to rebuild.
 - Exports: `serializeAnalysis`, `deserializeAnalysis`, `saveGraphCache`,
