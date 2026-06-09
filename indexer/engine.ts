@@ -8,6 +8,7 @@ import type { LanguageParser } from '../parsers/language-parser.js'
 import { PythonParser } from '../parsers/python-parser.js'
 import { RustParser } from '../parsers/rust-parser.js'
 import { TypeScriptParser } from '../parsers/typescript-parser.js'
+import { mapLimit } from '../shared/concurrency.js'
 import type { FileIndex, RepoIndex, SlimConfig } from '../shared/types.js'
 import { DiskCache } from './cache.js'
 
@@ -36,7 +37,7 @@ async function* walkDir(dir: string, root: string, policy: PathPolicy): AsyncGen
   }
 }
 
-function resolveImport(raw: string, fromFile: string, ext: string): string | null {
+function resolveImport(raw: string, fromFile: string, ext: string, sourcePaths: Set<string>): string | null {
   if (ext === '.ts' || ext === '.tsx') {
     if (!raw.startsWith('.') && !raw.startsWith('/')) return null
     const base = resolve(dirname(fromFile), raw)
@@ -47,7 +48,7 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
       PathUtils.joinSafe(base, 'index.tsx'),
       base,
     ]) {
-      if (PathUtils.existsSync(candidate)) return candidate
+      if (sourcePaths.has(candidate)) return candidate
     }
     return null
   }
@@ -59,7 +60,7 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
     let dir = dirname(fromFile)
     for (let i = 1; i < dots; i++) dir = dirname(dir)
     const candidate = PathUtils.joinSafe(dir, `${module}.py`)
-    return PathUtils.existsSync(candidate) ? candidate : null
+    return sourcePaths.has(candidate) ? candidate : null
   }
 
   if (ext === '.rs') {
@@ -67,14 +68,14 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
       const name = raw.slice(4)
       const sibling = PathUtils.joinSafe(dirname(fromFile), `${name}.rs`)
       const modFile = PathUtils.joinSafe(dirname(fromFile), name, 'mod.rs')
-      if (PathUtils.existsSync(sibling)) return sibling
-      if (PathUtils.existsSync(modFile)) return modFile
+      if (sourcePaths.has(sibling)) return sibling
+      if (sourcePaths.has(modFile)) return modFile
       return null
     }
     if (raw.startsWith('crate::') || raw.startsWith('super::')) {
       const parts = raw.replace(/^(crate|super)::/, '').split('::')
       const candidate = `${PathUtils.joinSafe(dirname(fromFile), ...parts)}.rs`
-      return PathUtils.existsSync(candidate) ? candidate : null
+      return sourcePaths.has(candidate) ? candidate : null
     }
     return null
   }
@@ -107,48 +108,56 @@ export class IndexEngine {
   async build(): Promise<void> {
     await this.cache.load()
     const policy = createPathPolicy(this.projectRoot, [...this.config.exclude])
-    const fileIndexes: FileIndex[] = []
-
-    for await (const filePath of walkDir(this.projectRoot, this.projectRoot, policy)) {
-      const ext = extname(filePath)
-      const parser = this.parsers.get(ext)
-      if (!parser) continue
-
-      let content: string
-      try {
-        content = await readFile(filePath, 'utf-8')
-      } catch (err) {
-        console.warn(`[IndexEngine] Cannot read file ${filePath}:`, err)
-        continue
-      }
-      const hash = createHash('sha256').update(content).digest('hex')
-      const cached = this.cache.get(filePath)
-
-      if (cached && cached.contentHash === hash) {
-        fileIndexes.push(cached)
-      } else {
-        try {
-          const index = parser.parseFile(filePath, content)
-          this.cache.set(index)
-          fileIndexes.push(index)
-        } catch (err) {
-          // During active editing a file may be transiently invalid; keep the last
-          // known-good parse for that file so a single failure does not abort reindexing.
-          if (cached) {
-            console.warn(`[IndexEngine] Parser failed for ${filePath}, reusing cached index entry:`, err)
-            fileIndexes.push(cached)
-          } else {
-            console.warn(`[IndexEngine] Parser failed for ${filePath}, skipping file:`, err)
-          }
-        }
-      }
-    }
+    const filePaths = await this.collectSourceFiles(policy)
+    const fileIndexes = (await mapLimit(filePaths, 12, filePath => this.indexFile(filePath))).filter(
+      (entry): entry is FileIndex => entry != null
+    )
 
     await this.cache.save()
-    this.repoIndex = this.buildGraph(fileIndexes)
+    this.repoIndex = this.buildGraph(fileIndexes, new Set(filePaths))
   }
 
-  private buildGraph(files: FileIndex[]): RepoIndex {
+  private async collectSourceFiles(policy: PathPolicy): Promise<string[]> {
+    const filePaths: string[] = []
+    for await (const filePath of walkDir(this.projectRoot, this.projectRoot, policy)) {
+      if (this.parsers.has(extname(filePath))) filePaths.push(filePath)
+    }
+    return filePaths
+  }
+
+  private async indexFile(filePath: string): Promise<FileIndex | null> {
+    const parser = this.parsers.get(extname(filePath))
+    if (!parser) return null
+
+    let content: string
+    try {
+      content = await readFile(filePath, 'utf-8')
+    } catch (err) {
+      console.warn(`[IndexEngine] Cannot read file ${filePath}:`, err)
+      return null
+    }
+
+    const hash = createHash('sha256').update(content).digest('hex')
+    const cached = this.cache.get(filePath)
+    if (cached && cached.contentHash === hash) return cached
+
+    try {
+      const index = parser.parseFile(filePath, content)
+      this.cache.set(index)
+      return index
+    } catch (err) {
+      // During active editing a file may be transiently invalid; keep the last
+      // known-good parse for that file so a single failure does not abort reindexing.
+      if (cached) {
+        console.warn(`[IndexEngine] Parser failed for ${filePath}, reusing cached index entry:`, err)
+        return cached
+      }
+      console.warn(`[IndexEngine] Parser failed for ${filePath}, skipping file:`, err)
+      return null
+    }
+  }
+
+  private buildGraph(files: FileIndex[], sourcePaths: Set<string>): RepoIndex {
     const skeletons = new Map<string, string>()
     const deps = new Map<string, Set<string>>()
 
@@ -162,7 +171,7 @@ export class IndexEngine {
     for (const f of files) {
       const ext = extname(f.path)
       for (const raw of f.imports) {
-        const resolved = resolveImport(raw, f.path, ext)
+        const resolved = resolveImport(raw, f.path, ext, sourcePaths)
         if (resolved && skeletons.has(resolved)) {
           deps.get(f.path)?.add(resolved)
           if (!reverseDeps.has(resolved)) reverseDeps.set(resolved, new Set())

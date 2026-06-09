@@ -56,6 +56,19 @@ export function add(a: number, b: number): number {
     expect(index.deps.get(fooPath)?.has(barPath)).toBe(true)
   })
 
+  it('resolves TypeScript directory imports to index files', async () => {
+    await writeFixture('src/foo.ts', `import { bar } from './bar'`)
+    await writeFixture('src/bar/index.ts', 'export function bar() {}')
+
+    const engine = new IndexEngine(tmpDir, DEFAULT_CONFIG)
+    await engine.build()
+    const index = engine.getRepoIndex()
+
+    const fooPath = join(tmpDir, 'src/foo.ts')
+    const barPath = join(tmpDir, 'src/bar/index.ts')
+    expect(index.deps.get(fooPath)?.has(barPath)).toBe(true)
+  })
+
   it('ignores node_modules', async () => {
     await writeFixture('node_modules/pkg/index.ts', 'export function x() {}')
     await writeFixture('src/foo.ts', 'export const y = 1')
