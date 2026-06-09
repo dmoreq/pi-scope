@@ -139,6 +139,7 @@ export function authenticate(token: string): boolean {
     expect(manager.state?.index.skeletons.size).toBe(2)
     expect(manager.state?.index.skeletons.has(join(tmpDir, 'src/new-file.ts'))).toBe(true)
     expect(manager.state?.repoMapInjected).toBe(false)
+    expect(manager.state?.graphMetrics).toBeDefined()
 
     await manager.shutdown(ctx)
     expect(watcherCloses[0]).toHaveBeenCalledTimes(1)

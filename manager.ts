@@ -1442,11 +1442,9 @@ export class SessionManager {
         currentState.stats.recordIndexLoaded(result.metadata as any)
         currentState.stats.recordIndexAge(0, false)
 
-        await this.loadGraph(currentState.projectRoot, this.state)
-
         this.intelligenceEngine.setProjectRoot(currentState.projectRoot)
 
-        this.state = this.initState({
+        const nextState = this.initState({
           index: result.index,
           repoMap: result.repoMap,
           injector: currentState.injector,
@@ -1455,7 +1453,10 @@ export class SessionManager {
           projectRoot: currentState.projectRoot,
           contextFiles,
         })
-        this.state.retrieval = new RetrievalEngine(result.index)
+        nextState.retrieval = new RetrievalEngine(result.index)
+        this.state = nextState
+
+        await this.loadGraph(currentState.projectRoot, nextState)
         this.updateStatusBar(ctx)
         const delta = result.fileCount - prevCount
         const deltaLabel =
