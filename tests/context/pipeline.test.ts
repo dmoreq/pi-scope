@@ -69,6 +69,36 @@ describe('InjectionPipeline', () => {
     expect(result.sources[2].trimmed).toBe(true)
   })
 
+  it('does not produce lower-priority sources after budget is exhausted', () => {
+    const pipeline = new InjectionPipeline()
+    const produced: string[] = []
+    pipeline.register({
+      name: 'a',
+      priority: 1,
+      produce: () => {
+        produced.push('a')
+        return 'a'.repeat(48)
+      },
+    })
+    pipeline.register({
+      name: 'b',
+      priority: 2,
+      produce: () => {
+        produced.push('b')
+        return 'b'.repeat(48)
+      },
+    })
+
+    const result = pipeline.build(12)
+
+    expect(produced).toEqual(['a'])
+    expect(result.sources).toEqual([
+      { name: 'a', injected: true, tokens: 12, trimmed: false },
+      { name: 'b', injected: false, tokens: 0, trimmed: true },
+    ])
+  })
+
+
   it('overwrites source with same name on re-register', () => {
     const pipeline = new InjectionPipeline()
     pipeline.register({ name: 'x', priority: 1, produce: () => 'first' })

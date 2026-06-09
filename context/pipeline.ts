@@ -80,24 +80,7 @@ export class InjectionPipeline {
       return { content: '', sources: [], totalTokens: 0 }
     }
 
-    const entries: Array<{
-      source: PipelineSource
-      content: string
-      tokens: number
-    }> = []
-
-    for (const source of this.sources) {
-      const content = source.produce()
-      if (!content) continue
-      entries.push({ source, content, tokens: estimateTokens(content) })
-    }
-
-    if (entries.length === 0) {
-      return { content: '', sources: [], totalTokens: 0 }
-    }
-
-    entries.sort((a, b) => a.source.priority - b.source.priority)
-
+    const sortedSources = [...this.sources].sort((a, b) => a.priority - b.priority)
     const budget = maxTokens ?? Number.POSITIVE_INFINITY
     const parts: string[] = []
     let totalTokens = 0
@@ -108,27 +91,44 @@ export class InjectionPipeline {
       trimmed: boolean
     }> = []
 
-    for (const entry of entries) {
-      const wouldBe = totalTokens + entry.tokens
-
-      if (wouldBe > budget && parts.length > 0) {
+    for (const source of sortedSources) {
+      if (parts.length > 0 && totalTokens >= budget) {
         sourceStats.push({
-          name: entry.source.name,
+          name: source.name,
           injected: false,
-          tokens: entry.tokens,
+          tokens: 0,
           trimmed: true,
         })
         continue
       }
 
-      parts.push(entry.content)
+      const content = source.produce()
+      if (!content) continue
+      const tokens = estimateTokens(content)
+      const wouldBe = totalTokens + tokens
+
+      if (wouldBe > budget && parts.length > 0) {
+        sourceStats.push({
+          name: source.name,
+          injected: false,
+          tokens,
+          trimmed: true,
+        })
+        continue
+      }
+
+      parts.push(content)
       totalTokens = wouldBe
       sourceStats.push({
-        name: entry.source.name,
+        name: source.name,
         injected: true,
-        tokens: entry.tokens,
+        tokens,
         trimmed: false,
       })
+    }
+
+    if (parts.length === 0) {
+      return { content: '', sources: sourceStats, totalTokens: 0 }
     }
 
     return {
