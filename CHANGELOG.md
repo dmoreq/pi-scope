@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.9.0] - 2026-06-09
+
+### Added
+- **`shared/path-policy.ts`** — Unified source-path policy module: `createPathPolicy()`, `PathPolicy` interface, `DEFAULT_IGNORES`, `SOURCE_EXTENSIONS`, `PARSER_EXTENSIONS`, `isSupportedSourcePath()`, `hasParserSupport()`. Eliminates duplicated ignore/path logic scattered across indexer, commands, and tools.
+- **`shared/concurrency.ts`** — `mapLimit<T, R>(items, limit, fn)`: bounded concurrent async mapping utility, used by the indexer for parallel file parsing.
+- **`shared/line-window.ts`** — `readLineWindow()` (async, streaming) and `readLineWindowSync()` (sync, chunked reads): efficient partial-file reads for hashline anchor extraction, replacing full-file reads.
+- **`shared/index-fingerprint.ts`** — `computeRepoIndexFingerprint(index)`: SHA-256 fingerprint of a `RepoIndex` (files + deps + symbols). Extracted from `graph-service.ts` so it can be computed once at index-save time and reused on reload.
+- **`context/graph-lookup-index.ts`** — `GraphLookupIndex` class: pre-built read-only lookup tables (node adjacency, in/out-degree, community membership, god-node maps, surprise maps) for all graph analysis hot paths. `buildGraphLookupIndex(analysis)` factory function. Shared across retrieval, dep-context, LSP hover, and hashline-inject.
+- **`StoredIndexV2.graphFingerprint`** and **`IndexMetadata.graphFingerprint`** — new optional fields in `shared/schema-v2.ts`; the index-store persists the fingerprint so the graph-service can skip recomputing it on reload.
+
+### Changed
+- **`indexer/engine.ts`** — `IndexEngine.build()` now parallelizes file parsing with `mapLimit(..., 12, ...)`. `resolveImport()` accepts a pre-built `sourcePaths: Set<string>` instead of doing per-import `existsSync()` checks, eliminating O(files²) filesystem calls.
+- **`context/retrieval.ts`** — `RetrievalEngine` builds pre-computed inverted lookup tables (`exactSymbols`, `partialSymbols`, `filenames`, `exactPaths`, `suffixPaths`) at construction time; scoring no longer iterates the full symbol index on every query.
+- **`context/pipeline.ts`** — `InjectionPipeline.produce()` now lazily evaluates `source.produce()` in priority order, skipping all remaining sources once the token budget is exhausted. Previously, all sources were produced eagerly before budget trimming.
+- **`lsp/service.ts`** — `ensureDocumentOpen()` now uses an `openingDocs: Map<string, Promise<void>>` to coalesce concurrent open requests for the same file, preventing redundant reads during batch navigation.
+- **`services/graph-service.ts`** — `analyzeFromIndex()` accepts `{ indexFingerprint?: string }` option; if provided, skips recomputing the SHA-256 fingerprint. Private `indexFingerprint()` function removed and superseded by `shared/index-fingerprint.ts`.
+- **`manager.ts`** — Auto-reindex now correctly builds `nextState` before calling `loadGraph(nextState)`, preventing graph analysis from landing on the previous session state object. Manager pre-builds `GraphLookupIndex` after graph analysis and passes it to retrieval and dep-context.
+- **`algorithms/community-detection.ts`** and **`algorithms/pagerank.ts`** — Performance-optimized implementations (lower GC pressure, tighter loop structures).
+- **`graph/analyzers/graph-analyzer.ts`** and **`compute-graph-analysis.ts`** — Refactored hot paths for cold graph analysis.
+- **`commands/hashline-read.ts`** and **`hashline/lsp-hover-anchor.ts`** — Now use `readLineWindowSync` for anchor extraction instead of loading full file content.
+- **`context/dep-context.ts`**, **`context/graph-impact.ts`**, **`context/graph-lsp-hover.ts`**, **`context/hashline-inject.ts`** — Accept pre-built `GraphLookupIndex` to avoid redundant graph traversals.
+
+### Fixed
+- **`manager.ts`** — Graph state was silently lost after auto-reindex because `loadGraph` was called before `this.state` was updated to the new session state; now correctly ordered.
+
+### Performance
+
+| Operation | Before | After |
+|-----------|--------|-------|
+| Source indexing (1,000 files) | Sequential | 12-way parallel via `mapLimit` |
+| Import resolution | `existsSync()` per import | Set lookup (`O(1)`) via pre-built `sourcePaths` |
+| Retrieval scoring | Full `symbolIndex` scan per query | Pre-built inverted lookup tables |
+| Graph fingerprint on reload | Recomputed from index | Read from persisted `StoredIndexV2.graphFingerprint` |
+| Context pipeline | All sources produced eagerly | Lazy: skips sources past budget |
+| LSP batch document open | One `readFile` per concurrent open | Coalesced: one read total via `openingDocs` map |
+| Graph lookups (community, god-node, adjacency) | Linear scans per query | O(1) via `GraphLookupIndex` pre-built maps |
+
+### Quality
+- **Tests:** ~730 tests across 60+ test files (all passing)
+- Added 16 new test files covering: concurrency, line-window, path-policy, cycle-detection, dep-context, graph-impact, graph-lsp-hover, hashline-inject, retrieval-graph, pipeline (lazy budget), indexer parallelism, lsp-batch, hashline-editor-mismatch, manager-reindex, graph-cache-fingerprint integration
+
 ## [0.8.0] - 2026-05-12
 
 ### Added
