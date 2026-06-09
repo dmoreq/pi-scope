@@ -37,7 +37,7 @@ describe('formatHashlineRead', () => {
       endLine: 1,
       recordOnRead: false,
     })
-    expect(out).toMatch(/lines 1–1 of \d+/)
+    expect(out).toContain('Showing lines 1–1.')
     expect(out).toContain('const x = 1')
   })
 

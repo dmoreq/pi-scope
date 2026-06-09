@@ -2,11 +2,11 @@
  * Inject hashline anchor snippets into dep-context for in-focus files.
  */
 
-import { closeSync, openSync, readSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { formatHashLines } from '../hashline/line-hash.js'
 import type { LineRegionHint } from './hashline-region.js'
 import { estimateTokens } from '../shared/token.js'
+import { readLineWindowSync } from '../shared/line-window.js'
 
 export interface HashlineInjectOptions {
   enabled: boolean
@@ -62,41 +62,6 @@ function resolveRequestedBounds(
 
   const end = maxLines
   return { start: 1, end, label: `lines 1–${end}` }
-}
-
-function readLineWindowSync(absPath: string, startLine: number, endLine: number): string[] {
-  const fd = openSync(absPath, 'r')
-  const buffer = Buffer.allocUnsafe(64 * 1024)
-  const lines: string[] = []
-  let carry = ''
-  let currentLine = 1
-
-  try {
-    while (currentLine <= endLine) {
-      const bytesRead = readSync(fd, buffer, 0, buffer.length, null)
-      if (bytesRead === 0) break
-
-      const text = carry + buffer.toString('utf-8', 0, bytesRead)
-      const parts = text.split(/\r?\n/)
-      carry = parts.pop() ?? ''
-
-      for (const line of parts) {
-        if (currentLine >= startLine && currentLine <= endLine) {
-          lines.push(line)
-        }
-        currentLine++
-        if (currentLine > endLine) break
-      }
-    }
-
-    if (carry.length > 0 && currentLine >= startLine && currentLine <= endLine) {
-      lines.push(carry)
-    }
-
-    return lines
-  } finally {
-    closeSync(fd)
-  }
 }
 
 function readAnchorWindow(absPath: string, opts: HashlineInjectOptions): AnchorWindow | null {

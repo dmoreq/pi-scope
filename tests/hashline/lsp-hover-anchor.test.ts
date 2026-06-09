@@ -19,7 +19,7 @@ describe('appendHashlineHoverSection', () => {
     await writeFile(file, 'alpha\nbeta\ngamma\n', 'utf-8')
 
     const body = '### Hover\n`function beta`'
-    const out = await appendHashlineHoverSection(file, 2, dir, body)
+    const out = await appendHashlineHoverSection(file, 1, dir, body)
 
     expect(out).toContain('### Hashline anchor')
     expect(out).toContain('hashline_read')
@@ -30,7 +30,7 @@ describe('appendHashlineHoverSection', () => {
   it('returns body unchanged when hover is disabled', async () => {
     setHashlineHoverEnabled(false)
     const body = 'plain hover'
-    const out = await appendHashlineHoverSection('/nope.ts', 1, '/', body)
+    const out = await appendHashlineHoverSection('/nope.ts', 0, '/', body)
     expect(out).toBe(body)
     setHashlineHoverEnabled(true)
   })
@@ -40,7 +40,7 @@ describe('appendHashlineHoverSection', () => {
     const file = join(dir, 'one.ts')
     await writeFile(file, 'only\n', 'utf-8')
     const body = 'hover'
-    expect(await appendHashlineHoverSection(file, 0, dir, body)).toBe(body)
+    expect(await appendHashlineHoverSection(file, -1, dir, body)).toBe(body)
     expect(await appendHashlineHoverSection(file, 99, dir, body)).toBe(body)
   })
 })

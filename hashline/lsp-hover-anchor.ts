@@ -2,9 +2,9 @@
  * Append hashline anchor hints to LSP hover output.
  */
 
-import { readFileSync } from 'node:fs'
 import { relative } from 'node:path'
 import { computeLineHash, formatHashLine, initHash } from './line-hash.js'
+import { readLineWindow } from '../shared/line-window.js'
 
 let hashlineHoverEnabled = true
 
@@ -18,29 +18,32 @@ export async function appendHashlineHoverSection(
   projectRoot: string,
   markdownBody: string
 ): Promise<string> {
-  if (!hashlineHoverEnabled || line < 1) return markdownBody
+  if (!hashlineHoverEnabled || line < 0) return markdownBody
 
   await initHash()
 
-  let raw: string
+  const anchorLineNumber = line + 1
+  let lineText: string
   try {
-    raw = readFileSync(absPath, 'utf-8')
+    const window = await readLineWindow(absPath, {
+      startLine: anchorLineNumber,
+      endLine: anchorLineNumber,
+      countTotalLines: false,
+    })
+    if (window.lines.length === 0) return markdownBody
+    lineText = window.lines[0] ?? ''
   } catch {
     return markdownBody
   }
 
-  const lines = raw.split('\n')
-  if (line > lines.length) return markdownBody
-
-  const lineText = lines[line - 1] ?? ''
-  const anchorLine = formatHashLine(line, lineText)
-  const tag = `${line}${computeLineHash(line, lineText)}`
+  const anchorLine = formatHashLine(anchorLineNumber, lineText)
+  const tag = `${anchorLineNumber}${computeLineHash(anchorLineNumber, lineText)}`
   const rel = relative(projectRoot, absPath)
 
   return (
     `${markdownBody}\n\n### Hashline anchor\n` +
-    `- Cursor line **${line}**: use anchor \`${tag}\` with \`hashline_edit\` (\`dry_run: true\` first).\n` +
-    `- Full context: \`hashline_read\` path=\`${rel}\` start_line=${Math.max(1, line - 5)} end_line=${Math.min(lines.length, line + 5)}\`\n` +
+    `- Cursor line **${anchorLineNumber}**: use anchor \`${tag}\` with \`hashline_edit\` (\`dry_run: true\` first).\n` +
+    `- Full context: \`hashline_read\` path=\`${rel}\` start_line=${Math.max(1, anchorLineNumber - 5)} end_line=${anchorLineNumber + 5}\`\n` +
     '```\n' +
     `${anchorLine}\n` +
     '```'

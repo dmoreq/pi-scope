@@ -9,6 +9,7 @@ import { AnchorStateManager } from '../hashline/state-manager.js'
 import { formatHashLines, initHash } from '../hashline/line-hash.js'
 import { streamHashLinesFromLines } from '../hashline/streaming.js'
 import { createPathPolicy } from '../shared/path-policy.js'
+import { readLineWindow as readSharedLineWindow } from '../shared/line-window.js'
 
 export interface HashlineReadOptions {
   recordOnRead?: boolean
@@ -80,7 +81,7 @@ function resolveSliceBounds(
 async function readLineWindow(
   absPath: string,
   options: HashlineReadOptions
-): Promise<{ lines: string[]; totalLines: number; start: number; end: number }> {
+): Promise<{ lines: string[]; totalLines?: number; start: number; end: number }> {
   const requestedStart = options.startLine != null ? Math.max(1, options.startLine) : 1
   const requestedEnd =
     options.endLine != null
@@ -88,6 +89,14 @@ async function readLineWindow(
       : options.maxLines != null
         ? requestedStart + options.maxLines - 1
         : Number.POSITIVE_INFINITY
+
+  if (Number.isFinite(requestedEnd)) {
+    return readSharedLineWindow(absPath, {
+      startLine: requestedStart,
+      endLine: requestedEnd,
+      countTotalLines: false,
+    })
+  }
 
   const lines: string[] = []
   let totalLines = 0
@@ -127,7 +136,7 @@ export async function formatHashlineRead(
 
   const shouldStreamWindow = options.startLine != null || options.endLine != null || options.maxLines != null
   let lines: string[]
-  let totalLines: number
+  let totalLines: number | undefined
   let start: number
   let end: number
   let label: string
@@ -140,7 +149,12 @@ export async function formatHashlineRead(
       totalLines = window.totalLines
       start = window.start
       end = window.end
-      label = start === 1 && end === totalLines ? `lines 1–${totalLines}` : `lines ${start}–${end} of ${totalLines}`
+      label =
+        totalLines != null
+          ? start === 1 && end === totalLines
+            ? `lines 1–${totalLines}`
+            : `lines ${start}–${end} of ${totalLines}`
+          : `lines ${start}–${end}`
     } else {
       const raw = await readFile(resolved.absPath, 'utf-8')
       if (options.recordOnRead !== false) {
@@ -165,7 +179,7 @@ export async function formatHashlineRead(
 
   const header = [
     `## Hashline read: ${trimmed}`,
-    `${totalLines} line(s) — showing ${label}.`,
+    totalLines != null ? `${totalLines} line(s) — showing ${label}.` : `Showing ${label}.`,
     shouldStreamWindow && options.recordOnRead !== false && !recorded
       ? 'Anchor state was not recorded for this ranged read; `hashline_edit` will validate against the current file.'
       : null,
@@ -177,7 +191,7 @@ export async function formatHashlineRead(
     '```',
   ].filter((line): line is string => line != null)
 
-  if (end < totalLines) {
+  if (totalLines != null && end < totalLines) {
     header.push(
       '',
       `_(File continues to line ${totalLines}. Use \`hashline_read\` with start_line/end_line or \`/hashline-read ${trimmed} <start> <end>\`.)_`
