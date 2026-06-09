@@ -77,4 +77,20 @@ describe('RetrievalEngine graph boosts', () => {
     expect(fileInCommunity(HUB, 'core', graph, ROOT, index)).toBe(true)
     expect(fileInCommunity(UTIL, 'core', graph, ROOT, index)).toBe(false)
   })
+
+  it('uses an injected graph lookup index for active community boosts', () => {
+    const engine = new RetrievalEngine(makeIndex())
+    const lookupIndex = buildGraphLookupIndex(graph)
+    const scored = engine.retrieveTopK('Hub', 5, new Set(), {
+      graph,
+      projectRoot: ROOT,
+      activeCommunityId: 'core',
+      boostGodNodes: false,
+      boostActiveCommunity: true,
+      lookupIndex,
+    })
+
+    const hub = scored.find(s => s.file === HUB)
+    expect(hub?.signals).toContain('graph:community')
+  })
 })

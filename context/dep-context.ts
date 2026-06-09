@@ -6,6 +6,7 @@ import { estimateTokens } from '../shared/token.js'
 import type { RepoIndex } from '../shared/types.js'
 import { parseGraphNodeId } from './graph-node-id.js'
 import type { GraphAnalysis } from './graph-types.js'
+import type { GraphLookupIndex } from './graph-lookup-index.js'
 import { RetrievalEngine, type RetrievalGraphOptions, type ScoredFile } from './retrieval.js'
 import type { SlimConfig } from '../shared/types.js'
 
@@ -43,7 +44,7 @@ export class ContextInjector {
     transitiveDepth = 1,
     graphAnalysis?: GraphAnalysis | null,
     hashline?: HashlineInjectOptions,
-    retrievalGraph?: { activeCommunityId?: string | null; graphConfig?: SlimConfig['graph'] }
+    retrievalGraph?: { activeCommunityId?: string | null; graphConfig?: SlimConfig['graph']; lookupIndex?: GraphLookupIndex }
   ): string {
     this.lastInjectedHashlinePaths.clear()
     const inFocus = this.detectInFocusFiles(
@@ -154,7 +155,7 @@ export class ContextInjector {
     extraPaths?: Set<string>,
     retrieval?: RetrievalEngine,
     graphAnalysis?: GraphAnalysis | null,
-    retrievalGraph?: { activeCommunityId?: string | null; graphConfig?: SlimConfig['graph'] }
+    retrievalGraph?: { activeCommunityId?: string | null; graphConfig?: SlimConfig['graph']; lookupIndex?: GraphLookupIndex }
   ): Set<string> {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()
@@ -185,6 +186,7 @@ export class ContextInjector {
               boostGodNodes: cfg?.boostRetrievalWithGodNodes ?? true,
               boostActiveCommunity: cfg?.boostRetrievalWithActiveCommunity ?? true,
               projectRoot: this.projectRoot,
+              lookupIndex: retrievalGraph?.lookupIndex,
             }
           : undefined
 

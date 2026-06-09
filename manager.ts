@@ -9,6 +9,7 @@ import { readFile } from 'node:fs/promises'
 import { ContextInjector } from './context/dep-context.js'
 import { cycleWarningForFiles, formatCycleIntelligenceBlock } from './context/graph-cycle-warn.js'
 import { formatGraphInsightsSection, topGodLabels } from './context/graph-insights-format.js'
+import { buildGraphLookupIndex, type GraphLookupIndex } from './context/graph-lookup-index.js'
 import { formatGraphPulse } from './context/graph-pulse.js'
 import type { GraphAnalysis } from './context/graph-types.js'
 import { type ProviderGuidanceFile, formatProviderGuidanceSection, loadProviderGuidance } from './context/guidance.js'
@@ -114,6 +115,7 @@ export interface SessionState {
   intelligenceInjected: boolean
   intelligenceWorkflowInjected: boolean
   graphMetrics?: GraphMetricsSummary
+  graphLookupIndex?: GraphLookupIndex
   retrieval: RetrievalEngine | undefined
   /** Recent tool names for graph/LSP steer plugins (rolling window). */
   recentToolNames: string[]
@@ -647,6 +649,7 @@ export class SessionManager {
     setLspGraphAnalysis(nativeResult.analysis)
     setGraphImpactAnalysis(nativeResult.analysis)
     setLspRepoIndex(index)
+    session.graphLookupIndex = buildGraphLookupIndex(nativeResult.analysis)
 
     const graphSummary = buildGraphMetricsSummary(nativeResult.analysis, analysisMs, nativeResult.cacheHit, 1)
     session.graphMetrics = graphSummary
@@ -1135,7 +1138,7 @@ export class SessionManager {
         graph,
         hashlineOpts,
         graph && s.config.graph.enabled
-          ? { activeCommunityId, graphConfig: s.config.graph }
+          ? { activeCommunityId, graphConfig: s.config.graph, lookupIndex: s.graphLookupIndex }
           : undefined
       )
 

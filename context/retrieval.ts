@@ -15,7 +15,7 @@ import { godNodeMatchesFilePath } from './graph-node-id.js'
 import { godNodeMatchesSymbol } from './god-node-match.js'
 import type { GraphAnalysis } from './graph-types.js'
 import { fileInCommunity } from './graph-community-files.js'
-import { buildGraphLookupIndex } from './graph-lookup-index.js'
+import { buildGraphLookupIndex, type GraphLookupIndex } from './graph-lookup-index.js'
 import type { RepoIndex } from '../shared/types.js'
 
 export interface RetrievalGraphOptions {
@@ -24,6 +24,7 @@ export interface RetrievalGraphOptions {
   boostGodNodes?: boolean
   boostActiveCommunity?: boolean
   projectRoot?: string
+  lookupIndex?: GraphLookupIndex
 }
 
 export interface ScoredFile {
@@ -333,7 +334,7 @@ export class RetrievalEngine {
     const graph = opts.graph
     const root = opts.projectRoot
     if (!graph || !root) return files
-    const graphLookupIndex = buildGraphLookupIndex(graph)
+    const graphLookupIndex = opts.lookupIndex ?? buildGraphLookupIndex(graph)
 
     const boosted = files.map(f => {
       let score = f.score
