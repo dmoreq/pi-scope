@@ -454,7 +454,7 @@ export class SessionManager {
     this.lspInstallSuggestion = lspSession.installSuggestion
     if (lspSession.installSuggestion) {
       console.warn(`[pi-scope] ${lspSession.installSuggestion.replace(/\n/g, ' ')}`)
-      ctx.ui.notify(lspSession.installSuggestion, 'warning')
+      ctx.ui.notify(lspSession.installSuggestion, 'info')
     }
     if (!lspSession.active) {
       setLspSessionEnabled(false, lspSession.installSuggestion)
@@ -539,7 +539,7 @@ export class SessionManager {
 
     if (cached.stale?.stale) {
       const reason = formatStalenessReasonCompact(cached.stale)
-      ctx.ui.notify(nWarn(`Index stale, rebuilding (${reason})`), 'warning')
+      ctx.ui.notify(nInfo(`Updating index (${reason})...`), 'info')
     }
 
     // Fresh build
@@ -669,7 +669,7 @@ export class SessionManager {
       const line = formatGraphQualityOneLine(graphSummary)
       const { quality } = graphSummary
       if (quality.score < m.warnQualityBelow || quality.cycleCount > m.warnCyclesAbove) {
-        this._notify(nWarn(line), 'warning')
+        this._notify(nInfo(line), 'info')
       } else if (quality.score >= 80) {
         this._notify(nInfo(line), 'info')
       }
@@ -977,11 +977,11 @@ export class SessionManager {
         const path = extractToolPath(event.input)
         if (path) {
           this._notify(
-            nWarn(
+            nInfo(
               `New import in \`${path}\` may extend an existing cycle ` +
                 `(${graph.metrics.cycleCount} cycles tracked) — verify with lsp_find_references`
             ),
-            'warning'
+            'info'
           )
         }
       }
@@ -1473,7 +1473,7 @@ export class SessionManager {
         ctx.ui.notify(nSuccess(`Reindexed ${result.fileCount} files${deltaLabel}`), 'info')
       } catch (error) {
         console.warn('pi-scope: auto-reindex failed:', error)
-        ctx.ui.notify(nWarn('Auto-reindex failed; continuing with previous index'), 'warning')
+        ctx.ui.notify(nInfo('Auto-reindex failed; continuing with previous index'), 'info')
       } finally {
         this.autoReindexInFlight = null
         if (this.autoReindexQueued) {
